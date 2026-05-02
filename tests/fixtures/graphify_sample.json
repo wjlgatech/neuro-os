@@ -1,0 +1,83 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {
+    "hyperedges": []
+  },
+  "nodes": [
+    {
+      "id": "rl_dopamine",
+      "label": "dopamine reward prediction error",
+      "file_type": "doc",
+      "source_file": "papers/schultz_1997.md",
+      "source_location": "L1",
+      "community": 0
+    },
+    {
+      "id": "predictive_coding",
+      "label": "predictive coding cortical hierarchy",
+      "file_type": "doc",
+      "source_file": "papers/friston_2010.md",
+      "source_location": "L1",
+      "community": 1
+    },
+    {
+      "id": "attention_qkv",
+      "label": "attention query key value gating",
+      "file_type": "doc",
+      "source_file": "papers/vaswani_2017.md",
+      "source_location": "L1",
+      "community": 2
+    },
+    {
+      "id": "hebbian_stdp",
+      "label": "hebbian fire together wire together",
+      "file_type": "doc",
+      "source_file": "papers/bi_poo.md",
+      "source_location": "L1",
+      "community": 3
+    },
+    {
+      "id": "noise_node",
+      "label": "miscellaneous review note",
+      "file_type": "doc",
+      "source_file": "notes/random.md",
+      "source_location": "L1",
+      "community": 4
+    }
+  ],
+  "links": [
+    {
+      "source": "rl_dopamine",
+      "target": "predictive_coding",
+      "relation": "contrasts_with",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "weight": 1.0
+    },
+    {
+      "source": "attention_qkv",
+      "target": "predictive_coding",
+      "relation": "implements",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "weight": 1.0
+    },
+    {
+      "source": "hebbian_stdp",
+      "target": "predictive_coding",
+      "relation": "implements",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "weight": 1.0
+    },
+    {
+      "source": "rl_dopamine",
+      "target": "hebbian_stdp",
+      "relation": "modulates",
+      "confidence": "INFERRED",
+      "confidence_score": 0.65,
+      "weight": 1.0
+    }
+  ]
+}

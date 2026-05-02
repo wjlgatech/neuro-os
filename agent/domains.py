@@ -1,30 +1,16 @@
 """
-Pluggable Domain abstraction for the self-modification loop.
+Neuro-OS domains, registered on top of flywheel-loop's substrate.
 
-A ``Domain`` bundles everything OEC needs to operate on a particular
-artifact:
+The ``Domain`` dataclass and registry come from ``flywheel_loop.domains``.
+This module:
 
-* ``ontology`` — the knowledge graph the extractor classifies into.
-* ``golden_cases`` — list of ``{text, expected_mechanism}`` used as the
-  invariant: a mutation is beneficial iff it preserves or improves
-  classification accuracy on these.
-* ``extractor`` — a callable ``text -> {knowledge, decision}`` used in
-  the host process for baseline observation.
-* ``validators`` — list of callables ``sandbox_path -> {success, ...}``
-  run in the sandbox after a patch is applied. The aggregate must
-  succeed for promotion.
-* ``mutable_paths`` — allowlist of repo-relative file paths that
-  patches are permitted to touch. Anything outside this list is
-  refused at patch-application time.
-
-Two domains are registered out of the box:
-
-* ``neuroscience_v1`` — the original neuroscience ingestion behavior.
-* ``neuro_os_self_v1`` — neuro-os as the artifact under improvement.
-  Same goldens (we use the existing classification benchmark as a
-  proxy for "the system still works"); validators include pytest in
-  addition to the import smoke test; only the priority-rules data
-  file is mutable.
+* re-exports ``Domain`` / ``register_domain`` / ``get_domain`` /
+  ``list_domains`` so existing callers don't break,
+* defines the neuro-os-specific validators (``import_smoke_validator``,
+  ``golden_accuracy_validator``, ``pytest_validator``) that know about
+  ``agent.ingestion_pipeline`` and ``GOLDEN_CASES``,
+* registers ``neuroscience_v1`` (read-only) and ``neuro_os_self_v1``
+  (mutable: ``priority_rules.json``).
 """
 from __future__ import annotations
 
@@ -32,28 +18,23 @@ import json
 import os
 import subprocess
 import sys
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List
 
+# Substrate API.
+from flywheel_loop.domains import (
+    Domain,
+    Extractor,
+    Validator,
+    get_domain,
+    list_domains,
+    register_domain,
+)
+
 from agent.ingestion_pipeline import _canonical_ontology, run_pipeline
 from agent.patches import PRIORITY_RULES_RELATIVE
-from agent.sandbox_runner import run_validation as _import_validation
+from agent.sandbox_runner import run_validation as _agent_run_validation
 from agent.self_evolution_controller import GOLDEN_CASES
-
-
-Validator = Callable[[str], Dict[str, Any]]
-Extractor = Callable[[str], Dict[str, Any]]
-
-
-@dataclass
-class Domain:
-    name: str
-    ontology: Dict[str, Any]
-    golden_cases: List[Dict[str, str]]
-    extractor: Extractor
-    validators: List[Validator]
-    mutable_paths: List[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -62,8 +43,8 @@ class Domain:
 
 
 def import_smoke_validator(sandbox_path: str) -> Dict[str, Any]:
-    """Re-export of the sandbox import smoke test for use as a Domain validator."""
-    result = _import_validation(sandbox_path)
+    """Re-export the import smoke test from sandbox_runner."""
+    result = _agent_run_validation(sandbox_path)
     inner = result["validators"][0]
     return {
         "name": inner.get("name", "import_smoke_test"),
@@ -76,9 +57,8 @@ def import_smoke_validator(sandbox_path: str) -> Dict[str, Any]:
 def golden_accuracy_validator(sandbox_path: str) -> Dict[str, Any]:
     """Run GOLDEN_CASES through the sandbox copy of the pipeline.
 
-    Uses a subprocess so the sandbox's data files (e.g. its possibly-
-    patched ``priority_rules.json``) are read by a fresh import of
-    ``agent.ingestion_pipeline``.
+    Uses a subprocess so the sandbox's ``priority_rules.json`` is read
+    by a fresh import of ``agent.ingestion_pipeline``.
     """
     cases_json = json.dumps(GOLDEN_CASES)
     script = (
@@ -126,13 +106,13 @@ def golden_accuracy_validator(sandbox_path: str) -> Dict[str, Any]:
 
 
 def pytest_validator(sandbox_path: str) -> Dict[str, Any]:
-    """Run the sandboxed pytest suite. Must exit 0 for the domain to accept."""
+    """Run the sandboxed pytest suite (heavy; opt-in)."""
     sandbox_root = Path(sandbox_path)
     repo_root = Path(__file__).resolve().parent.parent
     tests_target = sandbox_root / "tests"
     if not tests_target.exists():
-        # Tests dir lives at repo root, not under agent/. Copy it for the run.
         import shutil
+
         shutil.copytree(repo_root / "tests", tests_target)
     proc = subprocess.run(
         [sys.executable, "-m", "pytest", "tests/", "-q", "--tb=no"],
@@ -155,37 +135,17 @@ def pytest_validator(sandbox_path: str) -> Dict[str, Any]:
 
 
 def _neuroscience_extractor(text: str) -> Dict[str, Any]:
-    """Run the live neuroscience pipeline against ``text``."""
     return run_pipeline(text, _canonical_ontology())
 
 
 # ---------------------------------------------------------------------------
-# Domain registry
+# Default domains (registered idempotently)
 # ---------------------------------------------------------------------------
 
 
-_REGISTRY: Dict[str, Domain] = {}
-
-
-def register_domain(domain: Domain) -> None:
-    if domain.name in _REGISTRY:
-        raise ValueError(f"domain {domain.name!r} already registered")
-    _REGISTRY[domain.name] = domain
-
-
-def get_domain(name: str) -> Domain:
-    if name not in _REGISTRY:
-        raise KeyError(f"unknown domain {name!r}; registered: {list(_REGISTRY)}")
-    return _REGISTRY[name]
-
-
-def list_domains() -> List[str]:
-    return list(_REGISTRY)
-
-
-# ---------------------------------------------------------------------------
-# Default domains
-# ---------------------------------------------------------------------------
+def _ensure_registered(domain: Domain) -> None:
+    if domain.name not in list_domains():
+        register_domain(domain)
 
 
 _NEUROSCIENCE_V1 = Domain(
@@ -194,7 +154,7 @@ _NEUROSCIENCE_V1 = Domain(
     golden_cases=list(GOLDEN_CASES),
     extractor=_neuroscience_extractor,
     validators=[import_smoke_validator, golden_accuracy_validator],
-    mutable_paths=[],  # neuroscience domain does not self-modify code
+    mutable_paths=[],
 )
 
 
@@ -203,21 +163,19 @@ _NEURO_OS_SELF_V1 = Domain(
     ontology=_canonical_ontology(),
     golden_cases=list(GOLDEN_CASES),
     extractor=_neuroscience_extractor,
-    validators=[
-        import_smoke_validator,
-        golden_accuracy_validator,
-        # pytest_validator is heavy; opt-in via override if needed.
-    ],
+    validators=[import_smoke_validator, golden_accuracy_validator],
     mutable_paths=[PRIORITY_RULES_RELATIVE],
 )
 
 
-register_domain(_NEUROSCIENCE_V1)
-register_domain(_NEURO_OS_SELF_V1)
+_ensure_registered(_NEUROSCIENCE_V1)
+_ensure_registered(_NEURO_OS_SELF_V1)
 
 
 __all__ = [
     "Domain",
+    "Extractor",
+    "Validator",
     "register_domain",
     "get_domain",
     "list_domains",

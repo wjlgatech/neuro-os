@@ -45,11 +45,12 @@ def main() -> None:
         # 2. Run the meta loop.
         report = run_self_modification(get_domain("neuro_os_self_v1"))
         print(f"loop status:        {report['status']}")
+        baseline_acc = report.get("baseline", {}).get("accuracy")
         if report["results"]:
             outcome = report["results"][0]
             print(f"  patch:            {outcome['patch']['op']} {outcome['patch']['payload']}")
-            print(f"  baseline acc:     {outcome['baseline_accuracy']}")
-            print(f"  post-patch acc:   {outcome['post_accuracy']}")
+            print(f"  baseline acc:     {baseline_acc}")
+            print(f"  post-patch acc:   {outcome.get('post_accuracy')}")
             print(f"  promoted to live: {outcome.get('promote', {}).get('live_apply_success', False)}")
 
         # 3. Verify the live pipeline now classifies correctly.

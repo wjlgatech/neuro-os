@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neuro-os"
-version = "0.2.0"
-description = "Self-evolving, self-modifying neuroscience knowledge OS — closed-loop OEC over both knowledge and code, with allowlisted patches and sandboxed validation."
+version = "0.3.0"
+description = "Self-evolving, self-modifying neuroscience knowledge OS — closed-loop OEC over both knowledge and code, with allowlisted patches and sandboxed validation. Built on flywheel-loop."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
@@ -33,7 +33,9 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
-dependencies = []
+dependencies = [
+    "flywheel-loop>=0.1.0",
+]
 
 [project.optional-dependencies]
 dev = [

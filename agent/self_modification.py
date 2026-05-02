@@ -1,203 +1,72 @@
 """
-Closed-loop self-modification for neuro-os.
+Neuro-OS L2 (code loop): closed self-modification.
 
-``run_self_modification(domain)`` runs a full OEC pass against the
-domain: observe golden cases, evaluate the result, propose patched
-controls, and for each patched proposal:
+The substrate (``flywheel_loop.self_modification.run_self_modification``)
+provides the generic OEC loop. This module is the thin neuro-os adapter
+that:
 
-1. Spin up an isolated sandbox copy of the repo.
-2. Apply the patch in the sandbox (allowlisted ops + paths only).
-3. Run the domain's validators against the sandbox.
-4. If every validator passes AND the post-patch goldens accuracy is
-   at least the baseline accuracy, promote the patch by re-applying
-   it to the live tree and recording it in the version registry.
-   Otherwise revert (the live tree is never touched) and record
-   ``rolled_back`` in the registry.
+* uses ``propose_controls`` from ``agent.self_evolution_controller``
+  as the proposer,
+* enriches each outcome with ``post_accuracy`` extracted from the
+  ``golden_accuracy`` validator's result, so existing tests can read
+  it directly off the outcome dict,
+* exposes the same ``report["registry_entries"]`` and
+  ``report["merges_applied"]`` shape neuro-os tests expect (the
+  substrate uses ``registry`` and reports beneficial-but-not-promoted
+  separately).
 
-Safety properties:
-
-* The host process never directly mutates the live tree until the
-  sandbox has validated the patch.
-* Every patch is allowlisted (``ALLOWED_OPS`` in ``patches.py``) and
-  must target a path on the domain's ``mutable_paths`` list.
-* Every patch carries an inverse so the registry entry includes a
-  one-step rollback recipe.
-* ``max_patches`` defaults to 1 — at most one mutation per loop tick.
+The substrate is the engine; this file is the steering wheel.
 """
 from __future__ import annotations
 
-from dataclasses import asdict
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+import os
+from typing import Any, Dict, Optional
+
+from flywheel_loop.self_modification import (
+    run_self_modification as _fw_run_self_modification,
+)
 
 from agent.domains import Domain
-from agent.patches import Patch, PatchResult, apply_patch
-from agent.sandbox_runner import (
-    apply_bounded_change,
-    cleanup_sandbox,
-    create_sandbox,
-    promote_files,
-)
-from agent.self_evolution_controller import (
-    ControlProposal,
-    evaluate_observations,
-    observe,
-    propose_controls,
-    validate_change,
-)
-from agent.version_registry import append_version
+from agent.self_evolution_controller import propose_controls
 
 
-def _validators_summary(results: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Compact view of validator results for registry storage."""
-    return {
-        "all_passed": all(r.get("success") for r in results),
-        "results": [
-            {k: v for k, v in r.items() if k not in ("imported",)}
-            for r in results
-        ],
-    }
-
-
-def _accuracy_from_validators(results: List[Dict[str, Any]]) -> Optional[float]:
-    for r in results:
+def _post_accuracy_from_validators(validators) -> Optional[float]:
+    for r in validators or []:
         if r.get("name") == "golden_accuracy" and "accuracy" in r:
             return float(r["accuracy"])
     return None
-
-
-def _evaluate_patch(
-    domain: Domain,
-    patch: Patch,
-    baseline_accuracy: float,
-) -> Dict[str, Any]:
-    """Apply ``patch`` in a fresh sandbox; return validator + decision results."""
-    sandbox_path = create_sandbox()
-    try:
-        repo_root = Path(__file__).resolve().parent.parent
-        # Apply the patch in the sandbox (sandbox is the new repo_root for this op).
-        apply_result = apply_patch(patch, sandbox_path, domain.mutable_paths)
-        validator_results: List[Dict[str, Any]] = []
-        if apply_result.success:
-            for validator in domain.validators:
-                validator_results.append(validator(sandbox_path))
-        post_accuracy = _accuracy_from_validators(validator_results)
-        beneficial = (
-            apply_result.success
-            and all(r.get("success") for r in validator_results)
-            and (post_accuracy is None or post_accuracy >= baseline_accuracy)
-        )
-        promote_summary: Optional[Dict[str, Any]] = None
-        if beneficial:
-            # Promote: re-apply the patch to the live tree. The sandbox copy
-            # already proved the change is safe; re-applying via the same
-            # allowlisted handler is simpler than copying files back.
-            live_apply = apply_patch(
-                patch,
-                str(repo_root),
-                domain.mutable_paths,
-            )
-            promote_summary = {
-                "live_apply_success": live_apply.success,
-                "live_apply_reason": live_apply.reason,
-                "files": [apply_result.target_path] if live_apply.success else [],
-            }
-        return {
-            "patch": patch.to_dict(),
-            "apply": apply_result.to_dict(),
-            "validators": validator_results,
-            "validators_summary": _validators_summary(validator_results),
-            "baseline_accuracy": baseline_accuracy,
-            "post_accuracy": post_accuracy,
-            "beneficial": beneficial,
-            "promote": promote_summary,
-        }
-    finally:
-        cleanup_sandbox(sandbox_path)
 
 
 def run_self_modification(
     domain: Domain,
     max_patches: int = 1,
 ) -> Dict[str, Any]:
-    """Execute a closed self-modification loop over ``domain``.
-
-    Returns a structured report and writes one or more rows to the
-    version registry.
-    """
-    # Step 1: observe
-    observations = observe(domain.golden_cases, pipeline_fn=domain.extractor)
-    baseline_eval = evaluate_observations(observations)
-
-    # Step 2: propose
-    proposals = propose_controls(baseline_eval)
-    patched_proposals: List[ControlProposal] = [
-        p for p in proposals if p.patch is not None
-    ][:max_patches]
-
-    # Short-circuit: stable system, no patched proposals → nothing to do.
-    if not patched_proposals:
-        registry_entry = append_version(
-            {
-                "event": "self_modification",
-                "domain": domain.name,
-                "status": "STABLE",
-                "baseline_accuracy": baseline_eval.accuracy,
-                "errors": baseline_eval.errors,
-                "candidate_proposals": [
-                    p.change_id for p in proposals if p.patch is None
-                ],
-            }
-        )
-        return {
-            "status": "STABLE",
-            "domain": domain.name,
-            "baseline": asdict(baseline_eval),
-            "patched_proposals": 0,
-            "candidate_proposals": [
-                {"change_id": p.change_id, "patchable": False} for p in proposals
-            ],
-            "results": [],
-            "registry": [registry_entry],
-        }
-
-    # Step 3: evaluate each patched proposal in its own sandbox
-    results: List[Dict[str, Any]] = []
-    registry_entries: List[Dict[str, Any]] = []
-    for proposal in patched_proposals:
-        outcome = _evaluate_patch(domain, proposal.patch, baseline_eval.accuracy)
-        outcome["change_id"] = proposal.change_id
-        outcome["reason"] = proposal.reason
-        results.append(outcome)
-        status = "promoted" if outcome["beneficial"] and outcome.get("promote", {}).get("live_apply_success") else "rolled_back"
-        entry = append_version(
-            {
-                "event": "self_modification",
-                "domain": domain.name,
-                "change_id": proposal.change_id,
-                "status": status,
-                "baseline_accuracy": baseline_eval.accuracy,
-                "post_accuracy": outcome["post_accuracy"],
-                "patch": outcome["patch"],
-                "rollback_patch": outcome["apply"]["inverse"],
-                "validators_summary": outcome["validators_summary"],
-                "promote": outcome.get("promote"),
-            }
-        )
-        registry_entries.append(entry)
-
-    overall_status = (
-        "MUTATION_PROMOTED"
-        if any(r["beneficial"] for r in results)
-        else "MUTATION_REVERTED"
+    """Drive ``domain`` through one OEC tick using neuro-os's proposer."""
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    raw = _fw_run_self_modification(
+        domain,
+        propose_controls,
+        source_dir=repo_root,
+        repo_root=repo_root,
+        max_patches=max_patches,
     )
+    # Enrich each outcome with post_accuracy + adapt to neuro-os keys.
+    enriched_results = []
+    merges_applied = 0
+    for outcome in raw.get("results", []):
+        post = _post_accuracy_from_validators(outcome.get("validators"))
+        outcome["post_accuracy"] = post
+        if outcome.get("beneficial") and (
+            outcome.get("promote", {}).get("live_apply_success")
+        ):
+            merges_applied += 1
+        enriched_results.append(outcome)
+
     return {
-        "status": overall_status,
-        "domain": domain.name,
-        "baseline": asdict(baseline_eval),
-        "patched_proposals": len(patched_proposals),
-        "results": results,
-        "registry": registry_entries,
+        **raw,
+        "results": enriched_results,
+        "registry_entries": raw.get("registry", []),
+        "merges_applied": merges_applied,
     }
 
 

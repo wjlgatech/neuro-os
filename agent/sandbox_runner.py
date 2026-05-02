@@ -1,15 +1,12 @@
 """
-Sandbox Runner.
+Neuro-OS sandbox layout — agent-dir-only, with a real subprocess import
+smoke test.
 
-Creates an isolated copy of the ``agent/`` directory under a temp dir,
-applies a user-provided change callback, and runs validators against the
-sandbox copy. Validators are plain callables that take the sandbox path
-and return ``{"name": str, "success": bool, ...}``; ``run_validation``
-aggregates them.
-
-The default validator imports the sandboxed ``agent/`` modules to catch
-syntax errors and broken imports — a real smoke test, not a hardcoded
-``True``.
+The substrate (``flywheel_loop.sandbox_runner``) provides
+sandbox primitives that copy an arbitrary source directory. Neuro-OS
+narrows the scope: only the ``agent/`` package is copied, and the
+default validator is a fresh-subprocess import smoke test that the
+loop has been using since 0.2.0.
 """
 from __future__ import annotations
 
@@ -21,11 +18,22 @@ import sys
 import tempfile
 from typing import Any, Callable, Dict, List, Optional
 
+# Re-export the substrate primitives that have no neuro-os flavor.
+from flywheel_loop.sandbox_runner import (
+    apply_bounded_change,
+    cleanup_sandbox as _fw_cleanup_sandbox,
+    promote_files as _fw_promote_files,
+)
+
 Validator = Callable[[str], Dict[str, Any]]
 
 
 def create_sandbox() -> str:
-    """Create a sandbox dir containing a fresh copy of ``agent/``."""
+    """Create a sandbox dir containing a fresh copy of ``agent/``.
+
+    The returned path is the root of the sandbox; ``agent/`` lives at
+    ``<sandbox>/agent``. Tests rely on this layout.
+    """
     sandbox_dir = tempfile.mkdtemp(prefix="neuro_os_sandbox_")
     source_dir = os.path.dirname(__file__)
     target_dir = os.path.join(sandbox_dir, "agent")
@@ -33,23 +41,16 @@ def create_sandbox() -> str:
     return sandbox_dir
 
 
-def apply_bounded_change(
-    sandbox_path: str, change_callback: Callable[[str], None]
-) -> None:
-    """Run ``change_callback(agent_dir)`` against the sandbox's agent copy."""
-    agent_dir = os.path.join(sandbox_path, "agent")
-    change_callback(agent_dir)
+def cleanup_sandbox(sandbox_path: str) -> None:
+    """Remove the sandbox directory tree."""
+    shutil.rmtree(sandbox_path, ignore_errors=True)
 
 
-# Modules that are known to be broken or scaffolds in this repo and are
-# not part of the documented self-evolving loop. They are intentionally
-# excluded from the sandbox import smoke test so unrelated rot does not
-# cause the loop to report failure.
 _SMOKE_TEST_SKIP = frozenset(
     {
-        "true_runtime.py",          # literal placeholder text
-        "multi_agent_orchestrator.py",  # legacy: imports without agent prefix
-        "self_modification_controller.py",  # legacy: stale sandbox API
+        "true_runtime.py",
+        "multi_agent_orchestrator.py",
+        "self_modification_controller.py",
     }
 )
 
@@ -58,9 +59,7 @@ def _import_smoke_test(sandbox_path: str) -> Dict[str, Any]:
     """Import every loop-relevant ``agent/*.py`` module in a fresh subprocess.
 
     Running in a subprocess ensures the sandbox copy is loaded with real
-    package machinery (so ``from agent.X import Y`` resolves correctly and
-    ``from __future__ import annotations`` is handled by the import system,
-    not by ``importlib.util.spec_from_file_location``).
+    package machinery (so ``from agent.X import Y`` resolves correctly).
     """
     agent_dir = os.path.join(sandbox_path, "agent")
     files = sorted(
@@ -94,7 +93,9 @@ def _import_smoke_test(sandbox_path: str) -> Dict[str, Any]:
             "name": "import_smoke_test",
             "success": False,
             "imported": [],
-            "failures": [{"file": "<runner>", "error": proc.stderr.strip() or "no output"}],
+            "failures": [
+                {"file": "<runner>", "error": proc.stderr.strip() or "no output"}
+            ],
         }
     payload = json.loads(proc.stdout.strip().splitlines()[-1])
     return {
@@ -109,7 +110,11 @@ def run_validation(
     sandbox_path: str,
     validators: Optional[List[Validator]] = None,
 ) -> Dict[str, Any]:
-    """Run validators against the sandbox; aggregate to a single result."""
+    """Run validators against the sandbox; aggregate to one result.
+
+    Defaults to ``[_import_smoke_test]`` for backwards compatibility
+    with neuro-os's pre-flywheel-loop sandbox API.
+    """
     if validators is None:
         validators = [_import_smoke_test]
     results = [v(sandbox_path) for v in validators]
@@ -122,8 +127,10 @@ def run_validation(
 def promote_files(sandbox_path: str, changed_files: Dict[str, Any]) -> Dict[str, Any]:
     """Copy specified files from the sandbox back into ``agent/``.
 
-    ``changed_files`` is ``{relative_path: True}`` (only truthy values are
-    promoted). Returns a summary describing which files were copied.
+    ``changed_files`` is ``{relative_path: True}``; only truthy entries
+    are promoted. The relative path is resolved against
+    ``<sandbox>/agent``, so ``ingestion_pipeline.py`` means
+    ``<sandbox>/agent/ingestion_pipeline.py``.
     """
     repo_agent_dir = os.path.dirname(__file__)
     sandbox_agent_dir = os.path.join(sandbox_path, "agent")
@@ -144,15 +151,10 @@ def promote_files(sandbox_path: str, changed_files: Dict[str, Any]) -> Dict[str,
     return {"promoted": promoted, "skipped": skipped}
 
 
-def cleanup_sandbox(sandbox_path: str) -> None:
-    """Remove the sandbox directory."""
-    shutil.rmtree(sandbox_path, ignore_errors=True)
-
-
 __all__ = [
     "create_sandbox",
+    "cleanup_sandbox",
     "apply_bounded_change",
     "run_validation",
     "promote_files",
-    "cleanup_sandbox",
 ]
