@@ -1,9 +1,9 @@
 """
-Neuro-OS TRUE Validation Loop.
+Neuro-OS TRUE Validation Loop with ontology-aware runtime context.
 
 Truth is not information. Truth is survivable, usable, repeatable transformation.
 
-Pipeline: source -> typed extraction -> TRUE validation -> ACCEPT / REJECT / REFINE
+Pipeline: source -> ontology-aware typed extraction -> TRUE validation -> ACCEPT / REJECT / REFINE
 
 TRUE:
 E = Experienceable + Experimentable
@@ -19,7 +19,7 @@ import json
 import os
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Literal
+from typing import Any, Dict, List, Literal, Optional
 
 MechanismName = Literal[
     "predictive_processing",
@@ -30,6 +30,50 @@ MechanismName = Literal[
     "unknown",
 ]
 Decision = Literal["ACCEPT", "REJECT", "REFINE"]
+
+
+ONTOLOGY_DEFAULTS: Dict[str, Dict[str, Any]] = {
+    "predictive_processing": {
+        "aliases": ["predictive processing", "bayesian brain", "free energy", "prediction error", "predictive coding", "surprise"],
+        "core": "Predict, compare with reality, and update the internal model from error.",
+        "equation": "F ≈ prediction_error + model_complexity",
+        "ai": "World models, variational inference, predictive coding networks.",
+        "human": "You feel surprise when reality violates expectation; that felt mismatch drives updating.",
+        "failures": ["strong prior ignores evidence", "over-updating to noise", "hallucination under weak correction"],
+    },
+    "hebbian_learning": {
+        "aliases": ["hebbian", "stdp", "synaptic plasticity", "fire together", "spike timing"],
+        "core": "Repeated co-activation strengthens future co-activation.",
+        "equation": "Δw ∝ x_i y_j",
+        "ai": "Local learning rules, associative memory, biologically inspired learning.",
+        "human": "Repeated practice makes the same perception-action path easier to activate.",
+        "failures": ["spurious association", "runaway excitation", "overlearning brittle habits"],
+    },
+    "reinforcement_learning": {
+        "aliases": ["dopamine", "reward", "td error", "reinforcement", "q-learning", "reward prediction error"],
+        "core": "Outcomes better than expected reinforce actions; worse outcomes weaken them.",
+        "equation": "δ = r + γV(s') - V(s)",
+        "ai": "TD learning, Q-learning, reward shaping, policy optimization.",
+        "human": "Motivation rises when expected reward and actual reward create a learning signal.",
+        "failures": ["reward hacking", "short-term dopamine capture", "misaligned habit formation"],
+    },
+    "attention": {
+        "aliases": ["attention", "saliency", "query", "key", "value", "gating", "gates"],
+        "core": "Select the signals that control processing and suppress the rest.",
+        "equation": "Attention(Q,K,V)=softmax(QK^T/sqrt(d_k))V",
+        "ai": "Transformer self-attention and saliency routing.",
+        "human": "Focus feels like one signal becoming louder and other possible actions becoming quieter.",
+        "failures": ["attention capture", "missing weak but important signals", "saliency bias"],
+    },
+    "hierarchical_abstraction": {
+        "aliases": ["hierarchy", "hierarchical", "cortex", "abstraction", "column", "levels"],
+        "core": "Compress lower-level details into higher-level reusable models.",
+        "equation": "level_n = compress(level_{n-1})",
+        "ai": "Deep networks, hierarchical RL, multi-level world models.",
+        "human": "Understanding feels deeper when many details collapse into one reusable principle.",
+        "failures": ["wrong abstraction", "premature compression", "loss of detail across levels"],
+    },
+}
 
 
 @dataclass
@@ -65,7 +109,7 @@ EXTRACTION_SCHEMA: Dict[str, Any] = {
         "title": {"type": "string"},
         "source_type": {"type": "string", "enum": ["paper", "blog", "repo", "book", "unknown"]},
         "source_url": {"type": "string"},
-        "mechanism": {"type": "string", "enum": ["predictive_processing", "hebbian_learning", "reinforcement_learning", "attention", "hierarchical_abstraction", "unknown"]},
+        "mechanism": {"type": "string", "enum": list(ONTOLOGY_DEFAULTS.keys()) + ["unknown"]},
         "core_mechanism": {"type": "string"},
         "key_equation": {"type": "string"},
         "main_claim": {"type": "string"},
@@ -87,6 +131,30 @@ EXTRACTION_SCHEMA: Dict[str, Any] = {
 }
 
 
+def load_ontology(path: str = "parsed/ontology.json") -> Dict[str, Any]:
+    target = Path(path)
+    if not target.exists():
+        return {"primitives": {name: {"aliases": spec["aliases"], "definition": spec["core"]} for name, spec in ONTOLOGY_DEFAULTS.items()}}
+    return json.loads(target.read_text(encoding="utf-8"))
+
+
+def infer_mechanism_from_ontology(source_text: str, ontology: Optional[Dict[str, Any]] = None) -> MechanismName:
+    text = source_text.lower()
+    ontology = ontology or load_ontology()
+    primitive_specs = ontology.get("primitives", {})
+
+    # Specific priority avoids classifying reward prediction error as generic predictive processing.
+    priority = ["reinforcement_learning", "predictive_processing", "hebbian_learning", "attention", "hierarchical_abstraction"]
+    for primitive in priority:
+        spec = primitive_specs.get(primitive, {})
+        aliases = list(spec.get("aliases", [])) + ONTOLOGY_DEFAULTS.get(primitive, {}).get("aliases", [])
+        definition = spec.get("definition", "")
+        haystack = text + " " + str(definition).lower()
+        if any(str(alias).lower() in haystack for alias in aliases):
+            return primitive  # type: ignore[return-value]
+    return "unknown"
+
+
 def validate_extraction(data: Dict[str, Any]) -> None:
     missing = [field for field in REQUIRED_FIELDS if field not in data]
     if missing:
@@ -101,9 +169,15 @@ def validate_extraction(data: Dict[str, Any]) -> None:
         raise ValueError("confidence must be between 0 and 1")
 
 
-def _base(source_text: str, source_url: str, mechanism: MechanismName, core: str, equation: str, ai: str, human: str, failures: List[str], confidence: float = 0.72) -> ExtractedKnowledge:
+def _base(source_text: str, source_url: str, mechanism: MechanismName, confidence: float = 0.72) -> ExtractedKnowledge:
     unknown = mechanism == "unknown"
+    spec = ONTOLOGY_DEFAULTS.get(mechanism, {}) if not unknown else {}
     title = source_text.strip().split("\n", 1)[0][:90] or "Untitled source"
+    core = spec.get("core", "UNKNOWN")
+    equation = spec.get("equation", "UNKNOWN")
+    ai = spec.get("ai", "UNKNOWN")
+    human = spec.get("human", "UNKNOWN")
+    failures = spec.get("failures", ["insufficient evidence"])
     return ExtractedKnowledge(
         title=title,
         source_type="unknown",
@@ -128,27 +202,12 @@ def _base(source_text: str, source_url: str, mechanism: MechanismName, core: str
     )
 
 
-def extract_mechanism_offline(source_text: str, source_url: str = "") -> ExtractedKnowledge:
-    """Deterministic TRUE-aware fallback for tests and CI.
-
-    Specific cues are checked before generic phrases. For example, "reward prediction error"
-    belongs to reinforcement learning, not generic predictive processing.
-    """
-    text = source_text.lower()
-    if any(k in text for k in ["dopamine", "reward", "td error", "reinforcement", "q-learning"]):
-        return _base(source_text, source_url, "reinforcement_learning", "Outcomes better than expected reinforce actions; worse outcomes weaken them.", "δ = r + γV(s') - V(s)", "TD learning, Q-learning, reward shaping, policy optimization.", "Motivation rises when expected reward and actual reward create a learning signal.", ["reward hacking", "short-term dopamine capture", "misaligned habit formation"])
-    if any(k in text for k in ["prediction error", "free energy", "predictive coding", "surprise"]):
-        return _base(source_text, source_url, "predictive_processing", "Predict, compare with reality, and update the internal model from error.", "F ≈ prediction_error + model_complexity", "World models, variational inference, predictive coding networks.", "You feel surprise when reality violates expectation; that felt mismatch drives updating.", ["strong prior ignores evidence", "over-updating to noise", "hallucination under weak correction"])
-    if any(k in text for k in ["hebb", "synaptic", "stdp", "fire together", "spike timing"]):
-        return _base(source_text, source_url, "hebbian_learning", "Repeated co-activation strengthens future co-activation.", "Δw ∝ x_i y_j", "Local learning rules, associative memory, biologically inspired learning.", "Repeated practice makes the same perception-action path easier to activate.", ["spurious association", "runaway excitation", "overlearning brittle habits"])
-    if any(k in text for k in ["attention", "saliency", "query", "key", "value", "gating"]):
-        return _base(source_text, source_url, "attention", "Select the signals that control processing and suppress the rest.", "Attention(Q,K,V)=softmax(QK^T/sqrt(d_k))V", "Transformer self-attention and saliency routing.", "Focus feels like one signal becoming louder and other possible actions becoming quieter.", ["attention capture", "missing weak but important signals", "saliency bias"])
-    if any(k in text for k in ["hierarchy", "cortex", "abstraction", "column", "levels"]):
-        return _base(source_text, source_url, "hierarchical_abstraction", "Compress lower-level details into higher-level reusable models.", "level_n = compress(level_{n-1})", "Deep networks, hierarchical RL, multi-level world models.", "Understanding feels deeper when many details collapse into one reusable principle.", ["wrong abstraction", "premature compression", "loss of detail across levels"])
-    return _base(source_text, source_url, "unknown", "UNKNOWN", "UNKNOWN", "UNKNOWN", "UNKNOWN", ["insufficient evidence"])
+def extract_mechanism_offline(source_text: str, source_url: str = "", ontology: Optional[Dict[str, Any]] = None) -> ExtractedKnowledge:
+    mechanism = infer_mechanism_from_ontology(source_text, ontology=ontology)
+    return _base(source_text, source_url, mechanism)
 
 
-def extract_mechanism_llm(source_text: str, source_url: str = "", model: str = "gpt-4o-mini") -> ExtractedKnowledge:
+def extract_mechanism_llm(source_text: str, source_url: str = "", model: str = "gpt-4o-mini", ontology: Optional[Dict[str, Any]] = None) -> ExtractedKnowledge:
     try:
         from openai import OpenAI  # type: ignore
     except ImportError as exc:
@@ -156,8 +215,12 @@ def extract_mechanism_llm(source_text: str, source_url: str = "", model: str = "
     if not os.getenv("OPENAI_API_KEY"):
         raise RuntimeError("OPENAI_API_KEY is required for --use-llm")
     client = OpenAI()
+    ontology_context = json.dumps((ontology or load_ontology()).get("primitives", {}), indent=2, ensure_ascii=False)[:6000]
     prompt = f"""
-Extract one core neuroscience mechanism using TRUE.
+Extract one core neuroscience mechanism using TRUE and the accepted Neuro-OS ontology.
+
+Ontology context:
+{ontology_context}
 
 TRUE fields must be concrete:
 E: experience_probe and experiment_design
@@ -226,9 +289,12 @@ def true_validate(knowledge: ExtractedKnowledge) -> Dict[str, Any]:
     return {"scores": scores, "thresholds": thresholds, "failed_dimensions": failed, "decision": decision}
 
 
-def run_pipeline(source_text: str, source_url: str = "", use_llm: bool = False, model: str = "gpt-4o-mini") -> Dict[str, Any]:
-    extractor = extract_mechanism_llm if use_llm else extract_mechanism_offline
-    knowledge = extractor(source_text=source_text, source_url=source_url, model=model) if use_llm else extractor(source_text, source_url)
+def run_pipeline(source_text: str, source_url: str = "", use_llm: bool = False, model: str = "gpt-4o-mini", ontology_path: str = "parsed/ontology.json") -> Dict[str, Any]:
+    ontology = load_ontology(ontology_path)
+    if use_llm:
+        knowledge = extract_mechanism_llm(source_text=source_text, source_url=source_url, model=model, ontology=ontology)
+    else:
+        knowledge = extract_mechanism_offline(source_text, source_url, ontology=ontology)
     data = asdict(knowledge)
     validate_extraction(data)
     true_result = true_validate(knowledge)
@@ -248,10 +314,11 @@ def main() -> None:
     parser.add_argument("--source-url", default="")
     parser.add_argument("--use-llm", action="store_true")
     parser.add_argument("--model", default="gpt-4o-mini")
+    parser.add_argument("--ontology-path", default="parsed/ontology.json")
     parser.add_argument("--out", default="")
     args = parser.parse_args()
     source_text = Path(args.source_file).read_text(encoding="utf-8") if args.source_file else (args.source_text or "The brain minimizes prediction error and updates its model when surprised.")
-    result = run_pipeline(source_text, source_url=args.source_url, use_llm=args.use_llm, model=args.model)
+    result = run_pipeline(source_text, source_url=args.source_url, use_llm=args.use_llm, model=args.model, ontology_path=args.ontology_path)
     if args.out:
         write_json(result, args.out)
     print(json.dumps(result, indent=2, ensure_ascii=False))
