@@ -1,18 +1,19 @@
 """Sandbox runner for Neuro-OS self-modification.
 
-Creates isolated sandboxes, applies bounded changes, runs validation commands,
-and can promote validated files back to production.
+Creates isolated sandboxes, applies bounded changes, imports sandbox pipelines for
+true A/B evaluation, runs validation commands, and can promote validated files.
 """
 
 from __future__ import annotations
 
+import importlib.util
 import json
 import shutil
 import subprocess
 from dataclasses import dataclass, asdict
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Callable, Dict, Iterable, List, Optional
 
 
 @dataclass
@@ -33,40 +34,57 @@ def create_sandbox(root: str = ".", sandbox_root: str = "sandbox") -> Path:
     root_path = Path(root).resolve()
     sandbox_path = root_path / sandbox_root / f"run_{utc_id()}"
     sandbox_path.mkdir(parents=True, exist_ok=True)
-
     for name in ["agent", "tests", "evals", "docs"]:
         src = root_path / name
         if src.exists():
             shutil.copytree(src, sandbox_path / name)
-
     return sandbox_path
 
 
-def apply_bounded_change(sandbox_path: Path, change: Dict[str, Any]) -> List[str]:
-    """Apply an allowlisted change to a sandbox only.
+def load_sandbox_pipeline(sandbox_path: Path) -> Callable[[str], Dict[str, Any]]:
+    module_path = sandbox_path / "agent" / "ingestion_pipeline.py"
+    if not module_path.exists():
+        raise FileNotFoundError(f"Sandbox pipeline missing: {module_path}")
+    module_name = f"sandbox_ingestion_pipeline_{sandbox_path.name}"
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"Unable to load sandbox pipeline from {module_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    if not hasattr(module, "run_pipeline"):
+        raise AttributeError("Sandbox pipeline has no run_pipeline function")
+    return lambda text: module.run_pipeline(text)
 
-    Returns changed file paths relative to sandbox root.
-    """
+
+def apply_bounded_change(sandbox_path: Path, change: Dict[str, Any]) -> List[str]:
+    """Apply an allowlisted change to a sandbox only."""
     change_id = change.get("change_id", "")
     changed: List[str] = []
 
     if change_id == "prioritize_reward_prediction_error":
         target = sandbox_path / "agent" / "ingestion_pipeline.py"
         text = target.read_text(encoding="utf-8")
-        old = "if any(k in text for k in [\"dopamine\", \"reward\", \"td error\", \"reinforcement\", \"q-learning\"]):"
-        if old not in text:
+        expected = "if any(k in text for k in [\"dopamine\", \"reward\", \"td error\", \"reinforcement\", \"q-learning\"]):"
+        if expected not in text:
             raise ValueError("Expected reward-priority rule not found; refusing unsafe mutation")
-        # Safe idempotent marker-only change: documents that the rule is already enforced.
         marker = "# SELF_EVOLUTION: reward prediction error cues are prioritized before generic prediction error cues.\n"
         if marker not in text:
-            text = text.replace("def extract_mechanism_offline(source_text: str, source_url: str = \"\") -> ExtractedKnowledge:\n", marker + "def extract_mechanism_offline(source_text: str, source_url: str = \"\") -> ExtractedKnowledge:\n")
+            text = text.replace(
+                "def extract_mechanism_offline(source_text: str, source_url: str = \"\") -> ExtractedKnowledge:\n",
+                marker + "def extract_mechanism_offline(source_text: str, source_url: str = \"\") -> ExtractedKnowledge:\n",
+            )
             target.write_text(text, encoding="utf-8")
             changed.append("agent/ingestion_pipeline.py")
     elif change_id.startswith("strengthen_"):
         target = sandbox_path / "docs" / "TRUE_RUBRIC.md"
         target.parent.mkdir(parents=True, exist_ok=True)
         prior = target.read_text(encoding="utf-8") if target.exists() else "# TRUE Rubric\n\n"
-        addition = f"\n## Auto-proposed refinement: {change_id}\n\nReason: {change.get('reason', 'No reason provided')}\nAction: {change.get('action', 'No action provided')}\nRisk: {change.get('risk', 'No risk recorded')}\n"
+        addition = (
+            f"\n## Auto-proposed refinement: {change_id}\n\n"
+            f"Reason: {change.get('reason', 'No reason provided')}\n"
+            f"Action: {change.get('action', 'No action provided')}\n"
+            f"Risk: {change.get('risk', 'No risk recorded')}\n"
+        )
         if addition not in prior:
             target.write_text(prior + addition, encoding="utf-8")
             changed.append("docs/TRUE_RUBRIC.md")
@@ -79,21 +97,8 @@ def apply_bounded_change(sandbox_path: Path, change: Dict[str, Any]) -> List[str
 def run_validation(sandbox_path: Path, command: Optional[List[str]] = None) -> SandboxResult:
     command = command or ["python", "-m", "unittest", "discover", "-s", "tests"]
     completed = subprocess.run(command, cwd=sandbox_path, capture_output=True, text=True)
-
-    metrics = {
-        "command": command,
-        "success": completed.returncode == 0,
-        "returncode": completed.returncode,
-    }
-
-    return SandboxResult(
-        sandbox_path=str(sandbox_path),
-        success=completed.returncode == 0,
-        returncode=completed.returncode,
-        stdout=completed.stdout,
-        stderr=completed.stderr,
-        metrics=metrics,
-    )
+    metrics = {"command": command, "success": completed.returncode == 0, "returncode": completed.returncode}
+    return SandboxResult(str(sandbox_path), completed.returncode == 0, completed.returncode, completed.stdout, completed.stderr, metrics)
 
 
 def promote_files(sandbox_path: Path, changed_files: Iterable[str], root: str = ".") -> List[str]:
