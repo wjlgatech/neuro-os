@@ -1,0 +1,14 @@
+- question: "Why do humans hallucinate?"
+  expected_mechanism: "predictive_processing"
+
+- question: "Why does repetition improve memory?"
+  expected_mechanism: "hebbian_learning"
+
+- question: "Why do habits form?"
+  expected_mechanism: "reinforcement_learning"
+
+- question: "Why do we ignore irrelevant information?"
+  expected_mechanism: "attention"
+
+- question: "Why does abstraction improve intelligence?"
+  expected_mechanism: "hierarchical_abstraction"
