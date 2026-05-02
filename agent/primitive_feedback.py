@@ -1,9 +1,13 @@
-"""Primitive feedback loop for Neuro-OS.
-
-Turns accepted primitive evolution decisions into machine-readable feedback that
-can influence extraction and evaluation without silently overwriting primitives.
 """
+Primitive Feedback Persistence.
 
+Stores accepted primitive updates to a JSON-lines log on disk
+(``memory/primitive_feedback.jsonl`` by default) and exposes the
+accumulated context for downstream extraction.
+
+Loading happens lazily on the first call so tests can override
+``FEEDBACK_PATH`` without import-time side effects.
+"""
 from __future__ import annotations
 
 import json
@@ -12,45 +16,69 @@ from typing import Any, Dict, List
 
 FEEDBACK_PATH = Path("memory/primitive_feedback.jsonl")
 
-
-def append_primitive_feedback(decision: Dict[str, Any], path: Path = FEEDBACK_PATH) -> None:
-    if decision.get("decision") != "ACCEPT":
-        raise ValueError("Only ACCEPT primitive decisions can become feedback")
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(decision, ensure_ascii=False) + "\n")
+_loaded_path: Path | None = None
+_primitive_feedback: List[Dict[str, Any]] = []
 
 
-def read_primitive_feedback(path: Path = FEEDBACK_PATH) -> List[Dict[str, Any]]:
-    if not path.exists():
-        return []
-    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+def _ensure_loaded() -> None:
+    """Load feedback from ``FEEDBACK_PATH`` once per process / path change."""
+    global _loaded_path, _primitive_feedback
+    if _loaded_path == FEEDBACK_PATH:
+        return
+    _primitive_feedback = []
+    if FEEDBACK_PATH.exists():
+        with FEEDBACK_PATH.open("r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line:
+                    _primitive_feedback.append(json.loads(line))
+    _loaded_path = FEEDBACK_PATH
 
 
-def build_extraction_context(records: List[Dict[str, Any]]) -> Dict[str, Any]:
-    context: Dict[str, Any] = {"primitive_definitions": {}, "transfer_domains": {}, "transform_formats": {}}
-    for record in records:
-        update = record.get("update", {})
-        primitive = update.get("primitive_name")
-        if not primitive:
-            continue
-        context["primitive_definitions"][primitive] = update.get("one_sentence_definition", "")
-        context["transfer_domains"][primitive] = update.get("transfer_domains", [])
-        context["transform_formats"][primitive] = update.get("transform_formats", [])
-    return context
+def append_primitive_feedback(update: Dict[str, Any]) -> None:
+    """Append an accepted primitive update to the feedback log.
+
+    Raises ``ValueError`` if the update is not marked ``ACCEPT``.
+    """
+    if update.get("decision") != "ACCEPT":
+        raise ValueError(
+            "Only accepted updates may be appended to primitive feedback."
+        )
+    _ensure_loaded()
+    _primitive_feedback.append(update)
+    FEEDBACK_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with FEEDBACK_PATH.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(update, ensure_ascii=False) + "\n")
 
 
-def strengthen_extraction_prompt(base_prompt: str, context: Dict[str, Any]) -> str:
-    if not context.get("primitive_definitions"):
-        return base_prompt
-    return base_prompt + "\n\nAccepted primitive feedback:\n" + json.dumps(context, indent=2, ensure_ascii=False)
+def build_extraction_context() -> Dict[str, Any]:
+    """Return accepted-primitive context for downstream extraction.
+
+    Most recent definition for each primitive wins.
+    """
+    _ensure_loaded()
+    context: Dict[str, str] = {}
+    for update in _primitive_feedback:
+        primitive_name = update.get("primitive_name")
+        definition = (
+            update.get("one_sentence_definition")
+            or update.get("proposed_change")
+        )
+        if primitive_name and definition:
+            context[primitive_name] = definition
+    return {"primitive_definitions": context}
 
 
-def evaluation_bias(record: Dict[str, Any]) -> Dict[str, Any]:
-    update = record.get("update", {})
-    return {
-        "primitive_name": update.get("primitive_name"),
-        "required_transfer_domains": update.get("transfer_domains", []),
-        "required_transform_formats": update.get("transform_formats", []),
-        "definition": update.get("one_sentence_definition", ""),
-    }
+def reset_for_tests() -> None:
+    """Drop the in-memory cache; the next call reloads from disk."""
+    global _loaded_path, _primitive_feedback
+    _loaded_path = None
+    _primitive_feedback = []
+
+
+__all__ = [
+    "FEEDBACK_PATH",
+    "append_primitive_feedback",
+    "build_extraction_context",
+    "reset_for_tests",
+]

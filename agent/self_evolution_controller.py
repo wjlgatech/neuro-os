@@ -10,13 +10,18 @@ metrics without regressing TRUE acceptance quality.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from typing import Any, Callable, Dict, Iterable, List, Optional
 
 try:
     from ingestion_pipeline import run_pipeline
 except ImportError:
     from .ingestion_pipeline import run_pipeline
+
+try:
+    from .patches import Patch
+except ImportError:
+    from agent.patches import Patch  # pragma: no cover
 
 
 GoldenCase = Dict[str, str]
@@ -61,6 +66,7 @@ class ControlProposal:
     target_layer: str
     action: str
     risk: str
+    patch: Optional[Patch] = None
 
 
 @dataclass
@@ -144,6 +150,15 @@ def propose_controls(report: EvaluationReport) -> List[ControlProposal]:
                     target_layer="offline_extractor_rule_order",
                     action="Check dopamine/reward/TD-error cues before generic prediction-error cues.",
                     risk="May over-classify generic reward language as reinforcement learning.",
+                    patch=Patch(
+                        op="append_priority_rule",
+                        payload={
+                            "cue": "reward prediction error",
+                            "mechanism": "reinforcement_learning",
+                        },
+                        target_path="agent/data/priority_rules.json",
+                        description="ensure RL priority cue is present",
+                    ),
                 )
             )
         elif error["actual"] == "unknown":

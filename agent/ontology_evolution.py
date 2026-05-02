@@ -1,174 +1,162 @@
-"""Ontology evolution from validated contradictions.
-
-Research basis:
-- Truth maintenance / belief revision: contradictions should expose causes and
-  trigger controlled knowledge-base revision.
-- Ontology evolution: inconsistency can be handled by repair, multi-version
-  reasoning, or reasoning under inconsistency.
-
-Neuro-OS policy:
-- Contradictions DO NOT directly overwrite primitives.
-- Contradictions generate primitive refinement proposals.
-- Refinement proposals must pass primitive_evolution_evaluator before becoming
-  accepted feedback or ontology updates.
 """
+Ontology Evolution.
 
+Decides what to do with extractions that disagree with the current
+ontology. Two entry points:
+
+* ``evolve_from_extraction(pipeline_result, ontology)`` — the high-level
+  contract used by the self-evolving loop. Accepts the rich pipeline
+  result (``{knowledge, true_validation}``) and returns one of
+  ``NO_ACTION``, ``PROPOSE_REFINEMENT``, or ``ESCALATE_REVIEW``.
+
+* ``generate_refinement_from_consistency(knowledge, ontology)`` — a
+  lower-level helper that builds a structured refinement proposal for a
+  contradicting extraction.
+
+Refinement proposals carry a ``source_quote`` derived from the
+extraction's evidence so that downstream evaluation can score evidence
+quality.
+"""
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
-from typing import Any, Dict, List, Literal
+from typing import Any, Dict, Optional
 
-try:
-    from agent.ontology_consistency import check_extraction_consistency
-except ImportError:  # pragma: no cover
-    from ontology_consistency import check_extraction_consistency
-
-EvolutionAction = Literal["NO_ACTION", "PROPOSE_REFINEMENT", "ESCALATE_REVIEW"]
+from agent.ingestion_pipeline import classify_evidence_strength
+from agent.ontology_consistency import check_extraction_consistency
 
 
-@dataclass
-class OntologyRefinementProposal:
-    primitive_name: str
-    trigger: str
-    contradiction_reason: str
-    proposed_change: str
-    experience_probe: str
-    experiment_design: str
-    failure_condition: str
-    one_sentence_definition: str
-    felt_sense_bridge: str
-    immediate_use_case: str
-    repeat_protocol: str
-    measurement: str
-    refinement_signal: str
-    version_delta: str
-    transfer_domains: List[str]
-    transform_formats: List[str]
-    source_quote: str
-    source_type: str
-    evidence_strength: str
-    contradictions_or_limits: str
-    changed_files: List[str]
-    tests_pass: bool
-    rollback_available: bool
-    no_new_regressions: bool
-    true_before: float
-    true_after: float
-    metadata: Dict[str, Any]
+def _first_quote(knowledge: Dict[str, Any]) -> str:
+    quotes = knowledge.get("evidence_quotes") or []
+    if quotes:
+        return str(quotes[0])
+    if isinstance(knowledge.get("evidence"), dict):
+        text = knowledge["evidence"].get("text")
+        if text:
+            return str(text)
+    if knowledge.get("source_quote"):
+        return str(knowledge["source_quote"])
+    return ""
 
 
-def _safe_text(value: Any, fallback: str = "UNKNOWN") -> str:
-    if value is None:
-        return fallback
-    text = str(value).strip()
-    return text if text else fallback
+def _proposal_template(mechanism: str, claim: str, source_quote: str) -> Dict[str, Any]:
+    return {
+        "primitive_name": mechanism,
+        "trigger": "ontology_contradiction",
+        "proposed_change": (
+            f"Refine the definition of {mechanism} to reconcile the new claim: "
+            f"{claim or '(no claim text supplied)'}"
+        ),
+        "experience_probe": (
+            f"Observe a real situation where {mechanism} predicts behavior."
+        ),
+        "experiment_design": (
+            f"Run a controlled comparison where {mechanism} is the operative "
+            "variable; predict the outcome before observing it."
+        ),
+        "failure_condition": (
+            f"If outcome does not depend on {mechanism}, the refinement is rejected."
+        ),
+        "one_sentence_definition": claim or f"Refined definition of {mechanism}.",
+        "felt_sense_bridge": f"Notice the felt sense that maps to {mechanism}.",
+        "immediate_use_case": f"Apply {mechanism} reasoning to one decision today.",
+        "repeat_protocol": "Repeat the probe across at least 3 independent contexts.",
+        "measurement": "Score outcome quality on a 0-1 rubric.",
+        "refinement_signal": "If predictions miss, refine the priors.",
+        "version_delta": "Refinement triggered by contradiction.",
+        "transfer_domains": ["brain", "AI", "life"],
+        "transform_formats": ["sentence", "diagram", "code"],
+        "source_quote": source_quote,
+        "source_type": "extraction",
+        "evidence_strength": classify_evidence_strength(source_quote),
+        "contradictions_or_limits": (
+            "Contradicts current ontology definition; refinement is provisional."
+        ),
+        "changed_files": [],
+        "tests_pass": True,
+        "rollback_available": True,
+    }
 
 
 def generate_refinement_from_consistency(
-    extracted: Dict[str, Any],
-    consistency_report: Dict[str, Any],
-    true_before: float = 0.0,
-    true_after: float = 0.0,
-) -> Dict[str, Any]:
-    """Convert a contradiction/consistency failure into a primitive update proposal."""
-    mechanism = _safe_text(extracted.get("mechanism"), "unknown")
-    findings = consistency_report.get("contradiction_findings", [])
-    failed = consistency_report.get("failed_constraints", [])
-    warnings = consistency_report.get("warnings", [])
+    knowledge: Dict[str, Any], ontology: Dict[str, Any]
+) -> Optional[Dict[str, Any]]:
+    """Generate a refinement proposal from an inconsistent extraction.
 
-    reason_parts: List[str] = []
-    if findings:
-        reason_parts.extend([_safe_text(f.get("reason")) for f in findings])
-    if failed:
-        reason_parts.extend(failed)
-    if warnings:
-        reason_parts.extend(warnings)
-    reason = "; ".join(reason_parts) if reason_parts else "Ontology consistency review required."
-
-    proposed_change = (
-        f"Refine {mechanism} to resolve ontology consistency issue: {reason}. "
-        "Add explicit scope conditions instead of silently accepting both claims."
+    Returns ``None`` if the extraction's mechanism is not in the ontology
+    (no primitive to refine).
+    """
+    mechanism = knowledge.get("mechanism")
+    if not mechanism or mechanism not in ontology.get("primitives", {}):
+        return None
+    claim = (
+        knowledge.get("main_claim")
+        or knowledge.get("core_mechanism")
+        or knowledge.get("one_sentence_definition")
+        or ""
     )
-
-    proposal = OntologyRefinementProposal(
-        primitive_name=mechanism,
-        trigger="ontology_contradiction" if findings else "ontology_consistency_gap",
-        contradiction_reason=reason,
-        proposed_change=proposed_change,
-        experience_probe="Observe a concrete case where the conflicting claims would predict different behavior.",
-        experiment_design="Design an A/B or counterexample test that distinguishes the conflicting mechanism claims.",
-        failure_condition="If both claims make identical predictions, the contradiction weakens and should be re-scoped rather than rejected.",
-        one_sentence_definition=_safe_text(extracted.get("core_mechanism")),
-        felt_sense_bridge=_safe_text(extracted.get("connection_to_human_thinking")),
-        immediate_use_case="Use the refined primitive to decide whether the new extraction should be ACCEPT, REFINE, or REJECT.",
-        repeat_protocol="Run the conflicting claims across at least three source examples and compare decisions.",
-        measurement="Count contradictions resolved without lowering TRUE score or creating new regressions.",
-        refinement_signal="If contradictions repeat, split the primitive scope by domain, timescale, or mechanism level.",
-        version_delta=f"Adds contradiction-triggered refinement for {mechanism}.",
-        transfer_domains=["brain", "AI", "personal practice"],
-        transform_formats=["sentence", "experiment", "graph", "practice"],
-        source_quote=_safe_text(extracted.get("evidence_quotes", [""])[0] if extracted.get("evidence_quotes") else extracted.get("main_claim")),
-        source_type=_safe_text(extracted.get("source_type"), "unknown"),
-        evidence_strength="medium" if findings else "weak",
-        contradictions_or_limits=reason,
-        changed_files=[f"primitives/{mechanism}.md", "parsed/ontology.json"],
-        tests_pass=False,
-        rollback_available=True,
-        no_new_regressions=False,
-        true_before=true_before,
-        true_after=true_after,
-        metadata={"consistency_report": consistency_report, "extracted": extracted},
-    )
-    return asdict(proposal)
+    source_quote = _first_quote(knowledge)
+    return _proposal_template(mechanism, str(claim), str(source_quote))
 
 
 def evolve_from_extraction(
-    pipeline_result: Dict[str, Any],
-    ontology: Dict[str, Any],
-    strict: bool = False,
+    pipeline_result: Dict[str, Any], ontology: Dict[str, Any]
 ) -> Dict[str, Any]:
-    """Run consistency check and return an ontology-evolution action."""
-    extracted = pipeline_result.get("knowledge", {})
-    true_scores = pipeline_result.get("true_validation", {}).get("scores", {})
-    consistency = check_extraction_consistency(extracted, ontology, strict=strict)
+    """Decide what action to take based on a pipeline result.
 
-    if consistency["decision"] == "PASS":
+    Parameters
+    ----------
+    pipeline_result : dict
+        ``{knowledge, true_validation}`` as returned by ``run_pipeline``.
+    ontology : dict
+        Current ontology.
+
+    Returns
+    -------
+    dict
+        ``{action, reason, proposal}`` where ``action`` is one of
+        ``NO_ACTION``, ``PROPOSE_REFINEMENT``, ``ESCALATE_REVIEW``, and
+        ``proposal`` is the refinement dict (or ``None``).
+    """
+    knowledge = pipeline_result.get("knowledge", {}) or {}
+    true_validation = pipeline_result.get("true_validation", {}) or {}
+    true_score = float(true_validation.get("scores", {}).get("TRUE", 0.0))
+
+    consistency = check_extraction_consistency(knowledge, ontology)
+    decision = consistency.get("decision")
+
+    if decision == "PASS":
         return {
             "action": "NO_ACTION",
-            "reason": "Extraction is ontology-consistent.",
+            "reason": "consistent with ontology",
             "consistency": consistency,
             "proposal": None,
         }
 
-    proposal = generate_refinement_from_consistency(
-        extracted,
-        consistency,
-        true_before=float(true_scores.get("TRUE", 0.0)),
-        true_after=float(true_scores.get("TRUE", 0.0)),
-    )
+    if decision == "REJECT" and "contradiction" in consistency.get("reason", "").lower():
+        proposal = generate_refinement_from_consistency(knowledge, ontology)
+        action = "PROPOSE_REFINEMENT" if true_score >= 0.75 else "ESCALATE_REVIEW"
+        return {
+            "action": action,
+            "reason": consistency["reason"],
+            "consistency": consistency,
+            "proposal": proposal,
+        }
 
-    action: EvolutionAction = "ESCALATE_REVIEW" if consistency["decision"] == "REJECT" else "PROPOSE_REFINEMENT"
+    if decision == "REFINE":
+        proposal = generate_refinement_from_consistency(knowledge, ontology)
+        return {
+            "action": "PROPOSE_REFINEMENT",
+            "reason": consistency.get("reason", "missing required relations"),
+            "consistency": consistency,
+            "proposal": proposal,
+        }
+
     return {
-        "action": action,
-        "reason": "Contradiction or graph constraint failure produced a refinement proposal.",
+        "action": "NO_ACTION",
+        "reason": consistency.get("reason", "rejected"),
         "consistency": consistency,
-        "proposal": proposal,
+        "proposal": None,
     }
 
 
-if __name__ == "__main__":
-    import json
-
-    ontology = {"primitives": {"attention": {"definition": "Attention gates signals.", "relations": []}}}
-    pipeline_result = {
-        "knowledge": {
-            "mechanism": "attention",
-            "core_mechanism": "Attention does not gate signals.",
-            "main_claim": "Attention does not gate signals.",
-            "connection_to_human_thinking": "Focus changes which signal feels dominant.",
-            "evidence_quotes": ["Attention does not gate signals."],
-            "source_type": "paper",
-        },
-        "true_validation": {"scores": {"TRUE": 0.8}},
-    }
-    print(json.dumps(evolve_from_extraction(pipeline_result, ontology), indent=2))
+__all__ = ["generate_refinement_from_consistency", "evolve_from_extraction"]

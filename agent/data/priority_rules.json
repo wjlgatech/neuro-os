@@ -1,0 +1,9 @@
+[
+  ["reward prediction error", "reinforcement_learning"],
+  ["dopamine", "reinforcement_learning"],
+  ["td learning", "reinforcement_learning"],
+  ["td error", "reinforcement_learning"],
+  ["query key value", "attention"],
+  ["fire together", "hebbian_learning"],
+  ["stdp", "hebbian_learning"]
+]
