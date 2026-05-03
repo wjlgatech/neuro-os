@@ -1,0 +1,17 @@
+# Streamlit Cloud + local dev config.
+# See https://docs.streamlit.io/library/advanced-features/configuration
+
+[theme]
+primaryColor = "#3b82f6"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f9fafb"
+textColor = "#1f2937"
+font = "sans serif"
+
+[browser]
+gatherUsageStats = false
+
+[server]
+# Cloud serves on a managed port; local dev uses default 8501.
+runOnSave = true
+headless = false

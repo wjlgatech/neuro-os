@@ -10,7 +10,11 @@ That is what `neuro-os` does. Two nested OEC loops (Observe → Evaluate → Con
 
 ## Quickstart (60 seconds)
 
-The fastest path is the **UI** — see the magic in 5 clicks:
+The fastest path is the **UI** — see the system fix itself in front of you:
+
+![Self-repair animation](ui/assets/self_repair.gif)
+
+*The dopamine golden misclassifies. flywheel observes the regression, proposes a patch (`append_priority_rule`), validates it in a sandbox subprocess, and promotes it back to the live tree. The bright green edge is the freshly-promoted rule.*
 
 ```bash
 git clone https://github.com/wjlgatech/neuro-os.git
@@ -19,7 +23,7 @@ pip install -e ".[ui]"
 streamlit run ui/app.py
 ```
 
-![Try It tab](ui/assets/02_try_it_result.png)
+Or [deploy it free to Streamlit Cloud](ui/README.md#deploy-to-streamlit-cloud-free) (5 clicks).
 
 Open http://localhost:8501. Four tabs:
 

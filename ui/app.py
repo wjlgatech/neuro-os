@@ -26,18 +26,42 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO_ROOT))
 
+import copy
+
 import streamlit as st  # noqa: E402
 
 from agent.api import ingest_documents, process_text  # noqa: E402
 from agent.domains import get_domain  # noqa: E402
 from agent.ingestion_pipeline import (  # noqa: E402
     PRIORITY_RULES_PATH,
+    _canonical_ontology,
     classify_evidence_strength,
+    get_priority_rules,
     run_pipeline,
 )
 from agent import primitive_feedback, version_registry  # noqa: E402
 from agent.self_modification import run_self_modification  # noqa: E402
 from flywheel_loop.readiness import QUESTIONS, score_readiness  # noqa: E402
+
+# Local sibling import — works whether streamlit is launched from repo root
+# or from the ui/ directory.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from viz import ontology_dot, routing_dot  # noqa: E402
+
+
+# Hardcoded canonical reference for the routing graph diff. Reading
+# from disk at import time would be wrong if the live file happens to
+# be degraded from a prior session — the graph needs the *intended*
+# state to compare against.
+_CANONICAL_RULES = [
+    ("reward prediction error", "reinforcement_learning"),
+    ("dopamine", "reinforcement_learning"),
+    ("td learning", "reinforcement_learning"),
+    ("td error", "reinforcement_learning"),
+    ("query key value", "attention"),
+    ("fire together", "hebbian_learning"),
+    ("stdp", "hebbian_learning"),
+]
 
 
 st.set_page_config(
@@ -203,6 +227,11 @@ with tabs[1]:
         height=150,
     )
 
+    # Show baseline ontology before ingestion so the diff is visible.
+    baseline_ontology = _canonical_ontology()
+    with st.expander("📊 Ontology graph (baseline)", expanded=True):
+        st.graphviz_chart(ontology_dot(baseline_ontology), use_container_width=True)
+
     if st.button("Ingest", type="primary", key="run_ingest"):
         docs = [d.strip() for d in docs_text.split("\n\n") if d.strip()]
         if not docs:
@@ -215,9 +244,12 @@ with tabs[1]:
             primitive_feedback.FEEDBACK_PATH = tmp_dir / "feedback.jsonl"
             primitive_feedback.reset_for_tests()
 
+            # Pass a deep-copied ontology to ingest so we can diff after.
+            ontology_copy = copy.deepcopy(baseline_ontology)
             with st.spinner("Running self-evolving loop..."):
                 report = ingest_documents(
                     docs,
+                    ontology=ontology_copy,
                     ontology_path=ontology_path,
                 )
 
@@ -233,8 +265,16 @@ with tabs[1]:
             )
 
             if ontology_path.exists():
-                st.markdown("**Ontology after ingestion** (changed primitives only)")
                 final = json.loads(ontology_path.read_text())
+                st.markdown(
+                    "**Ontology after ingestion** "
+                    "(green-bordered nodes accreted citations):"
+                )
+                st.graphviz_chart(
+                    ontology_dot(final, baseline=baseline_ontology),
+                    use_container_width=True,
+                )
+
                 changed = []
                 for name, primitive in final["primitives"].items():
                     if primitive.get("sources"):
@@ -278,6 +318,29 @@ with tabs[2]:
     c1.metric("Total priority rules", len(current))
     c2.metric("RL cues remaining", rl_count)
 
+    # Live routing-graph viz: blue edges are canonical+present, gray dashed
+    # are canonical-but-missing (degraded), green are restored/freshly added.
+    current_rules = [tuple(r) for r in current]
+    fresh = []
+    last = st.session_state.get("last_repair_report")
+    if last and last.get("results"):
+        for outcome in last["results"]:
+            payload = outcome.get("patch", {}).get("payload", {})
+            cue = payload.get("cue")
+            mech = payload.get("mechanism")
+            if cue and mech:
+                fresh.append((cue, mech))
+    st.graphviz_chart(
+        routing_dot(current_rules, _CANONICAL_RULES, freshly_promoted=fresh),
+        use_container_width=True,
+    )
+    legend = (
+        "🔵 canonical & present &nbsp;&nbsp;"
+        "🟢 freshly added by flywheel &nbsp;&nbsp;"
+        "⬜ canonical & missing (degraded)"
+    )
+    st.markdown(legend)
+
     cb1, cb2, cb3 = st.columns(3)
     if cb1.button("⚠️  Break it (drop RL cues)", key="break_btn"):
         rules = json.loads(st.session_state.snapshot_rules)
@@ -285,6 +348,7 @@ with tabs[2]:
         PRIORITY_RULES_PATH.write_text(
             json.dumps(degraded, indent=2) + "\n", encoding="utf-8"
         )
+        st.session_state.pop("last_repair_report", None)
         st.success(
             f"Dropped {len(rules) - len(degraded)} reinforcement-learning cues."
         )
@@ -301,22 +365,33 @@ with tabs[2]:
             report = run_self_modification(
                 get_domain("neuro_os_self_v1")
             )
+        # Stash the report for the next rerun and force one so the
+        # graph + metrics at the top of the tab pick up the
+        # newly-promoted priority rule.
+        st.session_state["last_repair_report"] = report
+        st.rerun()
 
+    # Result panel rendered from session_state so it survives reruns.
+    last_report = st.session_state.get("last_repair_report")
+    if last_report is not None:
         st.markdown(
-            f"**Status:** {_decision_pill(report['status'])}",
+            f"**Last run:** {_decision_pill(last_report['status'])}",
             unsafe_allow_html=True,
         )
         c1, c2, c3 = st.columns(3)
-        c1.metric("Baseline accuracy", f"{report['baseline']['accuracy']}")
-        c2.metric("Patches proposed", report["patched_proposals"])
-        c3.metric("Merges applied", report.get("merges_applied", 0))
+        c1.metric("Baseline accuracy", f"{last_report['baseline']['accuracy']}")
+        c2.metric("Patches proposed", last_report["patched_proposals"])
+        c3.metric("Merges applied", last_report.get("merges_applied", 0))
 
-        if report["results"]:
-            outcome = report["results"][0]
-            st.markdown("**Patch payload**")
-            st.json(outcome["patch"])
-            st.markdown("**Rollback patch**")
-            st.json(outcome["apply"]["inverse"])
+        if last_report["results"]:
+            outcome = last_report["results"][0]
+            cp1, cp2 = st.columns(2)
+            with cp1:
+                st.markdown("**Patch payload**")
+                st.json(outcome["patch"])
+            with cp2:
+                st.markdown("**Rollback patch**")
+                st.json(outcome["apply"]["inverse"])
             if outcome.get("validators"):
                 st.markdown("**Validators**")
                 st.dataframe(
@@ -348,6 +423,7 @@ with tabs[2]:
         PRIORITY_RULES_PATH.write_text(
             st.session_state.snapshot_rules, encoding="utf-8"
         )
+        st.session_state.pop("last_repair_report", None)
         st.success("Priority rules restored from session snapshot.")
         st.rerun()
 

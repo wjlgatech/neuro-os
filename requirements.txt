@@ -1,0 +1,4 @@
+# Streamlit Cloud reads this. For local dev use `pip install -e ".[ui]"`.
+# flywheel-loop is not yet on PyPI; install from GitHub.
+flywheel-loop @ git+https://github.com/wjlgatech/flywheel.git@main
+streamlit>=1.30
