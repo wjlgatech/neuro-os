@@ -10,18 +10,33 @@ That is what `neuro-os` does. Two nested OEC loops (Observe → Evaluate → Con
 
 ## Quickstart (60 seconds)
 
+The fastest path is the **UI** — see the magic in 5 clicks:
+
 ```bash
 git clone https://github.com/wjlgatech/neuro-os.git
 cd neuro-os
-pip install -e .                       # registers the `neuro-os` console script
-python -m agent extract "Dopamine neurons encode reward prediction error signals."
-python examples/03_self_repair.py      # watch the system fix itself
-pytest                                 # 39 tests, ~0.6s
+pip install -e ".[ui]"
+streamlit run ui/app.py
 ```
 
-You should see:
-- the extract command classify the input as `reinforcement_learning`,
-- the self-repair example deliberately remove every reinforcement-learning priority cue, watch the meta-loop detect the regression, propose a patch, validate it in a sandbox subprocess, and promote it back to the live tree.
+![Try It tab](ui/assets/02_try_it_result.png)
+
+Open http://localhost:8501. Four tabs:
+
+| Tab | What it does |
+|---|---|
+| **🟢 Try It** | Paste a sentence; see TRUE scores + decision. |
+| **🌱 Watch It Learn** | Feed a citation-rich contradiction; watch the ontology mutate. |
+| **🔧 Self-Repair** | Break a priority rule, click Run flywheel, watch the loop fix it. |
+| **📊 Readiness** | Score whether your own X is a fit for `flywheel-loop`. |
+
+Or stay in the terminal:
+
+```bash
+python -m agent extract "Dopamine neurons encode reward prediction error signals."
+python examples/03_self_repair.py      # watch the system fix itself
+pytest                                 # 52 tests, ~0.7s
+```
 
 ---
 
