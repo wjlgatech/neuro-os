@@ -14,4 +14,4 @@ gatherUsageStats = false
 [server]
 # Cloud serves on a managed port; local dev uses default 8501.
 runOnSave = true
-headless = false
+headless = true
