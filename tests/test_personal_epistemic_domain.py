@@ -202,5 +202,66 @@ class TestIngestDocumentsWithDomainParams(unittest.TestCase):
         )
 
 
+class TestRawClaimCoverage(unittest.TestCase):
+    """Lock in that everyday teenager-style phrasings still fire the right
+    primitive without requiring the user to type the technical pattern name.
+
+    These are the literal stories from the v1.1 vocabulary expansion. If a
+    future edit drops one of the supporting cues, this test will catch it
+    before it ships.
+    """
+
+    RAW_CLAIMS = [
+        (
+            "My favorite YouTuber dropped out of college and now makes $50k a "
+            "month. Steve Jobs and Bill Gates and Mark Zuckerberg also dropped "
+            "out and became billionaires. So dropping out is the smart move "
+            "for ambitious people.",
+            "survivorship_bias",
+        ),
+        (
+            "My friend tested positive for a rare disease. The test is 99% "
+            "accurate. She is panicking. Disease prevalence is 0.1%.",
+            "bayesian_updating",
+        ),
+        (
+            "This influencer says wake up at 5am, cold plunge, journal, and "
+            "you will be successful. There is no situation where this routine "
+            "could be wrong, it works for everyone always.",
+            "falsifiability",
+        ),
+        (
+            "The kids next door sold 80 cups today at $2. We should drop our "
+            "price to $1 to outsell them tomorrow.",
+            "second_order_thinking",
+        ),
+        (
+            "There is a 1% chance this stock 100x and I become rich. The "
+            "expected value is the same as keeping the cash, so why not take "
+            "the shot?",
+            "expected_value",
+        ),
+    ]
+
+    def test_raw_teenager_claims_classify_correctly(self):
+        misses = []
+        for claim, expected in self.RAW_CLAIMS:
+            result = personal_epistemic_extractor(claim)
+            actual = result["knowledge"].get("mechanism")
+            if actual != expected:
+                misses.append(
+                    f"expected={expected!r} actual={actual!r} "
+                    f"text={claim[:60]!r}"
+                )
+        self.assertEqual(misses, [], "raw-claim regressions:\n  " + "\n  ".join(misses))
+
+    def test_out_of_domain_banana_text_still_rejects(self):
+        result = personal_epistemic_extractor(
+            "Bananas turn yellow when they ripen. They float in fresh water."
+        )
+        self.assertEqual(result["knowledge"].get("mechanism"), "unknown")
+        self.assertEqual(result["decision"], "REJECT")
+
+
 if __name__ == "__main__":
     unittest.main()
