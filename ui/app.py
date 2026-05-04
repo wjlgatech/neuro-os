@@ -40,6 +40,13 @@ from agent.ingestion_pipeline import (  # noqa: E402
     run_pipeline,
 )
 from agent import primitive_feedback, version_registry  # noqa: E402
+# Importing the module registers personal_epistemic_v1 with the domain registry.
+from agent import personal_epistemic_domain  # noqa: E402, F401
+from agent.personal_epistemic_domain import (  # noqa: E402
+    PERSONAL_EPISTEMIC_GOLDEN_CASES,
+    PERSONAL_EPISTEMIC_PRIORITY_RULES_PATH,
+    personal_epistemic_extractor,
+)
 from agent.self_modification import run_self_modification  # noqa: E402
 from flywheel_loop.readiness import QUESTIONS, score_readiness  # noqa: E402
 
@@ -144,6 +151,7 @@ tabs = st.tabs(
         "🟢 Try It",
         "🌱 Watch It Learn",
         "🔧 Self-Repair",
+        "🧭 Belief OS",
         "📊 Readiness",
         "ℹ️  About",
     ]
@@ -483,10 +491,174 @@ with tabs[2]:
 
 
 # ---------------------------------------------------------------------------
-# Tab 4 — Readiness
+# Tab 4 — Belief OS (personal_epistemic_v1 domain)
 # ---------------------------------------------------------------------------
 
 with tabs[3]:
+    st.subheader("Belief OS — contradiction-aware reasoning ontology")
+    st.caption(
+        "Same closed loop, repointed: 6 reasoning primitives instead of "
+        "neuroscience mechanisms. Paste a claim from something you read "
+        "and watch it classify against Bayesian updating, base-rate reasoning, "
+        "falsifiability, expected value, second-order thinking, and "
+        "survivorship bias — with the same TRUE-rubric and golden-case gate."
+    )
+
+    belief_domain = get_domain("personal_epistemic_v1")
+    belief_ontology = belief_domain.ontology
+
+    belief_presets = {
+        "(write your own)": "",
+        "Survivorship bias (founder mythology)": (
+            "Successful founders dropped out of college, so dropping out helps. "
+            "The reference class of dropouts who tried and failed is invisible — "
+            "this is classic survivorship bias and the denominator is missing."
+        ),
+        "Base-rate (Linda problem)": (
+            "Linda is 31, single, outspoken, philosophy major. Most respondents "
+            "incorrectly judge 'Linda is a feminist bank teller' as more likely "
+            "than 'Linda is a bank teller', a conjunction-fallacy violation of "
+            "the base rate of bank tellers."
+        ),
+        "Falsifiability (vague forecast)": (
+            "The claim 'markets will be volatile next year' forbids no observation; "
+            "it is unfalsifiable and therefore not a real prediction about the world."
+        ),
+        "Out-of-domain (rejection)": (
+            "Bananas turn yellow when ripe. They float in fresh water."
+        ),
+    }
+    belief_choice = st.selectbox(
+        "Preset (or write your own below):",
+        list(belief_presets.keys()),
+        key="belief_preset",
+    )
+    belief_text = st.text_area(
+        "Claim to classify:",
+        value=belief_presets[belief_choice],
+        height=120,
+        placeholder="Paste a claim from a book, article, or note...",
+        key="belief_text",
+    )
+
+    bcol_run, _ = st.columns([1, 5])
+    if bcol_run.button("Classify", type="primary", key="belief_run"):
+        if not belief_text.strip():
+            st.warning("Paste a claim first.")
+        else:
+            with st.spinner("Running pipeline against Belief OS..."):
+                pipeline = personal_epistemic_extractor(belief_text)
+            knowledge = pipeline["knowledge"]
+            scores = pipeline["true_validation"]["scores"]
+            decision = pipeline["decision"]
+
+            bc1, bc2, bc3 = st.columns(3)
+            bc1.metric("Reasoning primitive", knowledge.get("mechanism", "unknown"))
+            bc2.markdown(
+                f"**Decision**<br/>{_decision_pill(decision)}",
+                unsafe_allow_html=True,
+            )
+            bc3.metric("Composite TRUE", f"{scores.get('TRUE', 0):.2f}")
+
+            st.markdown(
+                "**TRUE per dimension** "
+                "(E = experimentable, U = usable, R = repeatable, T = transferable)"
+            )
+            st.bar_chart(
+                {k: scores.get(k, 0) for k in ("E", "U", "R", "T")},
+                horizontal=True,
+                use_container_width=True,
+            )
+            st.markdown(
+                "**Evidence strength** "
+                "(year/author/DOI/URL/arXiv markers): "
+                f"`{classify_evidence_strength(belief_text)}`"
+            )
+            with st.expander("Synthesized knowledge dict"):
+                st.json(knowledge)
+
+    st.divider()
+    st.subheader("Watch your priors update")
+    st.caption(
+        "Feed a citation-rich note that contradicts the current definition of a "
+        "reasoning primitive. The L1 loop proposes a refinement, gates it against "
+        "the 6 Belief OS goldens, and merges only if accuracy holds."
+    )
+
+    belief_default_doc = (
+        "Tetlock & Gardner (2015) Superforecasting (https://doi.org/10.1234/sf.2015) "
+        "argue that base-rate reasoning works only when the reference class is also "
+        "selected for the question being asked — anchoring on the wrong reference class "
+        "is worse than ignoring base rates entirely. arXiv:1503.04567"
+    )
+    belief_docs = st.text_area(
+        "Document(s) to ingest (one per blank-line block):",
+        value=belief_default_doc,
+        height=140,
+        key="belief_ingest_text",
+    )
+
+    if st.button("Ingest into Belief OS", type="primary", key="belief_ingest_btn"):
+        docs = [d.strip() for d in belief_docs.split("\n\n") if d.strip()]
+        if not docs:
+            st.warning("Provide at least one document.")
+        else:
+            tmp_dir = Path(tempfile.mkdtemp(prefix="neuro_belief_ingest_"))
+            ontology_path = tmp_dir / "belief_ontology.json"
+            version_registry.set_registry_path(tmp_dir / "registry.jsonl")
+            primitive_feedback.FEEDBACK_PATH = tmp_dir / "feedback.jsonl"
+            primitive_feedback.reset_for_tests()
+
+            ontology_copy = copy.deepcopy(belief_ontology)
+            with st.spinner("Running self-evolving loop on Belief OS..."):
+                belief_report = ingest_documents(
+                    docs,
+                    ontology=ontology_copy,
+                    ontology_path=ontology_path,
+                    golden_cases=list(PERSONAL_EPISTEMIC_GOLDEN_CASES),
+                    priority_rules_path=PERSONAL_EPISTEMIC_PRIORITY_RULES_PATH,
+                )
+            st.session_state["belief_report"] = belief_report
+            if ontology_path.exists():
+                st.session_state["belief_ontology_after"] = json.loads(
+                    ontology_path.read_text()
+                )
+            else:
+                st.session_state["belief_ontology_after"] = None
+
+    bel_after = st.session_state.get("belief_ontology_after")
+    bel_report = st.session_state.get("belief_report")
+    bcol_l, bcol_r = st.columns(2, gap="medium")
+    with bcol_l:
+        st.markdown("##### 📊 Baseline Belief OS ontology")
+        st.graphviz_chart(ontology_dot(belief_ontology), use_container_width=True)
+    with bcol_r:
+        st.markdown("##### 🌱 After ingestion")
+        if bel_after is not None:
+            st.graphviz_chart(
+                ontology_dot(bel_after, baseline=belief_ontology),
+                use_container_width=True,
+            )
+            st.caption("Green-bordered nodes accreted citations from the input.")
+        else:
+            st.info("Click **Ingest into Belief OS** to populate this graph.")
+
+    if bel_report is not None:
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Documents", len(bel_report["ingested"]))
+        m2.metric("Merges applied", bel_report["merges_applied"])
+        m3.metric("Merges reverted", bel_report["merges_reverted"])
+        actions = [e["action"] for e in bel_report["evolutions"]]
+        st.markdown("**Evolution actions:** " + " ".join(f"`{a}`" for a in actions))
+        with st.expander("Full report"):
+            st.json(bel_report)
+
+
+# ---------------------------------------------------------------------------
+# Tab 5 — Readiness
+# ---------------------------------------------------------------------------
+
+with tabs[4]:
     st.subheader("Is your X ready for flywheel?")
     st.caption(
         "5 questions. Answer honestly. The verdict points to the missing "
@@ -528,10 +700,10 @@ with tabs[3]:
 
 
 # ---------------------------------------------------------------------------
-# Tab 5 — About
+# Tab 6 — About
 # ---------------------------------------------------------------------------
 
-with tabs[4]:
+with tabs[5]:
     st.subheader("About")
     st.markdown(
         """

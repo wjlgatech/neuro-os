@@ -22,9 +22,12 @@ Two graphs:
 """
 from __future__ import annotations
 
+import hashlib
 from typing import Any, Dict, List, Optional, Tuple
 
 
+# Neuroscience palette stays pinned: these names must always render with
+# their established colors so the existing tabs are visually unchanged.
 _PRIMITIVE_COLORS: Dict[str, str] = {
     "predictive_processing": "#3b82f6",   # blue
     "reinforcement_learning": "#10b981",  # emerald
@@ -32,6 +35,38 @@ _PRIMITIVE_COLORS: Dict[str, str] = {
     "attention": "#8b5cf6",               # violet
     "hierarchical_abstraction": "#ec4899",  # pink
 }
+
+# Stable fallback palette for any primitive not in ``_PRIMITIVE_COLORS``.
+# We hash the primitive name to pick a slot, so colors are deterministic
+# across runs and across machines (no `random` calls).
+_FALLBACK_PALETTE: List[str] = [
+    "#0ea5e9",  # sky
+    "#14b8a6",  # teal
+    "#22c55e",  # green
+    "#eab308",  # yellow
+    "#f97316",  # orange
+    "#ef4444",  # red
+    "#a855f7",  # purple
+    "#d946ef",  # fuchsia
+]
+
+
+def _color_for(name: str) -> str:
+    """Return a deterministic color for a primitive name."""
+    if name in _PRIMITIVE_COLORS:
+        return _PRIMITIVE_COLORS[name]
+    digest = hashlib.md5(name.encode("utf-8")).digest()
+    return _FALLBACK_PALETTE[digest[0] % len(_FALLBACK_PALETTE)]
+
+
+def domain_colors(ontology: Dict[str, Any]) -> Dict[str, str]:
+    """Return ``{primitive_name: hex_color}`` for every primitive in the ontology.
+
+    Neuroscience names use their pinned colors; anything else gets a
+    stable hash-bucket color from the fallback palette.
+    """
+    primitives = ontology.get("primitives", {}) or {}
+    return {name: _color_for(name) for name in primitives}
 
 
 def _esc(s: str) -> str:
@@ -72,7 +107,7 @@ def ontology_dot(
     ]
 
     for name, primitive in primitives.items():
-        color = _PRIMITIVE_COLORS.get(name, "#6b7280")
+        color = _color_for(name)
         baseline_sources = (
             len(baseline_primitives.get(name, {}).get("sources", []) or [])
             if baseline else None
@@ -145,7 +180,7 @@ def routing_dot(
 
     lines.append("  { rank=sink;")
     for mech in mechanisms:
-        color = _PRIMITIVE_COLORS.get(mech, "#6b7280")
+        color = _color_for(mech)
         lines.append(
             f'    mech_{_safe_id(mech)} [label="{_esc(_pretty_label(mech))}",'
             f' fillcolor="{color}", color="#1f2937", fontcolor="white"];'
@@ -174,4 +209,4 @@ def routing_dot(
     return "\n".join(lines)
 
 
-__all__ = ["ontology_dot", "routing_dot"]
+__all__ = ["ontology_dot", "routing_dot", "domain_colors"]
