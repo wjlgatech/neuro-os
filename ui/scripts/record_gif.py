@@ -1,51 +1,87 @@
 """
-Record a self-repair animation GIF.
+Record an annotated self-repair GIF.
 
-Drives the Self-Repair tab through 5 state transitions:
-  1. canonical (initial)
-  2. after Break it
-  3. after Run flywheel
-  4. result panel showing patch + validators
-  5. after Restore canonical
+Drives the Self-Repair tab through 5 state transitions, captures a
+clipped screenshot at each, overlays a brief caption via PIL, and
+stitches the result into ``ui/assets/self_repair.gif`` with imageio.
 
-Captures a clipped screenshot focused on the routing graph + key
-buttons at each step, then stitches them into a GIF with imageio.
+Captions follow the user's mental model:
+  Frame 1: "Canonical state"           (7 priority rules · all blue)
+  Frame 2: "Click 'Break it'"          (4 RL rules dashed)
+  Frame 3: "flywheel observed regression"
+  Frame 4: "Patch promoted"            (visual hold)
+  Frame 5: "Provenance recorded"       (validator panel)
+  Frame 6: "Restored canonical"
 
-The clipped region is chosen so each frame is the same width/height,
-so the resulting GIF is dimensionally consistent.
+Usage:
+    streamlit run ui/app.py --server.port 8765 --server.headless true &
+    python3 ui/scripts/record_gif.py
 """
 import asyncio
 import json
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 
 import imageio.v2 as imageio
+from PIL import Image, ImageDraw, ImageFont
 from playwright.async_api import async_playwright
 
 
-OUT = Path("/Users/jialiang.wu/Documents/Projects/neuro-os/ui/assets")
+REPO = Path(__file__).resolve().parent.parent.parent
+OUT = REPO / "ui" / "assets"
+OUT.mkdir(parents=True, exist_ok=True)
 FRAMES_DIR = Path("/tmp/gif_frames")
 FRAMES_DIR.mkdir(parents=True, exist_ok=True)
 
-
-# Each frame is a 1200x800 region anchored at (40, 360) which captures
-# the page from the start of the Self-Repair section (heading + buttons
-# + graph). Tuned visually.
 CLIP = {"x": 40, "y": 320, "width": 1200, "height": 1000}
+CAPTION_HEIGHT = 90
+CAPTION_BG = (17, 24, 39)        # slate 900
+CAPTION_FG = (255, 255, 255)
+ACCENT_GREEN = (16, 163, 74)     # emerald 600
 
 
-async def shoot(page, path: Path) -> None:
-    await page.screenshot(path=str(path), clip=CLIP)
+def _load_font(size: int) -> ImageFont.ImageFont:
+    candidates = [
+        "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+        "/System/Library/Fonts/HelveticaNeue.ttc",
+        "/System/Library/Fonts/Helvetica.ttc",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+    ]
+    for c in candidates:
+        if Path(c).exists():
+            try:
+                return ImageFont.truetype(c, size)
+            except Exception:
+                continue
+    return ImageFont.load_default()
+
+
+def annotate(src: Path, dst: Path, title: str, sub: str = "") -> None:
+    """Add a caption bar above a screenshot, write to ``dst``."""
+    img = Image.open(src).convert("RGB")
+    w = img.width
+    canvas = Image.new("RGB", (w, img.height + CAPTION_HEIGHT), CAPTION_BG)
+    canvas.paste(img, (0, CAPTION_HEIGHT))
+    draw = ImageDraw.Draw(canvas)
+    title_font = _load_font(26)
+    sub_font = _load_font(16)
+    tb = draw.textbbox((0, 0), title, font=title_font)
+    draw.text(((w - (tb[2] - tb[0])) / 2, 14), title, font=title_font, fill=CAPTION_FG)
+    if sub:
+        sb = draw.textbbox((0, 0), sub, font=sub_font)
+        draw.text(((w - (sb[2] - sb[0])) / 2, 52), sub, font=sub_font, fill=ACCENT_GREEN)
+    canvas.save(dst)
 
 
 async def click_text(page, text: str) -> None:
-    """Click a button by visible text — Streamlit-friendly."""
     btn = page.get_by_role("button", name=text).first
-    # Wait for button to be ready, then click. Streamlit removes/re-adds
-    # buttons on rerun, so a stale reference is real.
     await btn.wait_for(state="visible", timeout=5000)
     await btn.click()
     print(f"  clicked: {text!r}")
+
+
+async def shoot_clip(page, path: Path) -> None:
+    await page.screenshot(path=str(path), clip=CLIP)
 
 
 async def main() -> None:
@@ -56,71 +92,70 @@ async def main() -> None:
         await page.goto("http://localhost:8765", wait_until="networkidle")
         await page.wait_for_timeout(5000)
 
-        # Switch to Self-Repair
         await page.get_by_role("tab", name="🔧 Self-Repair").click()
         await page.wait_for_timeout(2500)
 
-        frames: List[Path] = []
+        steps: List[Tuple[Path, str, str]] = []
 
         # Frame 1: canonical
-        f1 = FRAMES_DIR / "f1_canonical.png"
-        await shoot(page, f1)
-        frames.append(f1)
+        raw1 = FRAMES_DIR / "f1_raw.png"
+        await shoot_clip(page, raw1)
+        steps.append((raw1, "Canonical state", "7 priority rules · all blue"))
 
-        # Frame 2: after Break it
+        # Frame 2: Break it
         await click_text(page, "⚠️  Break it (drop RL cues)")
         await page.wait_for_timeout(2500)
-        # Streamlit may have re-rendered the tab — make sure we're still on Self-Repair
-        await page.wait_for_timeout(1000)
-        f2 = FRAMES_DIR / "f2_broken.png"
-        await shoot(page, f2)
-        frames.append(f2)
-        # Hold a moment showing broken state
-        frames.append(f2)
+        raw2 = FRAMES_DIR / "f2_raw.png"
+        await shoot_clip(page, raw2)
+        steps.append((raw2, "Click 'Break it'",
+                      "4 reinforcement-learning rules now dashed gray"))
+        steps.append((raw2, "Pipeline misclassifies the dopamine golden",
+                      "expected: reinforcement_learning · got: predictive_processing"))
 
-        # Frame 3: after Run flywheel.
-        # Wait longer — the meta-loop runs a subprocess validator that
-        # spawns a fresh python interpreter to re-run goldens against
-        # the sandbox copy. That can take 5-8 seconds on cold cache.
+        # Frame 3: Run flywheel
         await click_text(page, "▶️  Run flywheel")
         await page.wait_for_load_state("networkidle")
         await page.wait_for_timeout(8000)
-        # Re-confirm the file has the new rule
-        rules_path = Path("/Users/jialiang.wu/Documents/Projects/neuro-os/agent/data/priority_rules.json")
-        print(f"  rules after flywheel: {len(json.loads(rules_path.read_text()))}")
-        f3 = FRAMES_DIR / "f3_running.png"
-        await shoot(page, f3)
-        frames.append(f3)
-        # Hold the result frame
-        frames.append(f3)
-        frames.append(f3)
+        rules_path = REPO / "agent" / "data" / "priority_rules.json"
+        rule_count = len(json.loads(rules_path.read_text()))
+        print(f"  rules after flywheel: {rule_count}")
+        raw3 = FRAMES_DIR / "f3_raw.png"
+        await shoot_clip(page, raw3)
+        steps.append((raw3, "flywheel observed the regression",
+                      "Patch proposed · sandbox validated · promoted to disk"))
+        steps.append((raw3, "✨  Patch promoted",
+                      "reward prediction error → reinforcement_learning"))
 
-        # Frame 4: scroll down a bit to see the validator results panel
+        # Frame 4: scroll to validators
         await page.evaluate("window.scrollBy(0, 300)")
         await page.wait_for_timeout(800)
-        f4 = FRAMES_DIR / "f4_validators.png"
-        await shoot(page, f4)
-        frames.append(f4)
-        frames.append(f4)
-
-        # Scroll back up
+        raw4 = FRAMES_DIR / "f4_raw.png"
+        await shoot_clip(page, raw4)
+        steps.append((raw4, "Provenance recorded",
+                      "patch + rollback patch + validators in version_registry"))
         await page.evaluate("window.scrollBy(0, -300)")
         await page.wait_for_timeout(500)
 
-        # Frame 5: Restore canonical
+        # Frame 5: Restore
         await click_text(page, "↩️  Restore canonical")
         await page.wait_for_timeout(2000)
-        f5 = FRAMES_DIR / "f5_restored.png"
-        await shoot(page, f5)
-        frames.append(f5)
+        raw5 = FRAMES_DIR / "f5_raw.png"
+        await shoot_clip(page, raw5)
+        steps.append((raw5, "Restored canonical", "7 rules · all blue again"))
 
         await browser.close()
 
-        # Stitch into GIF
-        images = [imageio.imread(f) for f in frames]
-        out_gif = OUT / "self_repair.gif"
-        imageio.mimsave(out_gif, images, duration=900, loop=0)  # ms per frame
-        print(f"saved {out_gif} ({out_gif.stat().st_size // 1024} KB, {len(frames)} frames)")
+    annotated: List[Path] = []
+    for i, (raw, title, sub) in enumerate(steps, start=1):
+        out = FRAMES_DIR / f"annotated_{i:02d}.png"
+        annotate(raw, out, title, sub)
+        annotated.append(out)
+
+    out_gif = OUT / "self_repair.gif"
+    images = [imageio.imread(p) for p in annotated]
+    imageio.mimsave(out_gif, images, duration=1300, loop=0)
+    print(f"saved {out_gif} ({out_gif.stat().st_size // 1024} KB, {len(annotated)} frames)")
 
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(main())

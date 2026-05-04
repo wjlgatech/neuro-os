@@ -90,6 +90,26 @@ st.markdown(
       .pill.warn  { background: #fef3c7; color: #92400e; }
       .pill.fail  { background: #fee2e2; color: #991b1b; }
       .pill.muted { background: #e5e7eb; color: #374151; }
+      /* Pulse badge that fires for ~3s after a successful flywheel
+         promotion. The CSS animation runs once per render, so a fresh
+         st.rerun gives the badge a fresh dose of attention. */
+      @keyframes neuroPulse {
+        0%   { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(22,163,74,0.6); }
+        50%  { transform: scale(1.05); box-shadow: 0 0 12px 8px rgba(22,163,74,0.0); }
+        100% { transform: scale(1.00); box-shadow: 0 0 0 0 rgba(22,163,74,0.0); }
+      }
+      .neuro-pulse {
+        display: inline-block;
+        padding: 6px 14px;
+        margin: 6px 0 12px 0;
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: #065f46;
+        background: #d1fae5;
+        border: 2px solid #16a34a;
+        border-radius: 8px;
+        animation: neuroPulse 0.9s ease-out 3;
+      }
       code, pre { font-size: 0.85rem; }
     </style>
     """,
@@ -227,69 +247,86 @@ with tabs[1]:
         height=150,
     )
 
-    # Show baseline ontology before ingestion so the diff is visible.
     baseline_ontology = _canonical_ontology()
-    with st.expander("📊 Ontology graph (baseline)", expanded=True):
-        st.graphviz_chart(ontology_dot(baseline_ontology), use_container_width=True)
 
-    if st.button("Ingest", type="primary", key="run_ingest"):
+    run_ingest = st.button("Ingest", type="primary", key="run_ingest")
+
+    # Side-by-side ontology graphs: baseline (left) and post-ingestion
+    # (right). The right pane is a placeholder until Ingest fires; after
+    # that, green-bordered nodes mark primitives that accreted citations.
+    final_ontology = None
+    last_report = None
+    if run_ingest:
         docs = [d.strip() for d in docs_text.split("\n\n") if d.strip()]
         if not docs:
             st.warning("Provide at least one document.")
         else:
             tmp_dir = Path(tempfile.mkdtemp(prefix="neuro_ui_ingest_"))
             ontology_path = tmp_dir / "ontology.json"
-            # Snapshot registry + feedback paths so the UI run doesn't pollute live state.
             version_registry.set_registry_path(tmp_dir / "registry.jsonl")
             primitive_feedback.FEEDBACK_PATH = tmp_dir / "feedback.jsonl"
             primitive_feedback.reset_for_tests()
 
-            # Pass a deep-copied ontology to ingest so we can diff after.
             ontology_copy = copy.deepcopy(baseline_ontology)
             with st.spinner("Running self-evolving loop..."):
-                report = ingest_documents(
+                last_report = ingest_documents(
                     docs,
                     ontology=ontology_copy,
                     ontology_path=ontology_path,
                 )
+            if ontology_path.exists():
+                final_ontology = json.loads(ontology_path.read_text())
+            st.session_state["last_ingest_report"] = last_report
+            st.session_state["last_ingest_ontology"] = final_ontology
 
-            c1, c2, c3 = st.columns(3)
-            c1.metric("Documents", len(docs))
-            c2.metric("Merges applied", report["merges_applied"])
-            c3.metric("Merges reverted", report["merges_reverted"])
+    # Pull from session state so the side-by-side persists across reruns.
+    final_ontology = final_ontology or st.session_state.get("last_ingest_ontology")
+    last_report = last_report or st.session_state.get("last_ingest_report")
 
-            actions = [e["action"] for e in report["evolutions"]]
-            st.markdown(
-                "**Evolution actions:** "
-                + " ".join(f"`{a}`" for a in actions)
+    col_l, col_r = st.columns(2, gap="medium")
+    with col_l:
+        st.markdown("##### 📊 Baseline ontology")
+        st.graphviz_chart(ontology_dot(baseline_ontology), use_container_width=True)
+    with col_r:
+        st.markdown("##### 🌱 After ingestion")
+        if final_ontology is not None:
+            st.graphviz_chart(
+                ontology_dot(final_ontology, baseline=baseline_ontology),
+                use_container_width=True,
+            )
+            st.caption("Green-bordered nodes accreted citations from the input.")
+        else:
+            st.info(
+                "Click **Ingest** to run the self-evolving loop. "
+                "The right-hand graph will populate with the post-ingestion ontology."
             )
 
-            if ontology_path.exists():
-                final = json.loads(ontology_path.read_text())
-                st.markdown(
-                    "**Ontology after ingestion** "
-                    "(green-bordered nodes accreted citations):"
-                )
-                st.graphviz_chart(
-                    ontology_dot(final, baseline=baseline_ontology),
-                    use_container_width=True,
-                )
+    if last_report is not None:
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Documents", len(last_report["ingested"]))
+        c2.metric("Merges applied", last_report["merges_applied"])
+        c3.metric("Merges reverted", last_report["merges_reverted"])
 
-                changed = []
-                for name, primitive in final["primitives"].items():
-                    if primitive.get("sources"):
-                        changed.append({
-                            "primitive": name,
-                            "definition": primitive.get("definition", ""),
-                            "sources_added": len(primitive.get("sources", [])),
-                        })
-                if changed:
-                    st.dataframe(changed, use_container_width=True)
-                else:
-                    st.caption("No primitives mutated — nothing was merged.")
+        actions = [e["action"] for e in last_report["evolutions"]]
+        st.markdown(
+            "**Evolution actions:** " + " ".join(f"`{a}`" for a in actions)
+        )
 
-            with st.expander("Full report"):
-                st.json(report)
+        if final_ontology is not None:
+            changed = []
+            for name, primitive in final_ontology["primitives"].items():
+                if primitive.get("sources"):
+                    changed.append({
+                        "primitive": name,
+                        "definition": primitive.get("definition", ""),
+                        "sources_added": len(primitive.get("sources", [])),
+                    })
+            if changed:
+                st.markdown("**Primitives that mutated:**")
+                st.dataframe(changed, use_container_width=True)
+
+        with st.expander("Full report"):
+            st.json(last_report)
 
 
 # ---------------------------------------------------------------------------
@@ -334,6 +371,17 @@ with tabs[2]:
         routing_dot(current_rules, _CANONICAL_RULES, freshly_promoted=fresh),
         use_container_width=True,
     )
+    # Pulse badge fires for ~3 seconds after a successful flywheel
+    # promotion. The CSS animation runs `3` times each render, so the
+    # badge re-attracts attention every time the user watches the
+    # post-promotion state.
+    if fresh:
+        for cue, mech in fresh:
+            st.markdown(
+                f'<div class="neuro-pulse">✨ Patch promoted: '
+                f'<code>{cue} → {mech}</code></div>',
+                unsafe_allow_html=True,
+            )
     legend = (
         "🔵 canonical & present &nbsp;&nbsp;"
         "🟢 freshly added by flywheel &nbsp;&nbsp;"
