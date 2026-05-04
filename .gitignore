@@ -3,6 +3,14 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# Neuro-OS runtime artifacts (per-machine state — registry log,
+# primitive-feedback log, ontology snapshots written by examples/UI).
+# Tests redirect these to tempdirs; demos and the Streamlit app default
+# to writing here.
+memory/
+versions/
+*.jsonl
+
 # C extensions
 *.so
 
