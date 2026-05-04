@@ -76,6 +76,50 @@ L2 mutates the priority-rules data that L0 depends on. L1 mutates the ontology t
 
 ---
 
+## Belief OS — use it as a primitive, not a product
+
+**Belief OS** (the `personal_epistemic_v1` domain) is a contradiction-aware reasoning ontology built on top of the L1 loop. It classifies a claim into one of six reasoning patterns (Bayesian updating, base-rate reasoning, falsifiability, expected value, second-order thinking, survivorship bias) and tracks how a user's beliefs change over time.
+
+**Belief OS is not a standalone app.** The Streamlit tab is a reference implementation and QA harness; the load-bearing surface is a small, typed Python API (`agent/belief_os.py`) designed for **other products in the wjlgatech ecosystem to consume**:
+
+- **company-os Founder OS** — call `check_decision_text(intent)` before promoting an intent to PLAN.md. Pause the approval gate when the intent invokes a known reasoning failure mode (`survivorship_bias`, `falsifiability`).
+- **money-os** — call `BeliefOS(ontology_path=user_priors_file).ingest(thesis)` when a user captures an investment thesis. The L1 loop detects contradictions with prior theses and surfaces them at capture time, before position sizing.
+- **research-os** (hypothetical) — call `ingest(text, source_type="research_paper")` when a user pastes a key claim from a paper. Build a per-user belief graph that survives across sessions and surfaces cross-paper contradictions.
+
+```python
+# Stateless one-off (no persistence, no API key needed)
+from agent.belief_os import classify_belief, check_decision_text
+
+result = classify_belief("Steve Jobs dropped out and became a billionaire — that's the smart move.")
+# → ClassificationResult(mechanism='survivorship_bias', decision='ACCEPT', method='offline-keyword', ...)
+
+# Founder-OS approval-gate pattern
+gate = check_decision_text("Drop out — Jobs and Gates dropped out and became billionaires.")
+if gate.flag_for_review:
+    # → True; gate.flag_reason names the failure mode
+    raise ApprovalRequired(gate.flag_reason)
+
+# Persistent per-user belief graph
+from agent.belief_os import BeliefOS
+belief_os = BeliefOS(ontology_path="users/alice/priors.json", use_llm=True)
+ingested = belief_os.ingest(claim, source_type="investment_thesis")
+if ingested.contradicts_prior:
+    surface_contradiction_to_user(ingested.primitive_updated)
+```
+
+End-to-end multi-consumer demo:
+
+```bash
+python examples/07_belief_os_consumer.py
+# Simulates a Founder-OS approval gate, a money-os thesis-capture flow,
+# a research-os paper-ingest flow, and a stateless one-off lookup —
+# all calling into the same primitive.
+```
+
+Files: `agent/belief_os.py` · `agent/personal_epistemic_domain.py` · `agent/llm_extractors.py` · `examples/07_belief_os_consumer.py` · `tests/test_belief_os_api.py`.
+
+---
+
 ## Features
 
 Each block expands. Each entry covers three lenses:

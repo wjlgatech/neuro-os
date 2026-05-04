@@ -498,13 +498,31 @@ with tabs[2]:
 # ---------------------------------------------------------------------------
 
 with tabs[3]:
-    st.subheader("Belief OS — contradiction-aware reasoning ontology")
+    st.subheader("Belief OS — reference implementation")
     st.caption(
-        "Same closed loop, repointed: 6 reasoning primitives instead of "
-        "neuroscience mechanisms. Paste a claim from something you read "
-        "and watch it classify against Bayesian updating, base-rate reasoning, "
-        "falsifiability, expected value, second-order thinking, and "
-        "survivorship bias — with the same TRUE-rubric and golden-case gate."
+        "Belief OS is a **primitive**, not a standalone app. This tab is "
+        "a QA harness and reference implementation. Real consumers — "
+        "company-os Founder OS, money-os, a hypothetical research-os — "
+        "import the typed Python API:"
+    )
+    st.code(
+        "from agent.belief_os import BeliefOS, classify_belief, check_decision_text\n"
+        "\n"
+        "# Stateless one-off\n"
+        "classify_belief('your claim here')\n"
+        "\n"
+        "# Founder-OS approval gate\n"
+        "check_decision_text('your intent here')  # → flag_for_review bool\n"
+        "\n"
+        "# Persistent per-user belief graph\n"
+        "BeliefOS(ontology_path='users/alice/priors.json').ingest(text)",
+        language="python",
+    )
+    st.caption(
+        "See `examples/07_belief_os_consumer.py` for the full Founder-OS / "
+        "money-os / research-os call shapes. The 6 reasoning primitives below "
+        "are: Bayesian updating, base-rate reasoning, falsifiability, "
+        "expected value, second-order thinking, survivorship bias."
     )
 
     # LLM toggle (v1.2). Off by default — keyword routing only. When
@@ -791,6 +809,20 @@ with tabs[5]:
         substrate that anyone can adopt. ``flywheel(X) = X_self_improved``
         for any X meeting five readiness conditions (see the **Readiness** tab).
 
+        ### Belief OS is a primitive, not a product
+
+        The 🧭 Belief OS tab is a **reference implementation** of the
+        ``personal_epistemic_v1`` domain. The load-bearing surface is the
+        typed Python API in ``agent/belief_os.py``:
+
+        ```python
+        from agent.belief_os import BeliefOS, classify_belief, check_decision_text
+        ```
+
+        Real consumers (company-os Founder OS, money-os, a future
+        research-os) call this API. See ``examples/07_belief_os_consumer.py``
+        for the call shapes.
+
         ### Repos
         - https://github.com/wjlgatech/neuro-os
         - https://github.com/wjlgatech/flywheel
@@ -804,7 +836,9 @@ with tabs[5]:
         ```
 
         ### What this UI does NOT do
-        - It does not call any external LLM. The default extractor is offline keyword routing.
+        - It does not call any external LLM by default. Toggle "Use Claude
+          Haiku LLM" on the Belief OS tab to enable the LLM extractor —
+          requires ``ANTHROPIC_API_KEY``.
         - It does not write to your live registry — every run uses a temp directory.
         - It DOES write to ``agent/data/priority_rules.json`` when you click
           "Break it" and "Restore" on the Self-Repair tab. The session

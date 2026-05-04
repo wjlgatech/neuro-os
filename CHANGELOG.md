@@ -4,6 +4,78 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic
 Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] — Belief OS as a primitive
+
+Reframes Belief OS from a standalone Streamlit demo into a **capability
+that other products in the wjlgatech ecosystem consume**. The Streamlit
+tab is preserved as a reference implementation and QA harness; the
+load-bearing surface is now the typed Python API in
+``agent/belief_os.py``.
+
+### Added
+- **Public consumption API** (``agent/belief_os.py``): a ``BeliefOS``
+  class plus stateless ``classify_belief()`` / ``check_decision_text()``
+  module-level functions. Typed Pydantic results
+  (``ClassificationResult``, ``DecisionCheckResult``, ``IngestResult``,
+  ``BeliefRecord``). Exported constants ``KNOWN_PRIMITIVES``,
+  ``FAILURE_MODE_PRIMITIVES``, ``SOUND_REASONING_PRIMITIVES`` so
+  consumers can build dropdowns / dashboards / approval gates without
+  reading internals.
+- **``BeliefOS.check_decision()``** — the Founder-OS pattern. Returns
+  ``flag_for_review=True`` iff the classified primitive is in the
+  failure-mode set (default: ``survivorship_bias`` and
+  ``falsifiability``). Per-instance override via constructor.
+- **``BeliefOS.ingest()``** — the persistent-belief-graph pattern.
+  Wraps the L1 closed loop and returns ``IngestResult`` with
+  ``merge_status``, ``contradicts_prior``, and the persisted
+  ``ontology_path`` so consumers (money-os, research-os) can build
+  per-user belief graphs that survive across sessions.
+- **``BeliefOS.query()``** — read the user's current beliefs. Returns
+  typed ``BeliefRecord`` lists, optionally filtered by primitive.
+- **Multi-consumer example** (``examples/07_belief_os_consumer.py``):
+  shows the call shape for company-os Founder OS, money-os, and a
+  hypothetical research-os, plus the stateless one-off pattern. None
+  of the consumers know about ontologies, golden cases, or priority
+  rules.
+- **20 new tests** (``tests/test_belief_os_api.py``) pinning the
+  return-shape contracts that downstream products depend on. Includes
+  no-leakage-between-instances coverage so two consumers with
+  different failure-mode sets can coexist in one process.
+
+### Changed
+- Streamlit Belief OS tab now framed as a **reference implementation**,
+  not the product. Tab caption, About section, and Belief-OS panel
+  copy updated to point consumers at ``from agent.belief_os import …``.
+
+## [0.3.0] — v1.2 LLM upgrade
+
+### Added
+- **LLM-backed extractor** (``agent/llm_extractors.py``): pluggable
+  Anthropic Haiku 4.5 classifier with structured Pydantic output, a
+  4096+ token system prompt with explicit acceptance criteria + 20
+  worked few-shot examples, and ``cache_control: ephemeral`` so
+  repeat classifications cost ~10% of the first call.
+- **LLM toggle on `personal_epistemic_v1`** (``enable_llm()`` /
+  ``disable_llm()`` / ``set_llm_fn()``). When enabled, the extractor
+  tries the LLM first and falls back to keyword routing only on
+  ``unknown`` or error. Default OFF — every existing test stays
+  deterministic and offline.
+- **9 LLM tests** (``tests/test_personal_epistemic_llm.py``) — all
+  mocked, no live API calls. Covers the fallback chain, error
+  handling, system-prompt contract (all seven labels enumerated,
+  worked examples present, clears the 4096-token caching threshold),
+  and ``messages.parse()`` wiring with cache_control.
+- **UI toggle**: "Use Claude Haiku LLM" in the Belief OS tab. Disabled
+  when ``ANTHROPIC_API_KEY`` is unset; surfaces confidence + reasoning
+  + cache hit/write counts when active.
+- **`pyproject.toml` `[llm]` extra** for the optional `anthropic` dep.
+
+### Changed
+- ``run_pipeline`` now propagates ``extract_mechanism``'s evidence
+  dict into ``knowledge['extraction_evidence']`` so callers can audit
+  which path (offline-keyword / llm-anthropic / llm-error) produced
+  the mechanism.
+
 ## [0.2.0] — 2026-05-02
 
 ### Added
