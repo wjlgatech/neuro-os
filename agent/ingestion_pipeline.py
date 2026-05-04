@@ -321,7 +321,11 @@ def run_pipeline(
         priority_rules_path=priority_rules_path,
     )
     mechanism = extraction["mechanism"]
+    extraction_evidence = extraction.get("evidence", {}) or {}
     knowledge = _build_knowledge(text, mechanism, ontology)
+    # Surface which extraction path produced the mechanism so callers
+    # can audit (offline-keyword vs llm-anthropic vs llm-error).
+    knowledge["extraction_evidence"] = extraction_evidence
     validation = _true_validation(knowledge)
     if mechanism == "unknown":
         decision = "REJECT"

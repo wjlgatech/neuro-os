@@ -22,7 +22,7 @@ Register and use::
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 from agent.domains import (
     Domain,
@@ -31,6 +31,52 @@ from agent.domains import (
     register_domain,
 )
 from agent.ingestion_pipeline import run_pipeline
+
+
+# ---------------------------------------------------------------------------
+# Optional LLM extractor — set via ``enable_llm()`` (v1.2 upgrade).
+# ---------------------------------------------------------------------------
+
+# When non-None, ``personal_epistemic_extractor`` tries the LLM first and
+# falls back to keyword routing if the LLM returns 'unknown' or errors.
+# Default ``None`` keeps every existing test deterministic and offline.
+_llm_fn: Optional[Callable[[str], Dict[str, Any]]] = None
+
+
+def enable_llm(
+    *,
+    model: str = "claude-haiku-4-5",
+    api_key: Optional[str] = None,
+    enable_caching: bool = True,
+) -> None:
+    """Enable the LLM-backed extractor for this domain.
+
+    Subsequent calls to ``personal_epistemic_extractor()`` will try the
+    LLM first and fall back to keyword routing only when the LLM returns
+    'unknown' or errors. Calling this without a configured
+    ``ANTHROPIC_API_KEY`` (or explicit ``api_key``) raises immediately
+    rather than silently falling back, so misconfiguration is loud.
+    """
+    global _llm_fn
+    from agent.llm_extractors import make_anthropic_extractor
+
+    _llm_fn = make_anthropic_extractor(
+        model=model,
+        api_key=api_key,
+        enable_caching=enable_caching,
+    )
+
+
+def disable_llm() -> None:
+    """Reset to keyword-only routing (used by tests + the UI toggle)."""
+    global _llm_fn
+    _llm_fn = None
+
+
+def set_llm_fn(fn: Optional[Callable[[str], Dict[str, Any]]]) -> None:
+    """Inject a custom ``llm_fn`` directly. Used by tests to mock the SDK."""
+    global _llm_fn
+    _llm_fn = fn
 
 
 PERSONAL_EPISTEMIC_PRIORITY_RULES_RELATIVE = (
@@ -203,10 +249,44 @@ def _ontology() -> Dict[str, Any]:
 
 
 def personal_epistemic_extractor(text: str) -> Dict[str, Any]:
-    """Run the standard pipeline against the personal-epistemic ontology + cues."""
+    """Classify text with the LLM (if enabled) then keyword routing.
+
+    Behaviour:
+      * If ``_llm_fn`` is configured (via ``enable_llm()`` /
+        ``set_llm_fn()``), run the pipeline through the LLM first. If
+        the LLM returns a known primitive, that result is final.
+      * If the LLM returns ``'unknown'`` (or its underlying call errored
+        and our wrapper turned the error into 'unknown'), retry the
+        pipeline with keyword routing — many cases the LLM legitimately
+        misses still match a priority rule.
+      * If ``_llm_fn`` is ``None`` (default), use keyword routing only.
+        This is the original v1.1 behaviour and keeps every existing
+        test deterministic and offline.
+
+    The chosen path is recorded in
+    ``result['knowledge']['evidence']['method']`` (``llm-anthropic``,
+    ``llm-error``, or ``offline-keyword``) so callers can audit which
+    leg of the chain produced the answer.
+    """
+    ontology = _ontology()
+
+    if _llm_fn is not None:
+        llm_result = run_pipeline(
+            text,
+            ontology=ontology,
+            llm_fn=_llm_fn,
+            priority_rules_path=PERSONAL_EPISTEMIC_PRIORITY_RULES_PATH,
+        )
+        if llm_result["knowledge"].get("mechanism") != "unknown":
+            return llm_result
+        # LLM came back 'unknown' or errored — try the deterministic
+        # keyword path before giving up. Many real claims don't trip the
+        # LLM but do match a priority rule, and vice versa, so the chain
+        # has noticeably better coverage than either alone.
+
     return run_pipeline(
         text,
-        ontology=_ontology(),
+        ontology=ontology,
         priority_rules_path=PERSONAL_EPISTEMIC_PRIORITY_RULES_PATH,
     )
 

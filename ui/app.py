@@ -45,8 +45,11 @@ from agent import personal_epistemic_domain  # noqa: E402, F401
 from agent.personal_epistemic_domain import (  # noqa: E402
     PERSONAL_EPISTEMIC_GOLDEN_CASES,
     PERSONAL_EPISTEMIC_PRIORITY_RULES_PATH,
+    disable_llm as belief_disable_llm,
+    enable_llm as belief_enable_llm,
     personal_epistemic_extractor,
 )
+import os  # noqa: E402
 from agent.self_modification import run_self_modification  # noqa: E402
 from flywheel_loop.readiness import QUESTIONS, score_readiness  # noqa: E402
 
@@ -504,6 +507,45 @@ with tabs[3]:
         "survivorship bias — with the same TRUE-rubric and golden-case gate."
     )
 
+    # LLM toggle (v1.2). Off by default — keyword routing only. When
+    # enabled, Belief OS tries Claude Haiku 4.5 first and falls back to
+    # keyword if the model returns 'unknown' or errors. Requires
+    # ANTHROPIC_API_KEY; the toggle disables itself if the key is absent.
+    has_api_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    bcol_toggle, bcol_status = st.columns([2, 4])
+    with bcol_toggle:
+        use_llm = st.toggle(
+            "Use Claude Haiku LLM",
+            value=False,
+            disabled=not has_api_key,
+            key="belief_use_llm",
+            help=(
+                "Enables LLM extraction for slang and natural-language "
+                "claims that the keyword router misses. Requires "
+                "ANTHROPIC_API_KEY. Falls back to keyword routing on any "
+                "LLM error."
+            ),
+        )
+    with bcol_status:
+        if not has_api_key:
+            st.caption(
+                "_⚠️ ANTHROPIC_API_KEY not set — LLM toggle disabled. "
+                "Set it in your environment to enable._"
+            )
+        elif use_llm:
+            st.caption("_🟢 LLM extractor active (Haiku 4.5, with prompt caching)._")
+        else:
+            st.caption("_🔵 Keyword routing only._")
+
+    if use_llm:
+        try:
+            belief_enable_llm(model="claude-haiku-4-5")
+        except Exception as exc:  # noqa: BLE001 — UI safety
+            st.error(f"Could not enable LLM: {type(exc).__name__}: {exc}")
+            belief_disable_llm()
+    else:
+        belief_disable_llm()
+
     belief_domain = get_domain("personal_epistemic_v1")
     belief_ontology = belief_domain.ontology
 
@@ -559,6 +601,37 @@ with tabs[3]:
                 unsafe_allow_html=True,
             )
             bc3.metric("Composite TRUE", f"{scores.get('TRUE', 0):.2f}")
+
+            # Surface the extraction path + LLM reasoning when present.
+            extraction_evidence = knowledge.get("extraction_evidence", {}) or {}
+            method = extraction_evidence.get("method", "offline-keyword")
+            if method == "llm-anthropic":
+                conf = extraction_evidence.get("confidence", "—")
+                reasoning_text = extraction_evidence.get("reasoning", "")
+                st.info(
+                    f"🤖 **Classified by Claude Haiku** (confidence: `{conf}`)\n\n"
+                    f"_{reasoning_text}_"
+                )
+                usage = extraction_evidence.get("usage") or {}
+                cache_read = usage.get("cache_read_input_tokens", 0)
+                cache_write = usage.get("cache_creation_input_tokens", 0)
+                if cache_read or cache_write:
+                    st.caption(
+                        f"Prompt cache — read: {cache_read} tokens, "
+                        f"write: {cache_write} tokens "
+                        f"(input: {usage.get('input_tokens', 0)}, "
+                        f"output: {usage.get('output_tokens', 0)})"
+                    )
+            elif method == "llm-error":
+                st.warning(
+                    f"⚠️ LLM call failed; fell back to keyword routing. "
+                    f"Error: `{extraction_evidence.get('error', 'unknown')}`"
+                )
+            elif method == "offline-keyword" and use_llm:
+                st.caption(
+                    "_LLM returned `unknown`; classification served by "
+                    "keyword fallback._"
+                )
 
             st.markdown(
                 "**TRUE per dimension** "

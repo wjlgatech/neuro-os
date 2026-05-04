@@ -13,13 +13,19 @@ Stage 2: feed a citation-rich note that proposes a refinement to one of
          priority rules. Print the merge outcome and the resulting
          ontology delta.
 
+Stage 3 (v1.2 LLM upgrade): try the SAME slang claims with the LLM
+         extractor enabled. Skipped automatically if ``ANTHROPIC_API_KEY``
+         is not set.
+
 Run::
 
-    python examples/06_personal_epistemic_demo.py
+    python examples/06_personal_epistemic_demo.py            # stages 1+2 (offline)
+    ANTHROPIC_API_KEY=sk-... python examples/06_personal_epistemic_demo.py  # + stage 3
 """
 from __future__ import annotations
 
 import json
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -35,8 +41,22 @@ from agent.domains import get_domain  # noqa: E402
 from agent.personal_epistemic_domain import (  # noqa: E402
     PERSONAL_EPISTEMIC_GOLDEN_CASES,
     PERSONAL_EPISTEMIC_PRIORITY_RULES_PATH,
+    disable_llm,
+    enable_llm,
     personal_epistemic_extractor,
 )
+
+
+# Slang / informal claims that the v1.1 keyword router struggles with.
+# These are the inputs we'll re-run with the LLM extractor in Stage 3.
+SLANG_CLAIMS = [
+    "bro every founder I know who actually made bank just bailed on school fr, the smart move is to not bother with college",
+    "she literally tested cancer free, she's gonna live forever fr fr",
+    "if I lower my price tmrw I'll crush the competition",
+    "lol my uncle is so confident crypto will 10x next year, but his last 5 'sure things' all flopped",
+    "this morning routine works for everyone always, no exceptions, you just have to actually try it",
+    "bananas are yellow when ripe and float in fresh water lmao",
+]
 
 
 def stage1_classify() -> None:
@@ -117,6 +137,50 @@ def stage2_ingest_with_learnback() -> None:
                 print(f"    first source      : {sources[0][:80]}...")
 
 
+def stage3_llm_upgrade() -> None:
+    """Re-run the slang claims with and without the LLM enabled."""
+    print("\n" + "=" * 72)
+    print("Stage 3 — LLM upgrade (Claude Haiku 4.5)")
+    print("=" * 72)
+
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        print(
+            "\n  Skipped: ANTHROPIC_API_KEY not set.\n"
+            "  Set the env var to run this stage:\n"
+            "    ANTHROPIC_API_KEY=sk-... python examples/06_personal_epistemic_demo.py"
+        )
+        return
+
+    print("\n  Comparing keyword-only vs. LLM extraction on raw slang.\n")
+    print(f"  {'CLAIM':<60s}  {'KEYWORD':<22s}  {'LLM':<22s}")
+    print("  " + "-" * 108)
+
+    for claim in SLANG_CLAIMS:
+        # Keyword-only
+        disable_llm()
+        keyword = personal_epistemic_extractor(claim)
+        kw_label = keyword["knowledge"].get("mechanism", "unknown")
+
+        # LLM-augmented
+        enable_llm(model="claude-haiku-4-5")
+        try:
+            llm = personal_epistemic_extractor(claim)
+            llm_label = llm["knowledge"].get("mechanism", "unknown")
+            method = llm["knowledge"].get("extraction_evidence", {}).get("method", "")
+            badge = "via LLM" if method == "llm-anthropic" else "via fallback"
+        except Exception as exc:  # noqa: BLE001
+            llm_label = "ERROR"
+            badge = type(exc).__name__
+        finally:
+            disable_llm()
+
+        truncated = (claim[:57] + "...") if len(claim) > 60 else claim
+        print(
+            f"  {truncated:<60s}  {kw_label:<22s}  {llm_label} ({badge})"
+        )
+
+
 if __name__ == "__main__":
     stage1_classify()
     stage2_ingest_with_learnback()
+    stage3_llm_upgrade()
