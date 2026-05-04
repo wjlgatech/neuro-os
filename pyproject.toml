@@ -44,6 +44,9 @@ dev = [
 ui = [
     "streamlit>=1.30",
 ]
+llm = [
+    "anthropic>=0.40",
+]
 
 [project.scripts]
 neuro-os = "agent.cli:main"

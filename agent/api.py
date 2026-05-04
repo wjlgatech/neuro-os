@@ -78,8 +78,15 @@ def ingest_documents(
     ontology_path: Optional[Union[str, Path]] = None,
     run_in_sandbox: bool = False,
     enable_merge: bool = True,
+    golden_cases: Optional[List[Dict[str, str]]] = None,
+    priority_rules_path: Optional[Path] = None,
 ) -> Dict[str, Any]:
-    """Drive the full self-evolving loop over a batch of documents."""
+    """Drive the full self-evolving loop over a batch of documents.
+
+    ``golden_cases`` and ``priority_rules_path`` let non-neuroscience
+    domains gate merges against their own canonical cases and route
+    keywords through their own rule files.
+    """
     ont = _load_ontology_arg(ontology)
     return run_self_evolution(
         texts,
@@ -87,6 +94,8 @@ def ingest_documents(
         ontology_path=ontology_path,
         run_in_sandbox=run_in_sandbox,
         enable_merge=enable_merge,
+        golden_cases=golden_cases,
+        priority_rules_path=priority_rules_path,
     )
 
 

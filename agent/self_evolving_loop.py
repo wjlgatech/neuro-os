@@ -50,16 +50,27 @@ def _safe_evaluate(proposal: Dict[str, Any]) -> Dict[str, Any]:
         }
 
 
-def _golden_accuracy(ontology: Dict[str, Any]) -> float:
-    """Run GOLDEN_CASES through the pipeline; return classification accuracy."""
-    if not GOLDEN_CASES:
+def _golden_accuracy(
+    ontology: Dict[str, Any],
+    golden_cases: Optional[List[Dict[str, str]]] = None,
+    priority_rules_path: Optional[Path] = None,
+) -> float:
+    """Run golden cases through the pipeline; return classification accuracy.
+
+    ``golden_cases`` defaults to the neuroscience ``GOLDEN_CASES`` so existing
+    callers are unchanged. Custom domains pass their own list.
+    """
+    cases = golden_cases if golden_cases is not None else GOLDEN_CASES
+    if not cases:
         return 1.0
     correct = 0
-    for case in GOLDEN_CASES:
-        result = run_pipeline(case["text"], ontology)
+    for case in cases:
+        result = run_pipeline(
+            case["text"], ontology, priority_rules_path=priority_rules_path
+        )
         if result["knowledge"].get("mechanism") == case["expected_mechanism"]:
             correct += 1
-    return round(correct / len(GOLDEN_CASES), 3)
+    return round(correct / len(cases), 3)
 
 
 def _apply_ontology_merge(
@@ -108,6 +119,8 @@ def run_self_evolution(
     ontology_path: Optional[Union[str, Path]] = None,
     run_in_sandbox: bool = False,
     enable_merge: bool = True,
+    golden_cases: Optional[List[Dict[str, str]]] = None,
+    priority_rules_path: Optional[Path] = None,
 ) -> Dict[str, Any]:
     """Run the closed loop over a batch of source texts.
 
@@ -128,6 +141,12 @@ def run_self_evolution(
         gate mutate the ontology and append to feedback. When False,
         accepted refinements are still scored and recorded but the
         ontology is left untouched.
+    golden_cases : list of dict, optional
+        Domain-specific golden cases to gate merges against. Defaults to
+        the neuroscience ``GOLDEN_CASES``; custom domains pass their own.
+    priority_rules_path : Path, optional
+        Domain-specific priority-rules file for keyword routing. Defaults
+        to the neuroscience ``PRIORITY_RULES_PATH``.
     """
     if ontology is None:
         ontology = _canonical_ontology()
@@ -153,7 +172,9 @@ def run_self_evolution(
             report["sandbox"] = sandbox_validation
 
         for text in source_texts:
-            pipeline_result = run_pipeline(text, ontology)
+            pipeline_result = run_pipeline(
+                text, ontology, priority_rules_path=priority_rules_path
+            )
             report["ingested"].append(pipeline_result)
 
             evolution = evolve_from_extraction(pipeline_result, ontology)
@@ -171,9 +192,13 @@ def run_self_evolution(
                 merge_status = "evaluated"
                 if evaluation["decision"] == "ACCEPT":
                     if enable_merge:
-                        baseline_acc = _golden_accuracy(ontology)
+                        baseline_acc = _golden_accuracy(
+                            ontology, golden_cases, priority_rules_path
+                        )
                         snapshot = _apply_ontology_merge(ontology, proposal)
-                        new_acc = _golden_accuracy(ontology)
+                        new_acc = _golden_accuracy(
+                            ontology, golden_cases, priority_rules_path
+                        )
                         if new_acc >= baseline_acc:
                             append_primitive_feedback({**proposal, **evaluation})
                             report["feedback_appended"] += 1

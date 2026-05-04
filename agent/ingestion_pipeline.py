@@ -85,11 +85,18 @@ CANONICAL_PRIMITIVES: Dict[str, Dict[str, Any]] = {
 PRIORITY_RULES_PATH = Path(__file__).parent / "data" / "priority_rules.json"
 
 
-def get_priority_rules() -> List[Tuple[str, str]]:
-    """Read the current priority rules from disk."""
-    if not PRIORITY_RULES_PATH.exists():
+def get_priority_rules(
+    priority_rules_path: Optional[Path] = None,
+) -> List[Tuple[str, str]]:
+    """Read the current priority rules from disk.
+
+    ``priority_rules_path`` lets callers (e.g. a non-neuroscience domain)
+    point at a different routing file. Defaults to ``PRIORITY_RULES_PATH``.
+    """
+    path = priority_rules_path if priority_rules_path is not None else PRIORITY_RULES_PATH
+    if not path.exists():
         return []
-    with PRIORITY_RULES_PATH.open("r", encoding="utf-8") as f:
+    with path.open("r", encoding="utf-8") as f:
         return [tuple(item) for item in json.load(f)]
 
 
@@ -141,11 +148,15 @@ def _canonical_ontology() -> Dict[str, Any]:
     }
 
 
-def infer_mechanism_offline(text: str, ontology: Dict[str, Any]) -> str:
+def infer_mechanism_offline(
+    text: str,
+    ontology: Dict[str, Any],
+    priority_rules_path: Optional[Path] = None,
+) -> str:
     """Infer a mechanism by matching priority cues then ontology aliases."""
     lower = text.lower()
     primitives = ontology.get("primitives", {})
-    for cue, mechanism in get_priority_rules():
+    for cue, mechanism in get_priority_rules(priority_rules_path):
         if cue in lower and mechanism in primitives:
             return mechanism
     for primitive_name, primitive_data in primitives.items():
@@ -159,6 +170,7 @@ def extract_mechanism(
     text: str,
     ontology: Dict[str, Any],
     llm_fn: Optional[Callable[[str], Dict[str, Any]]] = None,
+    priority_rules_path: Optional[Path] = None,
 ) -> Dict[str, Any]:
     """Extract a candidate mechanism from text.
 
@@ -177,7 +189,7 @@ def extract_mechanism(
         result = llm_fn(prompt)
         mechanism = result.get("mechanism", "unknown")
         return {"mechanism": mechanism, "evidence": {"text": text, **result}}
-    mechanism = infer_mechanism_offline(text, ontology)
+    mechanism = infer_mechanism_offline(text, ontology, priority_rules_path)
     return {
         "mechanism": mechanism,
         "evidence": {"method": "offline-keyword", "text": text},
@@ -289,6 +301,7 @@ def run_pipeline(
     text: str,
     ontology: Optional[Dict[str, Any]] = None,
     llm_fn: Optional[Callable[[str], Dict[str, Any]]] = None,
+    priority_rules_path: Optional[Path] = None,
 ) -> Dict[str, Any]:
     """Run the full extraction + TRUE-validation pipeline.
 
@@ -301,9 +314,18 @@ def run_pipeline(
     """
     if ontology is None:
         ontology = _canonical_ontology()
-    extraction = extract_mechanism(text, ontology, llm_fn=llm_fn)
+    extraction = extract_mechanism(
+        text,
+        ontology,
+        llm_fn=llm_fn,
+        priority_rules_path=priority_rules_path,
+    )
     mechanism = extraction["mechanism"]
+    extraction_evidence = extraction.get("evidence", {}) or {}
     knowledge = _build_knowledge(text, mechanism, ontology)
+    # Surface which extraction path produced the mechanism so callers
+    # can audit (offline-keyword vs llm-anthropic vs llm-error).
+    knowledge["extraction_evidence"] = extraction_evidence
     validation = _true_validation(knowledge)
     if mechanism == "unknown":
         decision = "REJECT"
