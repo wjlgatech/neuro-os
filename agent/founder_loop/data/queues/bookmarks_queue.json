@@ -1,0 +1,8 @@
+{
+  "items": [
+    {"title": "Karpathy: Software 2.0 (the deep thinking one)", "url": "https://karpathy.medium.com/software-2-0-a64152b37c35", "est_read_min": 12, "added_at": "2026-04-12T10:00:00Z", "tags": ["ml", "engineering"]},
+    {"title": "Bret Victor: Inventing on Principle (talk transcript)", "url": "http://worrydream.com/InventingOnPrinciple/", "est_read_min": 18, "added_at": "2026-04-15T14:20:00Z", "tags": ["design", "engineering"]},
+    {"title": "Patrick Collison's research-questions list", "url": "https://patrickcollison.com/questions", "est_read_min": 10, "added_at": "2026-04-20T08:00:00Z", "tags": ["meta", "research"]},
+    {"title": "Shtetl-Optimized: 'Why Philosophers Should Care About Computational Complexity'", "url": "https://www.scottaaronson.com/papers/philos.pdf", "est_read_min": 25, "added_at": "2026-04-22T11:30:00Z", "tags": ["theory", "philosophy"]}
+  ]
+}

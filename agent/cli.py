@@ -98,6 +98,62 @@ def _cmd_self_modify(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_loop_morning(args: argparse.Namespace) -> int:
+    from agent.founder_loop import FounderLoop, Priority
+
+    raw = json.loads(Path(args.priorities_file).read_text(encoding="utf-8"))
+    priorities = [Priority.model_validate(p) for p in raw]
+
+    # Morning ritual doesn't need an adapter — but FounderLoop's constructor
+    # currently requires one. Use a fixture adapter pointed at /dev/null
+    # equivalent (a path that doesn't exist) so the loop is well-formed
+    # but no events are read.
+    from agent.founder_loop.observe import FixtureWorkflowxAdapter
+    loop = FounderLoop(
+        registry_path=args.registry,
+        contract_path=args.contracts,
+        adapter=FixtureWorkflowxAdapter("/dev/null"),
+    )
+    contract = loop.morning_ritual(
+        priorities=priorities,
+        entertainment_ration_min=args.ration,
+        threshold_pct=args.threshold,
+    )
+    print(json.dumps(json.loads(contract.model_dump_json()), indent=2))
+    return 0
+
+
+def _cmd_loop_tick(args: argparse.Namespace) -> int:
+    from datetime import datetime
+    from agent.founder_loop import FounderLoop
+
+    loop = FounderLoop(
+        registry_path=args.registry,
+        contract_path=args.contracts,
+        workflowx_export_path=args.workflowx_fixture,
+        use_llm=bool(args.use_llm),
+    )
+    now = datetime.fromisoformat(args.at) if args.at else None
+    result = loop.tick(intent=args.intent, now=now, dry_run=args.dry_run)
+    print(json.dumps(json.loads(result.model_dump_json()), indent=2))
+    return 0
+
+
+def _cmd_loop_nightly(args: argparse.Namespace) -> int:
+    from datetime import datetime
+    from agent.founder_loop import FounderLoop
+
+    loop = FounderLoop(
+        registry_path=args.registry,
+        contract_path=args.contracts,
+        workflowx_export_path=args.workflowx_fixture,
+    )
+    when = datetime.fromisoformat(args.at) if args.at else None
+    summary = loop.nightly(day=when)
+    print(json.dumps(json.loads(summary.model_dump_json()), indent=2))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="neuro-os", description="Neuro-OS CLI")
     sub = p.add_subparsers(dest="command", required=True)
@@ -139,6 +195,57 @@ def build_parser() -> argparse.ArgumentParser:
     selfmod.add_argument("--list", action="store_true", help="list registered domains and exit")
     selfmod.add_argument("--max-patches", type=int, default=1, help="cap on patches per loop tick (default: 1)")
     selfmod.set_defaults(func=_cmd_self_modify)
+
+    loop_p = sub.add_parser(
+        "loop",
+        help="founder_loop: daily reward-economy + sublimation control loop",
+    )
+    loop_sub = loop_p.add_subparsers(dest="loop_command", required=True)
+
+    loop_morning = loop_sub.add_parser(
+        "morning", help="bind today's contract (Ulysses pact)"
+    )
+    loop_morning.add_argument("--registry", required=True, help="JSONL registry path")
+    loop_morning.add_argument("--contracts", required=True, help="JSONL contract store path")
+    loop_morning.add_argument(
+        "--priorities-file",
+        required=True,
+        help="JSON file with the day's priorities (list of Priority objects)",
+    )
+    loop_morning.add_argument(
+        "--ration", type=int, default=60,
+        help="entertainment ration in minutes (default: 60)"
+    )
+    loop_morning.add_argument(
+        "--threshold", type=int, default=90,
+        help="tank threshold percent (default: 90)"
+    )
+    loop_morning.add_argument("--dry-run", action="store_true")
+    loop_morning.set_defaults(func=_cmd_loop_morning)
+
+    loop_tick = loop_sub.add_parser(
+        "tick", help="run one hourly tick"
+    )
+    loop_tick.add_argument("--registry", required=True)
+    loop_tick.add_argument("--contracts", required=True)
+    loop_tick.add_argument("--workflowx-fixture", required=True,
+                           help="JSONL fixture file (v0 always uses fixture adapter)")
+    loop_tick.add_argument("--intent", help="optional: override last_intent")
+    loop_tick.add_argument("--at", help="ISO timestamp to tick at (default: now)")
+    loop_tick.add_argument("--use-llm", action="store_true",
+                           help="route predict.py + sublimate.py through Anthropic API")
+    loop_tick.add_argument("--dry-run", action="store_true",
+                           help="produce a TickResult without writing the registry")
+    loop_tick.set_defaults(func=_cmd_loop_tick)
+
+    loop_nightly = loop_sub.add_parser(
+        "nightly", help="end-of-day rollup: MAE, contract-honor, goldens"
+    )
+    loop_nightly.add_argument("--registry", required=True)
+    loop_nightly.add_argument("--contracts", required=True)
+    loop_nightly.add_argument("--workflowx-fixture", required=True)
+    loop_nightly.add_argument("--at", help="ISO timestamp to roll up at (default: now)")
+    loop_nightly.set_defaults(func=_cmd_loop_nightly)
 
     return p
 

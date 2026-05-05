@@ -1,0 +1,90 @@
+{
+  "version": 1,
+  "philosophy": "Negative destructive behavior is the counterfeit expression of a God-given desire. Acknowledge the desire, find a constructive expression as replacement — no simple suppression. Each entry below names an underlying need and lists constructive expressions that satisfy the actual underlying desire (so it doesn't re-fire 20 minutes later in a different counterfeit form).",
+  "needs": {
+    "fatigue": {
+      "what_it_wants": "restoration — the body wants rest",
+      "counterfeit_expressions": ["passive YouTube/TV", "infinite-feed scrolling", "snacking-without-hunger"],
+      "diagnostic_signals": ["sleep_last_night_hours < 6.5", "decision_latency rising", "afternoon hour"],
+      "options": [
+        {"action": "20_min_nap", "duration_min": 20, "tank_credit_pct": 5.0, "rationale": "Real restoration. The urge for YouTube at 3pm is usually fatigue dressed as boredom; YouTube simulates restoration but doesn't deliver it."},
+        {"action": "switch_to_lighter_priority", "duration_min": 25, "tank_credit_pct": 3.0, "rationale": "Let the deep-work part of your brain recover by working on something less cognitively demanding."},
+        {"action": "10_min_walk_outside", "duration_min": 10, "tank_credit_pct": 2.0, "rationale": "Daylight + movement is restorative. Counts as rest."}
+      ]
+    },
+    "novelty_hunger": {
+      "what_it_wants": "real intellectual stimulation, not the empty-calorie kind",
+      "counterfeit_expressions": ["Twitter/X doom-scroll", "HackerNews refresh", "random Wikipedia dives"],
+      "diagnostic_signals": ["deep_work block + low fatigue + rising context_switches", "current sub-task is grindy"],
+      "options": [
+        {"action": "10_min_read_bookmarked", "duration_min": 10, "tank_credit_pct": 2.0, "rationale": "Real novelty (curated) instead of cheap novelty. Returns you to the grindy sub-task with a fresh angle.", "reference_queue": "bookmarks_queue"},
+        {"action": "switch_priorities_25min", "duration_min": 25, "tank_credit_pct": 3.0, "rationale": "Different priority for one pomodoro. The brain wants a new problem, not a new feed."},
+        {"action": "walk_and_think", "duration_min": 15, "tank_credit_pct": 2.0, "rationale": "Actual mental space, not the illusion of it."}
+      ]
+    },
+    "social": {
+      "what_it_wants": "real reciprocal contact",
+      "counterfeit_expressions": ["YouTube creators talking at you", "Twitter parasocial", "watching streamers"],
+      "diagnostic_signals": ["last_outbound_message_age_h > 48", "weekend or evening", "idle screen-time rising"],
+      "options": [
+        {"action": "voice_message_to_friend", "duration_min": 5, "tank_credit_pct": 3.0, "rationale": "5-minute voice message is real reciprocity. The hollow feeling after parasocial scroll is the absence of this.", "reference_queue": "social_queue"},
+        {"action": "schedule_walk_with_call", "duration_min": 10, "tank_credit_pct": 4.0, "rationale": "Outdoors + voice + connection — three real needs satisfied at once.", "reference_queue": "social_queue"},
+        {"action": "send_invite_to_thing", "duration_min": 5, "tank_credit_pct": 2.0, "rationale": "Forward-momentum on a real plan with a real person."}
+      ]
+    },
+    "frustration": {
+      "what_it_wants": "to drop the cognitive load — externalize the stuck problem",
+      "counterfeit_expressions": ["check email", "open Slack triage tour", "switch to a different easy distraction"],
+      "diagnostic_signals": ["flat output 60-90+ min on a known-hard task", "no commits / no edits", "tab-storm starting"],
+      "options": [
+        {"action": "voice_memo_externalize", "duration_min": 10, "tank_credit_pct": 3.0, "rationale": "Walk + voice memo describing the bug as if to a junior. Externalizes the load. The bug-in-your-head IS the problem.", "preserve_context": true},
+        {"action": "rubber_duck_post", "duration_min": 8, "tank_credit_pct": 2.0, "rationale": "Post the stuck problem to a rubber-duck venue. Often the act of writing it solves it.", "reference_queue": "rubber_duck_venues", "preserve_context": true},
+        {"action": "switch_to_lighter_priority", "duration_min": 25, "tank_credit_pct": 2.0, "rationale": "Background-process the hard problem while the foreground works on something else.", "preserve_context": true}
+      ]
+    },
+    "decision_fatigue": {
+      "what_it_wants": "fewer choices, not more inputs",
+      "counterfeit_expressions": ["scroll-to-decide", "consume more 'productivity content'", "endless re-prioritizing"],
+      "diagnostic_signals": ["many priorities", "intent-text changes hour-to-hour", "late afternoon", "context conflicts"],
+      "options": [
+        {"action": "force_intent_capture_one_thing", "duration_min": 5, "tank_credit_pct": 2.0, "rationale": "Pick the SINGLE next thing. Write it down. The fatigue is from holding all options open."},
+        {"action": "25min_sprint_top_priority", "duration_min": 25, "tank_credit_pct": 3.0, "rationale": "Pomodoro on the highest-weight priority. Closing the loop on one thing reduces fatigue more than rest."},
+        {"action": "5_min_clean_workspace", "duration_min": 5, "tank_credit_pct": 1.0, "rationale": "Reduce visual choice surface; helps the next decision."}
+      ]
+    },
+    "embodied_hunger": {
+      "what_it_wants": "food",
+      "counterfeit_expressions": ["sudden screen boredom", "snack-but-not-meal", "scroll for stimulation that's actually low blood sugar"],
+      "diagnostic_signals": ["time_since_last_meal_min > 240", "output velocity drop", "no fatigue signal"],
+      "options": [
+        {"action": "eat_then_reassess", "duration_min": 15, "tank_credit_pct": 2.0, "rationale": "Last meal: 4h+ ago. The screen-is-boring signal often means low blood sugar in disguise. Eat first, then decide; if the urge persists after eating, the diagnosis was wrong and we re-assess.", "reassess_after_min": 15}
+      ]
+    },
+    "embodied_eye_strain": {
+      "what_it_wants": "screen-off time",
+      "counterfeit_expressions": ["switch to a different screen (YouTube, phone)", "blink less, push through"],
+      "diagnostic_signals": ["hours_continuous_screen > 4", "afternoon"],
+      "options": [
+        {"action": "20_min_screen_off", "duration_min": 20, "tank_credit_pct": 3.0, "rationale": "Real screen-off, not screen-switch. Stretch + look at distance + close eyes."},
+        {"action": "outdoor_break_no_phone", "duration_min": 10, "tank_credit_pct": 2.0, "rationale": "Daylight + horizon focus."}
+      ]
+    },
+    "earned_reward": {
+      "what_it_wants": "the reward, honestly enjoyed",
+      "counterfeit_expressions": ["binge past the ration", "guilt-eat the reward and miss it", "skip the reward and brittle out"],
+      "diagnostic_signals": ["priority just evidenced", "tank near full", "ration > 0"],
+      "options": [
+        {"action": "unlock_entertainment_within_ration", "duration_min": 60, "tank_credit_pct": 0.0, "rationale": "You earned it. Honor the ration. After the timer, re-diagnose the residual urge — usually post-reward fatigue, not real desire for more entertainment.", "reassess_after_min": 60}
+      ]
+    },
+    "post_reward_fatigue": {
+      "what_it_wants": "actual rest, not more entertainment",
+      "counterfeit_expressions": ["extend the binge", "another episode"],
+      "diagnostic_signals": ["just finished entertainment ration", "drained-tired (not laughing-tired)"],
+      "options": [
+        {"action": "20_min_nap_or_walk", "duration_min": 20, "tank_credit_pct": 4.0, "rationale": "The residual urge is fatigue. Real restoration now lands you usefully tomorrow."},
+        {"action": "make_dinner_no_screen", "duration_min": 30, "tank_credit_pct": 3.0, "rationale": "Hands-on activity that's restorative without being passive."}
+      ]
+    }
+  }
+}
