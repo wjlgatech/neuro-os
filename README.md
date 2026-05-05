@@ -380,6 +380,50 @@ Run the tests with `pytest`. Mutations must keep the suite green.
 
 ---
 
+## Founder Loop UI surfaces
+
+The reward-economy + sublimation engine in `agent/founder_loop/` ships
+with two user-facing surfaces, both talking to a local-only HTTP daemon
+on `127.0.0.1:8765`:
+
+* **Browser extension** (Manifest V3, Chrome / Firefox / Edge) —
+  `ui/browser_extension/`. Injects the Sublimation Card on
+  high-distraction sites at the moment of urge; renders the Tank widget
+  in the popup and on the new-tab page. Never blocks navigation.
+  See `ui/browser_extension/README.md`.
+* **System tray app** (Linux / macOS / Windows) — `ui/tray_app/`.
+  Always-visible tank gauge in the menu bar. Polls every 60s.
+  See `ui/tray_app/README.md`.
+
+Start the daemon, then either UI:
+
+```bash
+# 1. Bind today's contract (yesterday-self's signature)
+python -m agent loop morning \
+    --registry users/me/registry.jsonl \
+    --contracts users/me/contracts.jsonl \
+    --priorities-file priorities.json \
+    --ration 60
+
+# 2. Run the daemon (the bridge for both UIs)
+python -m agent loop serve \
+    --registry users/me/registry.jsonl \
+    --contracts users/me/contracts.jsonl \
+    --workflowx-fixture path/to/workflowx_export.jsonl
+
+# 3. Tray (after `pip install -e ".[tray]"`)
+python -m ui.tray_app.tray
+
+# 4. Browser extension: load `ui/browser_extension/` unpacked
+#    in chrome://extensions/ (Developer mode).
+```
+
+The daemon refuses to bind to non-loopback hosts — your registry never
+leaves the machine. See `agent/founder_loop/server.py::serve` for the
+guard.
+
+---
+
 ## License
 
 MIT — see `pyproject.toml`.

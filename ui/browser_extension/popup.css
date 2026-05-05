@@ -1,0 +1,164 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 360px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  background: #0d1117;
+  color: #e6edf3;
+}
+
+* { box-sizing: border-box; }
+
+.fl-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid #21262d;
+}
+
+.fl-header h1 {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  margin: 0;
+}
+
+.fl-header button {
+  background: none;
+  border: none;
+  color: #8b949e;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+#fl-popup-root {
+  padding: 14px;
+}
+
+.fl-loading {
+  font-size: 13px;
+  color: #8b949e;
+  text-align: center;
+  padding: 18px 0;
+}
+
+/* Tank widget — shared with content overlay; popup-specific tweaks */
+.fl-tank-bar {
+  height: 10px;
+  background: #21262d;
+  border-radius: 5px;
+  overflow: hidden;
+}
+.fl-tank-fill {
+  height: 100%;
+  transition: width 240ms ease-out;
+  background: linear-gradient(90deg, #56d364, #2ea043);
+}
+.fl-tank-fill[data-status="below_threshold"] {
+  background: linear-gradient(90deg, #d29922, #bb8009);
+}
+.fl-tank-fill[data-status="threshold_over_ration"] {
+  background: linear-gradient(90deg, #f85149, #da3633);
+}
+
+.fl-tank-label {
+  font-size: 11px;
+  color: #8b949e;
+  margin-top: 8px;
+}
+
+.fl-priorities {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0 0;
+}
+
+.fl-priority {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 12px;
+  border-bottom: 1px dashed #21262d;
+}
+.fl-priority:last-child { border-bottom: none; }
+.fl-priority[data-status="evidenced"] .fl-priority-title {
+  text-decoration: line-through;
+  color: #8b949e;
+}
+.fl-priority-dot { color: #2ea043; width: 12px; }
+.fl-priority-title { flex: 1; }
+.fl-priority-evidence { color: #6e7681; font-size: 10px; }
+
+/* Sublimation card — popup-rendered (smaller). Inherits structure from
+   card.js but overlay.css is content-script-only; replicate just what
+   we need for the popup here. */
+.fl-card {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  padding: 14px;
+  margin-top: 14px;
+}
+.fl-yesterday-self {
+  font-size: 10px; letter-spacing: 0.6px; text-transform: uppercase;
+  color: #8b949e; margin-bottom: 6px;
+}
+.fl-card-title { font-size: 15px; font-weight: 600; margin: 0 0 4px 0; }
+.fl-card-sub { font-size: 12px; color: #c9d1d9; margin: 0 0 6px 0; }
+.fl-card-reasoning { font-size: 11px; color: #8b949e; margin: 0 0 12px 0; font-style: italic; }
+.fl-options { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.fl-option-btn {
+  background: #21262d; border: 1px solid #30363d; border-radius: 8px;
+  padding: 8px 10px; text-align: left; cursor: pointer; color: inherit;
+  font: inherit;
+}
+.fl-option-btn:hover { background: #30363d; border-color: #58a6ff; }
+.fl-option-label { font-size: 13px; font-weight: 500; text-transform: capitalize; }
+.fl-option-meta { font-size: 11px; color: #8b949e; margin-top: 2px; }
+.fl-option-refs { font-size: 10px; color: #58a6ff; margin-top: 2px; word-break: break-word; }
+.fl-sep { text-align: center; font-size: 10px; color: #6e7681; margin: 6px 0; }
+.fl-proceed-btn {
+  width: 100%; background: transparent; border: 1px dashed #6e7681;
+  color: #c9d1d9; padding: 8px; border-radius: 6px; cursor: pointer;
+  font: inherit; font-size: 11px;
+}
+.fl-proceed-btn:hover { border-color: #f85149; color: #f85149; }
+.fl-violation { font-size: 10px; color: #f85149; margin-top: 8px; text-align: center; }
+
+.fl-footer {
+  border-top: 1px solid #21262d;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+#fl-daemon-status { font-size: 10px; color: #8b949e; }
+.fl-actions button {
+  background: #21262d;
+  border: 1px solid #30363d;
+  color: #c9d1d9;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  margin-left: 4px;
+}
+.fl-actions button:hover { background: #30363d; }
+
+#fl-settings {
+  padding: 12px 14px;
+  border-top: 1px solid #21262d;
+}
+#fl-settings.fl-hidden { display: none; }
+#fl-settings label { font-size: 11px; color: #8b949e; display: block; margin-bottom: 4px; }
+#fl-settings input {
+  width: 100%; background: #0d1117; border: 1px solid #30363d;
+  color: #e6edf3; padding: 6px 8px; border-radius: 6px; font: inherit;
+  font-size: 12px;
+}
+#fl-settings button {
+  margin-top: 8px; background: #238636; border: 1px solid #2ea043;
+  color: white; border-radius: 6px; padding: 4px 10px; cursor: pointer;
+}

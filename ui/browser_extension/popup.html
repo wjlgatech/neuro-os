@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Founder Loop</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="fl-header">
+    <h1>Founder Loop</h1>
+    <button id="fl-refresh" title="Refresh">↻</button>
+  </header>
+
+  <main id="fl-popup-root">
+    <div class="fl-loading">Loading…</div>
+  </main>
+
+  <footer class="fl-footer">
+    <div id="fl-daemon-status">checking daemon…</div>
+    <div class="fl-actions">
+      <button id="fl-tick-btn">Tick now</button>
+      <button id="fl-settings-btn" title="Settings">⚙</button>
+    </div>
+  </footer>
+
+  <section id="fl-settings" class="fl-hidden">
+    <label>Daemon URL</label>
+    <input id="fl-daemon-url" type="text" placeholder="http://127.0.0.1:8765">
+    <button id="fl-save-settings">Save</button>
+  </section>
+
+  <script src="lib/api.js"></script>
+  <script src="lib/card.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

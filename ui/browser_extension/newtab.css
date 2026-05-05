@@ -1,0 +1,128 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background: #0d1117;
+  color: #e6edf3;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+.fl-newtab {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 80px 28px 60px 28px;
+}
+
+header { margin-bottom: 36px; }
+.fl-greeting {
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.2px;
+  line-height: 1.3;
+}
+.fl-date {
+  font-size: 13px;
+  color: #8b949e;
+  margin-top: 4px;
+}
+
+.fl-card-block {
+  background: #161b22;
+  border: 1px solid #21262d;
+  border-radius: 14px;
+  padding: 22px 24px;
+  margin-bottom: 18px;
+}
+
+.fl-card-block.fl-loading {
+  font-size: 14px;
+  color: #8b949e;
+  text-align: center;
+  padding: 30px 0;
+}
+
+.fl-hidden { display: none !important; }
+
+.fl-card-block h2 {
+  font-size: 13px;
+  font-weight: 600;
+  color: #8b949e;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin: 0 0 14px 0;
+}
+
+/* Tank styles (re-declared since overlay.css is content-only) */
+.fl-tank-bar { height: 12px; background: #21262d; border-radius: 6px; overflow: hidden; }
+.fl-tank-fill {
+  height: 100%; transition: width 240ms ease-out;
+  background: linear-gradient(90deg, #56d364, #2ea043);
+}
+.fl-tank-fill[data-status="below_threshold"] {
+  background: linear-gradient(90deg, #d29922, #bb8009);
+}
+.fl-tank-fill[data-status="threshold_over_ration"] {
+  background: linear-gradient(90deg, #f85149, #da3633);
+}
+.fl-tank-label { font-size: 12px; color: #8b949e; margin-top: 8px; }
+.fl-priorities { list-style: none; padding: 0; margin: 0; }
+.fl-priority {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px dashed #21262d; font-size: 13px;
+}
+.fl-priority:last-child { border-bottom: none; }
+.fl-priority[data-status="evidenced"] .fl-priority-title {
+  text-decoration: line-through; color: #8b949e;
+}
+.fl-priority-dot { color: #2ea043; font-size: 18px; line-height: 1; }
+.fl-priority-title { flex: 1; }
+.fl-priority-evidence { color: #6e7681; font-size: 11px; }
+
+/* Sublimation card — newtab variant (mid size) */
+.fl-card { padding: 18px 20px; }
+.fl-yesterday-self {
+  font-size: 11px; letter-spacing: 0.6px; text-transform: uppercase;
+  color: #8b949e; margin-bottom: 8px;
+}
+.fl-card-title { font-size: 18px; font-weight: 600; margin: 0 0 6px 0; }
+.fl-card-sub { font-size: 13px; line-height: 1.5; color: #c9d1d9; margin: 0 0 8px 0; }
+.fl-card-reasoning { font-size: 12px; color: #8b949e; font-style: italic; margin: 0 0 14px 0; }
+.fl-options { display: flex; flex-direction: column; gap: 8px; margin: 12px 0 14px 0; }
+.fl-option-btn {
+  background: #21262d; border: 1px solid #30363d; border-radius: 10px;
+  padding: 10px 14px; text-align: left; cursor: pointer; color: inherit; font: inherit;
+}
+.fl-option-btn:hover { background: #30363d; border-color: #58a6ff; }
+.fl-option-label { font-size: 14px; font-weight: 500; text-transform: capitalize; }
+.fl-option-meta { font-size: 11px; color: #8b949e; margin-top: 3px; }
+.fl-option-refs { font-size: 11px; color: #58a6ff; margin-top: 3px; }
+.fl-sep { text-align: center; font-size: 11px; color: #6e7681; margin: 8px 0; }
+.fl-proceed-btn {
+  width: 100%; background: transparent; border: 1px dashed #6e7681;
+  color: #c9d1d9; padding: 9px; border-radius: 8px; cursor: pointer;
+  font: inherit; font-size: 12px;
+}
+.fl-proceed-btn:hover { border-color: #f85149; color: #f85149; }
+.fl-violation { font-size: 11px; color: #f85149; margin-top: 10px; text-align: center; }
+
+#fl-recent-list { list-style: none; padding: 0; margin: 0; }
+#fl-recent-list li {
+  padding: 10px 0; border-bottom: 1px dashed #21262d;
+  font-size: 12px; color: #c9d1d9;
+}
+#fl-recent-list li:last-child { border-bottom: none; }
+#fl-recent-list .fl-recent-time { color: #6e7681; margin-right: 8px; }
+#fl-recent-list .fl-recent-op { font-weight: 500; }
+
+footer {
+  margin-top: 24px;
+  display: flex;
+  align-items: center;
+  font-size: 11px;
+  color: #6e7681;
+}
+.fl-spacer { flex: 1; }
+footer a { color: #58a6ff; text-decoration: none; }
+footer a:hover { text-decoration: underline; }

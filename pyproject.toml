@@ -44,6 +44,10 @@ dev = [
 ui = [
     "streamlit>=1.30",
 ]
+tray = [
+    "pystray>=0.19",
+    "Pillow>=10",
+]
 llm = [
     "anthropic>=0.40",
 ]
@@ -58,8 +62,8 @@ Issues = "https://github.com/wjlgatech/neuro-os/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["agent*"]
-exclude = ["tests*", "examples*"]
+include = ["agent*", "ui*"]
+exclude = ["tests*", "examples*", "ui.browser_extension*"]
 
 [tool.setuptools.package-data]
 agent = [

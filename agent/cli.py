@@ -139,6 +139,27 @@ def _cmd_loop_tick(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_loop_serve(args: argparse.Namespace) -> int:
+    import logging
+    from agent.founder_loop.server import serve
+
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    )
+    serve(
+        host=args.host,
+        port=args.port,
+        registry_path=Path(args.registry),
+        contract_path=Path(args.contracts),
+        workflowx_fixture=Path(args.workflowx_fixture),
+        events_path=Path(args.events) if args.events else None,
+        use_llm=bool(args.use_llm),
+        block=True,
+    )
+    return 0
+
+
 def _cmd_loop_nightly(args: argparse.Namespace) -> int:
     from datetime import datetime
     from agent.founder_loop import FounderLoop
@@ -237,6 +258,18 @@ def build_parser() -> argparse.ArgumentParser:
     loop_tick.add_argument("--dry-run", action="store_true",
                            help="produce a TickResult without writing the registry")
     loop_tick.set_defaults(func=_cmd_loop_tick)
+
+    loop_serve = loop_sub.add_parser(
+        "serve", help="start the local HTTP daemon for browser extension + tray app"
+    )
+    loop_serve.add_argument("--registry", required=True)
+    loop_serve.add_argument("--contracts", required=True)
+    loop_serve.add_argument("--workflowx-fixture", required=True)
+    loop_serve.add_argument("--events", help="events log path (default: registry sibling events.jsonl)")
+    loop_serve.add_argument("--host", default="127.0.0.1")
+    loop_serve.add_argument("--port", type=int, default=8765)
+    loop_serve.add_argument("--use-llm", action="store_true")
+    loop_serve.set_defaults(func=_cmd_loop_serve)
 
     loop_nightly = loop_sub.add_parser(
         "nightly", help="end-of-day rollup: MAE, contract-honor, goldens"
