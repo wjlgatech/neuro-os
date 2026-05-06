@@ -401,6 +401,20 @@ Set `ANTHROPIC_API_KEY` and pass `--use-llm` for the natural-language
 flow; otherwise it falls back to a simple state-machine prompt that
 still works.
 
+### Plain-English docs
+
+Four short documents written for non-engineers:
+
+* [**What is this?**](./docs/what-is-this.md) — the metaphor stack
+  (the deal, the score, the reward, the underlying needs). 800 words.
+* [**How to use it**](./docs/how-to-use-it.md) — five moments
+  (start your day, check in, when you're tempted, look back, tweak the
+  rules). With sketches.
+* [**How it works**](./docs/how-it-works.md) — the five-box
+  architecture in plain language plus one diagram. For the curious.
+* [**Roadmap**](./docs/roadmap.md) — three honest columns: SHIPPED,
+  NEXT, LATER. No vapor.
+
 ### UI surfaces
 
 All three talk to the same local-only daemon (refuses to bind to
