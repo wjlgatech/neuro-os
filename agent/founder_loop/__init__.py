@@ -33,7 +33,9 @@ from agent.founder_loop.golden_cases import (
 from agent.founder_loop.memory import (
     append_registry_row,
     compute_contract_honor_rate,
+    compute_entertainment_usage_min,
     compute_mae,
+    compute_sublimation_success_rate,
     filter_by_day,
     read_registry,
 )
@@ -58,8 +60,15 @@ from agent.founder_loop.state import (
     Priority,
     TankState,
     TickResult,
+    UrgeType,
 )
 from agent.founder_loop.sublimate import diagnose as diagnose_underlying_need
+from agent.founder_loop.urge_log import (
+    UrgeEvent,
+    log_urge_event,
+    read_recent_urge,
+    resolve_urge,
+)
 
 
 class FounderLoop:
@@ -77,6 +86,7 @@ class FounderLoop:
         contract_path: Union[str, Path],
         adapter: Optional[WorkflowxAdapter] = None,
         workflowx_export_path: Optional[Union[str, Path]] = None,
+        events_path: Optional[Union[str, Path]] = None,
         use_llm: bool = False,
         api_key: Optional[str] = None,
         llm_model: str = "claude-haiku-4-5",
@@ -84,6 +94,11 @@ class FounderLoop:
     ) -> None:
         self.registry_path = Path(registry_path)
         self.contract_path = Path(contract_path)
+        self.events_path = (
+            Path(events_path)
+            if events_path is not None
+            else self.registry_path.parent / "founder_events.jsonl"
+        )
         self.use_llm = use_llm
         self.api_key = api_key
         self.llm_model = llm_model
@@ -98,6 +113,30 @@ class FounderLoop:
                 "Either ``adapter`` or ``workflowx_export_path`` must be "
                 "provided to FounderLoop."
             )
+
+    # ------------------------------------------------------------------
+    # Urge logging — user-reported ground truth
+    # ------------------------------------------------------------------
+
+    def log_urge(
+        self,
+        urge_type: UrgeType,
+        *,
+        context: str = "",
+        when: Optional[datetime] = None,
+    ) -> UrgeEvent:
+        """Record a user-reported urge to ``founder_events.jsonl``.
+
+        The next ``tick()`` will see this urge (within the recency
+        window) and treat it as ground truth over the predictor.
+        """
+        return log_urge_event(
+            urge_type=urge_type,
+            context=context,
+            path=self.events_path,
+            ts=when,
+            source="user_logged",
+        )
 
     # ------------------------------------------------------------------
     # Morning ritual
@@ -136,11 +175,16 @@ class FounderLoop:
         intent: Optional[str] = None,
         now: Optional[datetime] = None,
         dry_run: bool = False,
+        urge_window_minutes: int = 15,
     ) -> TickResult:
         """One hourly tick. Returns the typed TickResult.
 
         ``dry_run=True`` returns the result without writing to the
         registry — used for previews and the example dry-run.
+
+        ``urge_window_minutes`` controls how far back ``log_urge`` calls
+        are considered ground truth. Defaults to 15min — the typical
+        latency between urge-firing and the next tick.
         """
         now = now or datetime.now(timezone.utc)
 
@@ -170,7 +214,15 @@ class FounderLoop:
             api_key=self.api_key,
         )
 
-        # 5. Decide.
+        # 5. Recent user-logged urge (ground truth, beats predictor).
+        recent_urge = read_recent_urge(
+            self.events_path,
+            window_minutes=urge_window_minutes,
+            only_unresolved=True,
+            now=now,
+        )
+
+        # 6. Decide.
         action = decide_control(
             state=state,
             forecasted=forecasted,
@@ -179,10 +231,11 @@ class FounderLoop:
             contract=contract,
             recent_rows=all_rows[-6:],  # last 6 hours for dead-sensor check
             graduated_auto_apply=self.graduated_auto_apply,
+            recent_urge=recent_urge,
             now=now,
         )
 
-        # 6. Persist.
+        # 7. Persist.
         row_id: Optional[str] = None
         if not dry_run:
             row_id = append_registry_row(
@@ -192,6 +245,11 @@ class FounderLoop:
                 tank=tank,
                 action=action,
                 intent_flag=intent_flag,
+                extra=(
+                    {"recent_urge_id": recent_urge.id}
+                    if recent_urge is not None
+                    else None
+                ),
             )
 
         return TickResult(
@@ -236,12 +294,17 @@ class FounderLoop:
         elif rebuild == "morning_ritual_prompt":
             action_choice = "update_contract"
 
+        entertainment_min = compute_entertainment_usage_min(today_rows)
+        sublimation_rate = compute_sublimation_success_rate(today_rows)
+
         return NightlySummary(
             date=day.date().isoformat(),
             mae_today=mae_today,
             mae_7d_ago=mae_prior,
             contract_honor_rate_today=chr_today,
             contract_honor_rate_7d=chr_7d,
+            entertainment_usage_min_today=entertainment_min,
+            sublimation_success_rate_today=sublimation_rate,
             goldens_failed=[g.name for g in failed_goldens],
             action=action_choice,  # type: ignore[arg-type]
         )
@@ -262,12 +325,19 @@ __all__ = [
     "Priority",
     "TankState",
     "TickResult",
+    "UrgeEvent",
+    "UrgeType",
     # functions
     "predict_next_hour",
     "diagnose_underlying_need",
     "compute_tank",
+    "compute_entertainment_usage_min",
+    "compute_sublimation_success_rate",
     "evaluate_intent",
     "hourly_error",
     "evaluate_goldens",
+    "log_urge_event",
+    "read_recent_urge",
+    "resolve_urge",
     "PERSONAL_GOLDEN_CASES",
 ]

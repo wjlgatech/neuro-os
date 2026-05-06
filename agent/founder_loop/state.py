@@ -408,13 +408,42 @@ class TickResult(BaseModel):
 
 
 class NightlySummary(BaseModel):
-    """End-of-day rollup for the nightly trigger."""
+    """End-of-day rollup for the nightly trigger.
+
+    Carries the four V0 daily-report metrics: prediction MAE,
+    contract-honor rate, entertainment-usage minutes, and
+    sublimation-success rate. The first two are research bets; the
+    second two help diagnose whether the loop is actually transmuting
+    desire (high success rate, low usage) or just observing it (low
+    success rate, regardless of usage).
+    """
 
     date: str
     mae_today: Optional[float] = Field(default=None, ge=0.0)
     mae_7d_ago: Optional[float] = Field(default=None, ge=0.0)
     contract_honor_rate_today: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     contract_honor_rate_7d: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    entertainment_usage_min_today: float = Field(
+        default=0.0,
+        ge=0.0,
+        description=(
+            "Total entertainment minutes consumed today (sum of "
+            "unlock_entertainment payload durations across all rows, "
+            "honored or not)."
+        ),
+    )
+    sublimation_success_rate_today: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Of propose_constructive_expression ops fired today, "
+            "fraction that 'stuck' — i.e. were not followed within the "
+            "same day by an unlock_entertainment with "
+            "contract_check.honored=False (a threshold/ration "
+            "violation). None when no proposals fired today."
+        ),
+    )
     goldens_failed: List[str] = Field(default_factory=list)
     action: Literal[
         "update_contract",

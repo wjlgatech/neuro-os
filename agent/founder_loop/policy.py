@@ -45,7 +45,9 @@ from agent.founder_loop.state import (
     ForecastedState,
     FounderState,
     TankState,
+    UrgeType,
 )
+from agent.founder_loop.urge_log import UrgeEvent
 
 
 _DEAD_SENSOR_HOURS = 4
@@ -187,11 +189,26 @@ def decide_control(
     contract: Optional[Contract] = None,
     recent_rows: Optional[List[Dict]] = None,
     graduated_auto_apply: Optional[set] = None,
+    recent_urge: Optional[UrgeEvent] = None,
     now: Optional[datetime] = None,
 ) -> ControlAction:
-    """The single policy function. See module docstring for hierarchy."""
+    """The single policy function. See module docstring for hierarchy.
+
+    ``recent_urge``: when present, treats the user-logged urge as ground
+    truth and overrides ``forecasted.predicted_urge`` for the duration
+    of the decision. The predicted underlying-need still drives
+    diagnosis (the catalog router fills in when prediction is 'none').
+    """
     now = now or datetime.now(timezone.utc)
     rows = recent_rows or []
+    effective_urge: UrgeType = (
+        recent_urge.urge_type if recent_urge is not None else forecasted.predicted_urge
+    )
+    urge_source_note = (
+        f"user-logged urge: {effective_urge}"
+        if recent_urge is not None
+        else f"predicted urge: {effective_urge}"
+    )
 
     # 1. Sensor health (UAT #8)
     if _is_dead_sensor(rows, now=now):
@@ -246,7 +263,7 @@ def decide_control(
     # 4. Reward economy: tank earned + within ration (Scenario E first half)
     if (
         tank.status == "threshold_within_ration"
-        and forecasted.predicted_urge in ("entertainment", "escape")
+        and effective_urge in ("entertainment", "escape")
     ):
         ration = (
             contract.entertainment_ration_min
@@ -284,11 +301,11 @@ def decide_control(
     # is the typical residual).
     if (
         tank.status == "threshold_over_ration"
-        and forecasted.predicted_urge in ("entertainment", "escape")
+        and effective_urge in ("entertainment", "escape")
     ):
         residual: Diagnosis = sublimate.diagnose(
             state,
-            forecasted.predicted_urge,
+            effective_urge,
             predicted_need=forecasted.predicted_underlying_need or "post_reward_fatigue",
             now=now,
         )
@@ -309,10 +326,10 @@ def decide_control(
         )
 
     # 6. Sublimation (Scenarios A, B, C, D, F + UAT #1).
-    if forecasted.predicted_urge != "none":
+    if effective_urge != "none":
         d = sublimate.diagnose(
             state,
-            forecasted.predicted_urge,
+            effective_urge,
             predicted_need=forecasted.predicted_underlying_need,
             now=now,
         )
@@ -324,13 +341,14 @@ def decide_control(
         return ControlAction(
             op="propose_constructive_expression",
             rationale=(
-                f"Predicted urge: {forecasted.predicted_urge}. Underlying "
+                f"{urge_source_note.capitalize()}. Underlying "
                 f"need: {d.underlying_need}. {d.reasoning}"
             ),
             payload={
                 "diagnosis": d.underlying_need,
                 "options_count": len(d.options),
                 "primary_action": d.options[0].action if d.options else None,
+                "urge_source": "user_logged" if recent_urge else "predicted",
             },
             auto_applied=_select_auto_applied(
                 "propose_constructive_expression", graduated=graduated_auto_apply

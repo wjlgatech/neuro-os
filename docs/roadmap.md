@@ -56,20 +56,46 @@ follow-ups that the now-shipped surfaces revealed:
 
 Real work, not started.
 
+### Reach + delivery
+
 | Area | Why it matters | Cost (rough) |
 |---|---|---|
 | **One-click installer** (`.dmg` / `.exe` / `.AppImage`) | Today's `pip install` is a barrier for non-coders. Real installers solve it. | 1 week + ongoing code-signing certs (~$300/yr Apple, free on others). |
 | **Chrome Web Store + Firefox AMO listings** | "Load unpacked" is dev-only. Store listings need review. | 1 week + ongoing reviewer back-and-forth. |
 | **iOS / Android companion app** | Phone is where many urges fire (Instagram, TikTok). Desktop-only is a real gap. | 4–6 weeks + Apple Developer account. |
 | **Apple Watch complication** | The watch is the embodied-need sensor (HRV → fatigue, stand time → eye-strain). Massive accuracy upgrade. | 2 weeks + iOS app prerequisite. |
-| **Workflowx auto-detect** | Today the user must pass `--workflowx-fixture`. Should auto-find `~/Library/.../workflowx/exports/` if present. | 1 day. |
 | **Native Screen Time integration** (`pre_authorized_blocks` actually fires) | Currently `block_url` is a logged event, not a real block. Real blocks need OS-level permission. | 1 week (macOS first via Family Controls API). |
 | **Apple Health / HealthKit pull** for sleep | Removes the workflowx-fixture dependency for the most-load-bearing signal. | 3 days inside the iOS app. |
-| **L2 self-modification of the sublimation catalog** | Currently the catalog is hand-edited; v1 promotes it under `mutable_paths` so failed-golden runs can rewrite catalog entries automatically. | 1 week + careful safety testing. |
 | **Multi-user / team mode** | Today single-user only. A founders' chat where teams hold each other accountable would be powerful — but is its own product. | 4+ weeks. Defer. |
 | **Voice morning ritual** | Speaking your priorities is faster than typing for the daily ceremony. Whisper API + iOS Shortcut. | 3 days. |
 | **iMessage / SMS bot** | Universal-fallback intercept on any device. | 1 week + Twilio costs. |
 | **Hosted (cloud) version** | Some users would happily trade privacy for "works on every device." We'd need to build it carefully — encrypted-at-rest, e2e if possible. | 4–6 weeks + ongoing infra. |
+
+### Self-modification (v1 graduation)
+
+| Area | Why it matters | Cost (rough) |
+|---|---|---|
+| **L2 self-modification of the sublimation catalog** | Currently the catalog is hand-edited; v1 promotes it under `mutable_paths` so failed-golden runs can rewrite catalog entries automatically. | 1 week + careful safety testing. |
+| **`/catalog-review` chat surface** | The user-facing approval surface for catalog mutations. Without this the L2 graduation has no consent gate. Each accepted change writes atomically with a backup of the prior version; two consecutive reverts pause auto-proposals for 7 days. | 3 days (depends on L2 above). |
+
+### Alchemical override — converting distraction into research
+
+A bigger v1 chapter. The premise: when a user proceeds anyway to a distraction, the *experience itself* can sometimes be converted into research that advances long-term work. Three terms required: distraction + named observation + produced artifact. Designed in detail in `~/.claude/plans/understand-the-code-base-fancy-phoenix.md` (Chapters 2–3); deliberately deferred until v0 ships and we have real capture data to validate the safeguards.
+
+| Area | Why it matters | Cost (rough) |
+|---|---|---|
+| **Fundamental questions (`/questions` chat surface)** | User signs 3–5 long-term research questions tagged as project-shaped or theoretical. Captures must reference one to count. Without this anchor, "alchemical override" becomes "everything is research." | 1 day. |
+| **Capture endpoint + browser-extension "Convert to research" button** | One-click on the Sublimation Card opens a 200-char observation modal tagged to a fundamental question. Pre-debits 50% of the override cost upfront; remainder forgiven only if a downstream artifact is produced within 7 days. Hard cap of 2 captures/day. | 2 days. |
+| **`/synthesize` weekly digest (two-mode)** | Project-tagged captures emit structured catalog-edit proposals (feed `/catalog-review`); theoretical-tagged captures synthesize into draft research notes. Closes the loop: distraction time → product improvement OR publishable insight. | 2 days. |
+| **Construction Law (artifact_kind enum)** | Final tank credit only when the linked artifact matches a fixed enum: `insight_published / code_committed / design_doc / conversation_logged / teaching_shared / action_with_outcome / catalog_proposal_accepted / transformation_logged`. Closes the "publish slop" backdoor. | 0.5 day. |
+| **Alignment Gradient at capture time** | Three small structured fields per capture: direction (toward/ambiguous/away from the question's stakes), integration target (which question id), intended artifact kind. `away`-direction captures decay to zero credit unless the artifact is `insight_published` or `teaching_shared`. | 0.5 day. |
+| **Meaning Density (third research bet)** | `artifact_conversion_rate = captures-with-artifact / total captures`. Tracked alongside MAE and contract-honor rate on the nightly summary. Day-28 success: ≥0.5. Lower means rationalization; >0.8 means raise the daily cap. | 0.5 day. |
+
+### Smaller follow-ups
+
+| Area | Why it matters | Cost (rough) |
+|---|---|---|
+| **Workflowx auto-detect** | Today the user must pass `--workflowx-fixture`. Should auto-find `~/Library/.../workflowx/exports/` if present. | 1 day. |
 | **MAE-trend dashboard** in `/today` | Currently a CLI nightly print. Worth a small chart in the dashboard once we have ≥7 days of real data. | 0.5 day. |
 
 ---

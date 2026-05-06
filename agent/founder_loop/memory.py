@@ -172,10 +172,71 @@ def compute_contract_honor_rate(rows: List[Dict[str, Any]]) -> Optional[float]:
     return honored / counted
 
 
+def compute_entertainment_usage_min(rows: List[Dict[str, Any]]) -> float:
+    """Total entertainment minutes consumed across the given rows.
+
+    Sums ``payload.duration_min`` for every ``unlock_entertainment`` op
+    regardless of whether the contract was honored — the goal is the raw
+    usage figure, not a compliance one. Honor information lives on
+    ``compute_contract_honor_rate``.
+    """
+    minutes = 0.0
+    for row in rows:
+        action = row.get("action") or {}
+        if action.get("op") != "unlock_entertainment":
+            continue
+        payload = action.get("payload") or {}
+        try:
+            minutes += float(payload.get("duration_min", 0.0) or 0.0)
+        except (TypeError, ValueError):
+            continue
+    return minutes
+
+
+def compute_sublimation_success_rate(rows: List[Dict[str, Any]]) -> Optional[float]:
+    """Fraction of ``propose_constructive_expression`` ops that 'stuck'.
+
+    A proposal is considered to have stuck when no later row in the same
+    list contains an ``unlock_entertainment`` op with
+    ``contract_check.honored=False`` (a threshold or ration violation).
+    The intuition: the constructive alternative was offered, and the
+    user did NOT subsequently break the contract by consuming
+    entertainment they hadn't earned.
+
+    Returns ``None`` when no proposals fired in the window — there's no
+    meaningful rate without a denominator.
+    """
+    proposal_indices: List[int] = []
+    for i, row in enumerate(rows):
+        action = row.get("action") or {}
+        if action.get("op") == "propose_constructive_expression":
+            proposal_indices.append(i)
+    if not proposal_indices:
+        return None
+
+    def _has_violation_after(start_idx: int) -> bool:
+        for j in range(start_idx + 1, len(rows)):
+            a = rows[j].get("action") or {}
+            if a.get("op") != "unlock_entertainment":
+                continue
+            check = a.get("contract_check") or {}
+            if check.get("honored") is False:
+                return True
+        return False
+
+    stuck = 0
+    for idx in proposal_indices:
+        if not _has_violation_after(idx):
+            stuck += 1
+    return stuck / len(proposal_indices)
+
+
 __all__ = [
     "append_registry_row",
     "read_registry",
     "filter_by_day",
     "compute_mae",
     "compute_contract_honor_rate",
+    "compute_entertainment_usage_min",
+    "compute_sublimation_success_rate",
 ]

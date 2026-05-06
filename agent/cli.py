@@ -131,11 +131,33 @@ def _cmd_loop_tick(args: argparse.Namespace) -> int:
         registry_path=args.registry,
         contract_path=args.contracts,
         workflowx_export_path=args.workflowx_fixture,
+        events_path=getattr(args, "events", None),
         use_llm=bool(args.use_llm),
     )
     now = datetime.fromisoformat(args.at) if args.at else None
     result = loop.tick(intent=args.intent, now=now, dry_run=args.dry_run)
     print(json.dumps(json.loads(result.model_dump_json()), indent=2))
+    return 0
+
+
+def _cmd_loop_urge(args: argparse.Namespace) -> int:
+    from datetime import datetime
+    from agent.founder_loop import FounderLoop
+    from agent.founder_loop.observe import FixtureWorkflowxAdapter
+
+    loop = FounderLoop(
+        registry_path=args.registry,
+        contract_path=args.contracts,
+        events_path=getattr(args, "events", None),
+        adapter=FixtureWorkflowxAdapter("/dev/null"),
+    )
+    when = datetime.fromisoformat(args.at) if args.at else None
+    event = loop.log_urge(
+        args.urge_type,
+        context=args.context or "",
+        when=when,
+    )
+    print(json.dumps(json.loads(event.model_dump_json()), indent=2))
     return 0
 
 
@@ -298,6 +320,9 @@ def build_parser() -> argparse.ArgumentParser:
     loop_tick.add_argument("--contracts", required=True)
     loop_tick.add_argument("--workflowx-fixture", required=True,
                            help="JSONL fixture file (v0 always uses fixture adapter)")
+    loop_tick.add_argument("--events", default=None,
+                           help="user-logged urge events path "
+                                "(default: registry sibling founder_events.jsonl)")
     loop_tick.add_argument("--intent", help="optional: override last_intent")
     loop_tick.add_argument("--at", help="ISO timestamp to tick at (default: now)")
     loop_tick.add_argument("--use-llm", action="store_true",
@@ -305,6 +330,28 @@ def build_parser() -> argparse.ArgumentParser:
     loop_tick.add_argument("--dry-run", action="store_true",
                            help="produce a TickResult without writing the registry")
     loop_tick.set_defaults(func=_cmd_loop_tick)
+
+    loop_urge = loop_sub.add_parser(
+        "urge",
+        help=(
+            "log a user-reported urge event. The next tick honors it "
+            "as ground truth over the predictor."
+        ),
+    )
+    loop_urge.add_argument("--registry", required=True)
+    loop_urge.add_argument("--contracts", required=True)
+    loop_urge.add_argument("--events", default=None,
+                           help="urge events path "
+                                "(default: registry sibling founder_events.jsonl)")
+    loop_urge.add_argument(
+        "urge_type",
+        choices=["entertainment", "escape", "novelty", "none"],
+        help="kind of urge that fired",
+    )
+    loop_urge.add_argument("--context", default="",
+                           help="short free-text context (≤400 chars)")
+    loop_urge.add_argument("--at", help="ISO timestamp (default: now)")
+    loop_urge.set_defaults(func=_cmd_loop_urge)
 
     loop_serve = loop_sub.add_parser(
         "serve",
