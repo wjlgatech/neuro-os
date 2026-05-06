@@ -96,6 +96,7 @@ class _Config:
             registry_path=self.registry_path,
             contract_path=self.contract_path,
             adapter=FixtureWorkflowxAdapter(self.workflowx_fixture),
+            events_path=self.events_path,
             use_llm=self.use_llm,
             api_key=self.api_key,
         )
