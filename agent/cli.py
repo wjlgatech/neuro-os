@@ -139,8 +139,31 @@ def _cmd_loop_tick(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_autostart_install(args: argparse.Namespace) -> int:
+    from agent.founder_loop import install as _install
+    ok, msg = _install.install(dry_run=bool(args.dry_run))
+    print(msg)
+    return 0 if ok else 1
+
+
+def _cmd_autostart_uninstall(args: argparse.Namespace) -> int:
+    from agent.founder_loop import install as _install
+    ok, msg = _install.uninstall(dry_run=bool(args.dry_run))
+    print(msg)
+    return 0 if ok else 1
+
+
+def _cmd_autostart_status(args: argparse.Namespace) -> int:
+    from agent.founder_loop import install as _install
+    ok, msg = _install.status()
+    print(msg)
+    return 0 if ok else 1
+
+
 def _cmd_loop_serve(args: argparse.Namespace) -> int:
     import logging
+    import threading
+    import webbrowser
     from agent.founder_loop.server import serve
 
     logging.basicConfig(
@@ -158,7 +181,18 @@ def _cmd_loop_serve(args: argparse.Namespace) -> int:
     if not workflowx.exists():
         workflowx.write_text("", encoding="utf-8")
         logging.info("created empty workflowx fixture: %s", workflowx)
-    print(f"\n  Open http://{args.host}:{args.port}/onboard in your browser\n")
+    onboard_url = f"http://{args.host}:{args.port}/onboard"
+    print(f"\n  Open {onboard_url} in your browser\n")
+    if getattr(args, "open_browser", False):
+        # Open after the daemon is listening — give it a beat.
+        def _open():
+            import time
+            time.sleep(0.6)
+            try:
+                webbrowser.open(onboard_url)
+            except Exception:  # pragma: no cover
+                pass
+        threading.Thread(target=_open, daemon=True).start()
     serve(
         host=args.host,
         port=args.port,
@@ -167,6 +201,7 @@ def _cmd_loop_serve(args: argparse.Namespace) -> int:
         workflowx_fixture=workflowx,
         events_path=Path(args.events).expanduser() if args.events else None,
         use_llm=bool(args.use_llm),
+        tick_interval_min=int(getattr(args, "tick_interval_min", 0) or 0),
         block=True,
     )
     return 0
@@ -308,7 +343,80 @@ def build_parser() -> argparse.ArgumentParser:
         "--use-llm", action="store_true",
         help="route /chat through Anthropic API (requires ANTHROPIC_API_KEY)",
     )
+    loop_serve.add_argument(
+        "--open-browser", action="store_true",
+        help="open /onboard in the default browser after the daemon starts",
+    )
+    loop_serve.add_argument(
+        "--tick-interval-min", type=int, default=0,
+        help=(
+            "if set > 0, daemon runs `loop.tick()` every N minutes in a "
+            "background thread; default 0 = disabled (use cron / launchd)"
+        ),
+    )
     loop_serve.set_defaults(func=_cmd_loop_serve)
+
+    # Top-level `neuro-os start` — the human-friendly alias.
+    start_p = sub.add_parser(
+        "start",
+        help=(
+            "one-shot: start the daemon with sensible defaults AND open "
+            "the /onboard page in your browser. Equivalent to "
+            "`loop serve --open-browser --tick-interval-min 60` with "
+            "~/.founder_loop/* defaults."
+        ),
+    )
+    start_p.add_argument(
+        "--registry",
+        default=str(Path(_home_default) / "registry.jsonl"),
+    )
+    start_p.add_argument(
+        "--contracts",
+        default=str(Path(_home_default) / "contracts.jsonl"),
+    )
+    start_p.add_argument(
+        "--workflowx-fixture",
+        default=str(Path(_home_default) / "workflowx.jsonl"),
+    )
+    start_p.add_argument("--events", default=None)
+    start_p.add_argument("--host", default="127.0.0.1")
+    start_p.add_argument("--port", type=int, default=8765)
+    start_p.add_argument("--use-llm", action="store_true")
+    start_p.add_argument(
+        "--no-open", dest="open_browser", action="store_false", default=True,
+        help="don't open the browser (useful for headless / SSH sessions)",
+    )
+    start_p.add_argument(
+        "--tick-interval-min", type=int, default=60,
+        help="default 60 — internal scheduler runs `tick()` every hour",
+    )
+    start_p.set_defaults(func=_cmd_loop_serve)
+
+    # Top-level autostart subcommand — install the launchd / systemd /
+    # Task Scheduler unit so the daemon runs at login.
+    auto = sub.add_parser(
+        "autostart",
+        help=(
+            "install / uninstall / status the auto-start-on-login unit "
+            "(launchd plist, systemd-user service, or Task Scheduler XML "
+            "depending on platform)"
+        ),
+    )
+    auto_sub = auto.add_subparsers(dest="autostart_command", required=True)
+    auto_install = auto_sub.add_parser(
+        "install", help="install the autostart unit and enable it"
+    )
+    auto_install.add_argument("--dry-run", action="store_true")
+    auto_install.set_defaults(func=_cmd_autostart_install)
+    auto_uninstall = auto_sub.add_parser(
+        "uninstall", help="disable the autostart unit and remove it"
+    )
+    auto_uninstall.add_argument("--dry-run", action="store_true")
+    auto_uninstall.set_defaults(func=_cmd_autostart_uninstall)
+    auto_status = auto_sub.add_parser(
+        "status", help="show whether the autostart unit is installed/active"
+    )
+    auto_status.set_defaults(func=_cmd_autostart_status)
 
     loop_nightly = loop_sub.add_parser(
         "nightly", help="end-of-day rollup: MAE, contract-honor, goldens"

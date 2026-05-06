@@ -26,7 +26,8 @@ import os
 import re
 import uuid
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, get_args
+from pathlib import Path
+from typing import Any, Dict, List, Literal, Optional, get_args
 
 from agent.founder_loop.state import (
     EvidenceType,
@@ -37,12 +38,15 @@ log = logging.getLogger("founder_loop.conversation")
 
 EVIDENCE_VOCAB: tuple[str, ...] = tuple(get_args(EvidenceType))
 
+ConversationKind = Literal["morning", "review", "queues"]
+KIND_VOCAB: tuple[ConversationKind, ...] = ("morning", "review", "queues")
+
 
 # ---------------------------------------------------------------------------
 # System prompt — the personality / philosophy lives here
 # ---------------------------------------------------------------------------
 
-SYSTEM_PROMPT = """\
+SYSTEM_PROMPT_MORNING = """\
 You are the morning-ritual assistant for Founder Loop, a daily \
 productivity contract system. Today's user is signing a contract for \
 themselves: 1–5 priorities, each with a tangible "done" signal, plus a \
@@ -85,85 +89,229 @@ record it and move on.
 You are helping them keep a promise to themselves. That's the whole job."""
 
 
+SYSTEM_PROMPT_REVIEW = """\
+You are the nightly-review assistant for Founder Loop. The user has just \
+finished their day. Your job: help them reflect briefly, then propose \
+priorities for TOMORROW based on what's still undone, what they learned \
+today, and what they want.
+
+The first user message will contain a structured summary of today: tank \
+percent, priorities completed vs pending, MAE and contract-honor rates, \
+and any goldens that fired. Read it carefully but don't echo it back.
+
+Your conversation has three phases:
+
+  1. **Reflect** (1–2 turns). Ask one open question like "How did today \
+go?" or "Anything surprise you?" Listen. Don't moralize.
+
+  2. **Distill** (1 turn). Acknowledge what stood out. If priorities were \
+left undone, ask whether they should roll over to tomorrow.
+
+  3. **Propose tomorrow** (1–2 turns). Propose 1–3 priorities for \
+tomorrow based on what they said. For each, call ``record_priority`` with \
+the same structure as the morning ritual — title, evidence_type, target, \
+weight. Ask their ration for tomorrow (default same as today). Call \
+``ready_to_sign`` when done.
+
+Tone: a thoughtful colleague at the end of a long day, not a coach. \
+Brief. Don't ask more than two questions in any turn. If a priority \
+clearly rolls over (was high-weight, still pending), record it without \
+re-asking the same questions you asked this morning."""
+
+
+SYSTEM_PROMPT_QUEUES = """\
+You are the queue-maintenance assistant for Founder Loop. The user has \
+three personalized lists that make Sublimation Cards concrete:
+
+  * **bookmarks_queue** — articles to read when novelty-hunger fires.
+  * **social_queue** — people to reach when loneliness fires.
+  * **rubber_duck_venues** — places to externalize a stuck problem.
+
+The first user message will list current contents. Your job: help the \
+user add or remove items in plain language. They might say things like \
+"I want to add three articles I bookmarked this week" or "remove the \
+TechCrunch one" or "add my friend Sarah".
+
+Tools you have:
+  * ``add_bookmark(title, url, est_read_min)``
+  * ``add_social_contact(name, channel, why)``
+  * ``add_rubber_duck_venue(venue, kind)``  where kind ∈ {discord, voice, text}
+  * ``remove_from_queue(queue_name, match)`` — match is a substring.
+
+Speak warmly and briefly. Apply the user's intent immediately via tools \
+in the same turn. If the user is vague, ask for the specific thing \
+("which TechCrunch article?"), don't guess.
+
+When the user signals they're done ("that's enough", "thanks", "done"), \
+acknowledge the changes and tell them to close the tab — the next time \
+a relevant urge fires, the cards will reference the new entries."""
+
+
+SYSTEM_PROMPTS: Dict[str, str] = {
+    "morning": SYSTEM_PROMPT_MORNING,
+    "review": SYSTEM_PROMPT_REVIEW,
+    "queues": SYSTEM_PROMPT_QUEUES,
+}
+
+# Backwards compatibility for tests that imported the old name.
+SYSTEM_PROMPT = SYSTEM_PROMPT_MORNING
+
+
 # ---------------------------------------------------------------------------
 # Tools — the structured surface Claude uses to record priorities
 # ---------------------------------------------------------------------------
 
 
-def _tools() -> List[Dict[str, Any]]:
-    return [
-        {
-            "name": "record_priority",
-            "description": (
-                "Record one priority you've crystallized with the user. Call "
-                "as soon as you have title, evidence type, evidence target, "
-                "and weight. You can call this multiple times in one turn."
-            ),
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "title": {
-                        "type": "string",
-                        "description": "Concise title, like 'ship founder_loop PR'.",
-                    },
-                    "evidence_type": {
-                        "type": "string",
-                        "enum": list(EVIDENCE_VOCAB),
-                        "description": (
-                            "How will we verify done? Translate the user's "
-                            "language: 'merge the PR' → pr_merged; 'push 2 "
-                            "commits' → commit_pushed; 'publish the doc' → "
-                            "doc_published; 'send 50 emails' → "
-                            "count_reached; 'get manager approval' → "
-                            "human_signoff; 'upload to S3' → "
-                            "artifact_uploaded; 'open the PR' → pr_opened."
-                        ),
-                    },
-                    "evidence_target": {
-                        "type": "string",
-                        "description": (
-                            "Specific target: a PR number like 'neuro-os#142', "
-                            "a count like '2_commits' or 'count:50', a name "
-                            "like 'manager_alice', a path like 's3://.../v1.bin'."
-                        ),
-                    },
-                    "weight": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 3,
-                        "description": "1=nice-to-have, 2=should-do, 3=must-do.",
-                    },
-                },
-                "required": ["title", "evidence_type", "evidence_target", "weight"],
+_RECORD_PRIORITY_TOOL = {
+    "name": "record_priority",
+    "description": (
+        "Record one priority you've crystallized with the user. Call "
+        "as soon as you have title, evidence type, evidence target, "
+        "and weight. You can call this multiple times in one turn."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "title": {
+                "type": "string",
+                "description": "Concise title, like 'ship founder_loop PR'.",
+            },
+            "evidence_type": {
+                "type": "string",
+                "enum": list(EVIDENCE_VOCAB),
+                "description": (
+                    "How will we verify done? Translate the user's "
+                    "language: 'merge the PR' → pr_merged; 'push 2 "
+                    "commits' → commit_pushed; 'publish the doc' → "
+                    "doc_published; 'send 50 emails' → "
+                    "count_reached; 'get manager approval' → "
+                    "human_signoff; 'upload to S3' → "
+                    "artifact_uploaded; 'open the PR' → pr_opened."
+                ),
+            },
+            "evidence_target": {
+                "type": "string",
+                "description": (
+                    "Specific target: a PR number like 'neuro-os#142', "
+                    "a count like '2_commits' or 'count:50', a name "
+                    "like 'manager_alice', a path like 's3://.../v1.bin'."
+                ),
+            },
+            "weight": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 3,
+                "description": "1=nice-to-have, 2=should-do, 3=must-do.",
             },
         },
-        {
-            "name": "ready_to_sign",
-            "description": (
-                "Indicate the user has finalized priorities AND chosen an "
-                "entertainment ration. Server reveals the Sign button to "
-                "the user. Only call this once everything is settled."
-            ),
-            "input_schema": {
-                "type": "object",
-                "properties": {
-                    "entertainment_ration_min": {
-                        "type": "integer",
-                        "minimum": 0,
-                        "maximum": 720,
-                        "description": "Minutes of entertainment unlocked once tank ≥ threshold.",
-                    },
-                    "threshold_pct": {
-                        "type": "integer",
-                        "minimum": 1,
-                        "maximum": 100,
-                        "description": "Percent tank required before entertainment unlocks. Default 90.",
-                    },
-                },
-                "required": ["entertainment_ration_min"],
+        "required": ["title", "evidence_type", "evidence_target", "weight"],
+    },
+}
+
+_READY_TO_SIGN_TOOL = {
+    "name": "ready_to_sign",
+    "description": (
+        "Indicate the user has finalized priorities AND chosen an "
+        "entertainment ration. Server reveals the Sign button to "
+        "the user. Only call this once everything is settled."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "entertainment_ration_min": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 720,
+                "description": "Minutes of entertainment unlocked once tank ≥ threshold.",
+            },
+            "threshold_pct": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100,
+                "description": "Percent tank required before entertainment unlocks. Default 90.",
             },
         },
-    ]
+        "required": ["entertainment_ration_min"],
+    },
+}
+
+_QUEUE_TOOLS = [
+    {
+        "name": "add_bookmark",
+        "description": "Add an article to the bookmarks queue (novelty_hunger sublimation).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string"},
+                "url": {"type": "string"},
+                "est_read_min": {"type": "integer", "minimum": 1, "maximum": 90},
+            },
+            "required": ["title", "url"],
+        },
+    },
+    {
+        "name": "add_social_contact",
+        "description": "Add a person to the social queue (social-need sublimation).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string"},
+                "channel": {
+                    "type": "string",
+                    "description": "How to reach them: 'voice', 'text', 'imessage', 'whatsapp', etc.",
+                },
+                "why": {"type": "string", "description": "One sentence: why now?"},
+            },
+            "required": ["name", "channel"],
+        },
+    },
+    {
+        "name": "add_rubber_duck_venue",
+        "description": "Add a venue to the rubber-duck queue (frustration sublimation).",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "venue": {"type": "string"},
+                "kind": {
+                    "type": "string",
+                    "enum": ["discord", "voice", "text"],
+                },
+            },
+            "required": ["venue", "kind"],
+        },
+    },
+    {
+        "name": "remove_from_queue",
+        "description": "Remove an item from a queue by substring match.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "queue_name": {
+                    "type": "string",
+                    "enum": ["bookmarks_queue", "social_queue", "rubber_duck_venues"],
+                },
+                "match": {
+                    "type": "string",
+                    "description": "Substring of the title/name to remove. First match wins.",
+                },
+            },
+            "required": ["queue_name", "match"],
+        },
+    },
+]
+
+
+def _tools_for(kind: str) -> List[Dict[str, Any]]:
+    if kind in ("morning", "review"):
+        return [_RECORD_PRIORITY_TOOL, _READY_TO_SIGN_TOOL]
+    if kind == "queues":
+        return list(_QUEUE_TOOLS)
+    raise ValueError(f"unknown conversation kind: {kind!r}")
+
+
+# Backwards-compat shim
+def _tools() -> List[Dict[str, Any]]:  # pragma: no cover — legacy
+    return _tools_for("morning")
 
 
 # ---------------------------------------------------------------------------
@@ -179,10 +327,12 @@ class ContractSettings:
 
 @dataclass
 class _ConvoState:
+    kind: str = "morning"
     history: List[Dict[str, Any]] = field(default_factory=list)
     priorities: List[Priority] = field(default_factory=list)
     settings: ContractSettings = field(default_factory=ContractSettings)
     can_sign: bool = False
+    queue_mutations: List[Dict[str, Any]] = field(default_factory=list)
     # For the deterministic fallback only:
     fallback_step: str = "title"
     fallback_buffer: Dict[str, Any] = field(default_factory=dict)
@@ -196,10 +346,13 @@ class ChatTurn:
     settings: ContractSettings
     can_sign: bool
     using_llm: bool
+    kind: str = "morning"
+    queue_mutations: List[Dict[str, Any]] = field(default_factory=list)
 
     def to_jsonable(self) -> Dict[str, Any]:
         return {
             "conversation_id": self.conversation_id,
+            "kind": self.kind,
             "assistant_text": self.assistant_text,
             "priorities": [json.loads(p.model_dump_json()) for p in self.priorities],
             "settings": {
@@ -208,6 +361,7 @@ class ChatTurn:
             },
             "can_sign": self.can_sign,
             "using_llm": self.using_llm,
+            "queue_mutations": self.queue_mutations,
         }
 
 
@@ -216,13 +370,32 @@ class ChatTurn:
 # ---------------------------------------------------------------------------
 
 
-class ConversationManager:
-    """Per-daemon instance. In-memory state."""
-
-    GREETING = (
+_KIND_GREETINGS: Dict[str, str] = {
+    "morning": (
         "Good morning. What's important today? "
         "Tell me in your own words — I'll help make it concrete."
-    )
+    ),
+    "review": (
+        "Good evening — let's review the day briefly, then plan tomorrow."
+    ),
+    "queues": (
+        "Let's tune your personal queues. Tell me what to add or remove."
+    ),
+}
+
+
+class ConversationManager:
+    """Per-daemon instance. In-memory state.
+
+    Three conversation kinds are supported (``start(kind=...)``):
+      * ``morning``  — bind today's contract (the original flow)
+      * ``review``   — nightly reflect; propose tomorrow's contract
+      * ``queues``   — add/remove items in the personal queues that
+                        sublimation cards reference
+    """
+
+    # Backward-compat (one of the existing tests imports it).
+    GREETING = _KIND_GREETINGS["morning"]
 
     def __init__(
         self,
@@ -231,11 +404,15 @@ class ConversationManager:
         api_key: Optional[str] = None,
         model: str = "claude-sonnet-4-6",
         max_tokens: int = 1024,
+        queues_dir: Optional[Path] = None,
     ) -> None:
         self.use_llm = use_llm
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         self.model = model
         self.max_tokens = max_tokens
+        self.queues_dir = (
+            Path(queues_dir).expanduser() if queues_dir else None
+        )
         self.convos: Dict[str, _ConvoState] = {}
 
         self._client = None
@@ -251,18 +428,33 @@ class ConversationManager:
     # Public API
     # ------------------------------------------------------------------
 
-    def start(self) -> tuple[str, str]:
+    def start(
+        self,
+        *,
+        kind: str = "morning",
+        kickoff: Optional[str] = None,
+    ) -> tuple[str, str]:
+        if kind not in KIND_VOCAB:
+            raise ValueError(f"unknown conversation kind: {kind!r}")
         cid = uuid.uuid4().hex[:12]
-        self.convos[cid] = _ConvoState()
-        self.convos[cid].history.append(
-            {"role": "assistant", "content": [{"type": "text", "text": self.GREETING}]}
+        state = _ConvoState(kind=kind)
+        greeting = _KIND_GREETINGS[kind]
+        if kickoff:
+            # Inject the runtime context (today's summary / current queues)
+            # as the first *user* message so Claude reasons over it.
+            state.history.append(
+                {"role": "user", "content": [{"type": "text", "text": kickoff}]}
+            )
+        # Greeting goes into history as the assistant's opening line.
+        state.history.append(
+            {"role": "assistant", "content": [{"type": "text", "text": greeting}]}
         )
-        return cid, self.GREETING
+        self.convos[cid] = state
+        return cid, greeting
 
     def respond(self, conversation_id: str, user_message: str) -> ChatTurn:
         state = self.convos.get(conversation_id)
         if state is None:
-            # Unknown id — start fresh and discard.
             conversation_id, _ = self.start()
             state = self.convos[conversation_id]
 
@@ -284,11 +476,13 @@ class ConversationManager:
 
         return ChatTurn(
             conversation_id=conversation_id,
+            kind=state.kind,
             assistant_text=text,
             priorities=list(state.priorities),
             settings=state.settings,
             can_sign=state.can_sign,
             using_llm=using_llm,
+            queue_mutations=list(state.queue_mutations),
         )
 
     def priorities_for(self, conversation_id: str) -> List[Priority]:
@@ -308,13 +502,13 @@ class ConversationManager:
         assert self._client is not None
         rounds = 0
         last_text = ""
-        while rounds < 4:  # safety bound
+        while rounds < 4:
             rounds += 1
             response = self._client.messages.create(
                 model=self.model,
                 max_tokens=self.max_tokens,
-                system=SYSTEM_PROMPT,
-                tools=_tools(),
+                system=SYSTEM_PROMPTS[state.kind],
+                tools=_tools_for(state.kind),
                 messages=self._llm_history(state),
             )
             # Append assistant message (with both tool_use and text blocks).
@@ -370,7 +564,6 @@ class ConversationManager:
                     evidence_target=args["evidence_target"],
                     weight=int(args["weight"]),
                 )
-                # Avoid dupes by title.
                 state.priorities = [
                     x for x in state.priorities if x.title != p.title
                 ]
@@ -391,15 +584,125 @@ class ConversationManager:
                     return False, "Cannot sign — no priorities recorded yet."
                 state.can_sign = True
                 return True, "ready to sign"
+
+            if name == "add_bookmark":
+                ok, msg = self._mutate_queue(
+                    "bookmarks_queue",
+                    "add",
+                    {
+                        "title": args["title"],
+                        "url": args["url"],
+                        "est_read_min": int(args.get("est_read_min") or 10),
+                    },
+                )
+                if ok:
+                    state.queue_mutations.append(
+                        {"queue": "bookmarks_queue", "action": "add", "item": args}
+                    )
+                return ok, msg
+
+            if name == "add_social_contact":
+                ok, msg = self._mutate_queue(
+                    "social_queue",
+                    "add",
+                    {
+                        "name": args["name"],
+                        "channel": args["channel"],
+                        "why": args.get("why", ""),
+                    },
+                )
+                if ok:
+                    state.queue_mutations.append(
+                        {"queue": "social_queue", "action": "add", "item": args}
+                    )
+                return ok, msg
+
+            if name == "add_rubber_duck_venue":
+                ok, msg = self._mutate_queue(
+                    "rubber_duck_venues",
+                    "add",
+                    {"venue": args["venue"], "kind": args["kind"]},
+                )
+                if ok:
+                    state.queue_mutations.append(
+                        {"queue": "rubber_duck_venues", "action": "add", "item": args}
+                    )
+                return ok, msg
+
+            if name == "remove_from_queue":
+                ok, msg = self._mutate_queue(
+                    args["queue_name"], "remove", {"match": args["match"]}
+                )
+                if ok:
+                    state.queue_mutations.append(
+                        {
+                            "queue": args["queue_name"],
+                            "action": "remove",
+                            "match": args["match"],
+                        }
+                    )
+                return ok, msg
         except Exception as exc:
             return False, f"tool error: {exc}"
         return False, f"unknown tool: {name}"
+
+    def _mutate_queue(
+        self, queue_name: str, action: str, payload: Dict[str, Any]
+    ) -> tuple[bool, str]:
+        if self.queues_dir is None:
+            return False, "queues_dir not configured on this manager"
+        if queue_name not in {
+            "bookmarks_queue", "social_queue", "rubber_duck_venues",
+        }:
+            return False, f"unknown queue: {queue_name}"
+        path = self.queues_dir / f"{queue_name}.json"
+        items: List[Dict[str, Any]] = []
+        if path.is_file():
+            try:
+                items = json.loads(path.read_text(encoding="utf-8") or "[]")
+            except json.JSONDecodeError:
+                items = []
+        if action == "add":
+            # Skip exact duplicates (any equal-string field match).
+            sig = json.dumps(payload, sort_keys=True)
+            for it in items:
+                if json.dumps(it, sort_keys=True) == sig:
+                    return True, f"already in {queue_name}"
+            items.append(payload)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(json.dumps(items, indent=2) + "\n", encoding="utf-8")
+            return True, f"added to {queue_name}"
+        if action == "remove":
+            match = (payload.get("match") or "").lower()
+            kept = []
+            removed = 0
+            for it in items:
+                blob = json.dumps(it).lower()
+                if not removed and match in blob:
+                    removed += 1
+                    continue
+                kept.append(it)
+            if not removed:
+                return False, f"no item in {queue_name} matched {match!r}"
+            path.write_text(json.dumps(kept, indent=2) + "\n", encoding="utf-8")
+            return True, f"removed 1 from {queue_name}"
+        return False, f"unknown action: {action}"
 
     # ------------------------------------------------------------------
     # Fallback path (no API key) — strict state-machine, plain regex
     # ------------------------------------------------------------------
 
     def _fallback_turn(self, state: _ConvoState, user_message: str) -> str:
+        # Queue maintenance without an LLM is too varied for a clean
+        # state machine; tell the user to set an API key.
+        if state.kind == "queues":
+            return (
+                "Queue maintenance needs the LLM (set ANTHROPIC_API_KEY and "
+                "restart with --use-llm). For now, you can edit the JSON "
+                "files in agent/founder_loop/data/queues/ directly."
+            )
+        # Review and morning share the same fallback shape — the
+        # difference (today vs tomorrow) is server-side at /sign time.
         msg = user_message.strip()
 
         # If user signals done → ask for ration if not set, else mark sign.

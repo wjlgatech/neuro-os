@@ -37,6 +37,7 @@ from agent.founder_loop import (
     FounderLoop,
     diagnose_underlying_need,
 )
+from agent.founder_loop._markdown import render_markdown
 from agent.founder_loop.contract import bind_morning_contract, load_latest_contract
 from agent.founder_loop.conversation import ConversationManager
 from agent.founder_loop.memory import filter_by_day, read_registry
@@ -45,6 +46,15 @@ from agent.founder_loop.reward_ledger import compute_tank
 from agent.founder_loop.state import FounderState
 
 STATIC_DIR = Path(__file__).parent / "static"
+DOCS_DIR = Path(__file__).parent.parent.parent / "docs"
+
+# Map URL path → (markdown filename, page title)
+_DOC_ROUTES: Dict[str, tuple[str, str]] = {
+    "/about": ("what-is-this.md", "What is this?"),
+    "/how-to-use": ("how-to-use-it.md", "How to use it"),
+    "/how-it-works": ("how-it-works.md", "How it works"),
+    "/roadmap": ("roadmap.md", "Roadmap"),
+}
 
 log = logging.getLogger("founder_loop.server")
 
@@ -61,6 +71,7 @@ class _Config:
         events_path: Path,
         use_llm: bool,
         api_key: Optional[str],
+        queues_dir: Optional[Path] = None,
     ) -> None:
         self.registry_path = registry_path
         self.contract_path = contract_path
@@ -68,9 +79,16 @@ class _Config:
         self.events_path = events_path
         self.use_llm = use_llm
         self.api_key = api_key
+        # Queues live next to the registry by default. The conversation
+        # manager mutates these JSON files during the queues flow.
+        self.queues_dir = (
+            queues_dir or registry_path.parent / "queues"
+        )
+        self.queues_dir.mkdir(parents=True, exist_ok=True)
         self.conversations = ConversationManager(
             use_llm=use_llm,
             api_key=api_key,
+            queues_dir=self.queues_dir,
         )
 
     def make_loop(self) -> FounderLoop:
@@ -172,10 +190,19 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
         elif path == "/today":
             self._today()
         elif path in ("/onboard", "/onboard/", "/"):
-            self._serve_static("onboard.html", "text/html; charset=utf-8")
+            self._serve_chat_shell(kind="morning")
+        elif path in ("/review", "/review/"):
+            self._serve_chat_shell(kind="review")
+        elif path in ("/queues", "/queues/"):
+            self._serve_chat_shell(kind="queues")
+        elif path == "/queues-state":
+            self._queues_state()
         elif path.startswith("/onboard/"):
             asset = path[len("/onboard/"):]
             self._serve_static(asset, _guess_mime(asset))
+        elif path in _DOC_ROUTES:
+            md_name, title = _DOC_ROUTES[path]
+            self._serve_doc(md_name, title)
         else:
             self._send_json(404, {"error": f"unknown route: {path}"})
 
@@ -218,6 +245,19 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
         self._send_json(200, {
             "tick": json.loads(result.model_dump_json()),
         })
+
+    def _queues_state(self) -> None:
+        out: Dict[str, Any] = {}
+        for q in ("bookmarks_queue", "social_queue", "rubber_duck_venues"):
+            path = self.config.queues_dir / f"{q}.json"
+            if path.is_file():
+                try:
+                    out[q] = json.loads(path.read_text(encoding="utf-8"))
+                except json.JSONDecodeError:
+                    out[q] = []
+            else:
+                out[q] = []
+        self._send_json(200, out)
 
     def _today(self) -> None:
         contract = load_latest_contract(self.config.contract_path)
@@ -303,10 +343,18 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
         body = self._read_json_body()
         cid = body.get("conversation_id")
         message = (body.get("message") or "").strip()
+        kind = body.get("kind") or "morning"
+        if kind not in ("morning", "review", "queues"):
+            raise _BadRequest(f"unknown conversation kind: {kind!r}")
+
         if not cid:
-            cid, greeting = self.config.conversations.start()
+            kickoff = self._build_kickoff(kind)
+            cid, greeting = self.config.conversations.start(
+                kind=kind, kickoff=kickoff,
+            )
             self._send_json(200, {
                 "conversation_id": cid,
+                "kind": kind,
                 "assistant_text": greeting,
                 "priorities": [],
                 "settings": {
@@ -315,6 +363,8 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
                 },
                 "can_sign": False,
                 "using_llm": bool(self.config.api_key and self.config.use_llm),
+                "queue_mutations": [],
+                "kickoff": kickoff,  # so the UI can show today's summary
             })
             return
         if not message:
@@ -322,27 +372,102 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
         turn = self.config.conversations.respond(cid, message)
         self._send_json(200, turn.to_jsonable())
 
+    def _build_kickoff(self, kind: str) -> Optional[str]:
+        """Runtime context injected as the first user message so Claude
+        reasons over today's actual state."""
+        if kind == "morning":
+            return None
+        if kind == "review":
+            contract = load_latest_contract(self.config.contract_path)
+            if contract is None:
+                return (
+                    "(No contract was bound for today. Ask the user how the "
+                    "day went and propose tomorrow's priorities from "
+                    "scratch.)"
+                )
+            try:
+                loop = self.config.make_loop()
+                summary = loop.nightly()
+                summary_dict = json.loads(summary.model_dump_json())
+            except Exception as exc:
+                summary_dict = {"error": f"could not compute summary: {exc}"}
+            priorities_status = "\n".join(
+                f"  - [{p.status}] {p.title} "
+                f"(weight {p.weight}; {p.evidence_type}: {p.evidence_target})"
+                for p in contract.priorities
+            )
+            return (
+                "Today's summary (use this to inform reflection — don't echo "
+                "it back verbatim):\n"
+                f"date: {contract.date}\n"
+                f"priorities:\n{priorities_status}\n"
+                f"ration: {contract.entertainment_ration_min} min · "
+                f"threshold: {contract.threshold_pct}%\n"
+                f"summary: {summary_dict}"
+            )
+        if kind == "queues":
+            queues_dir = self.config.queues_dir
+            queues = {}
+            for q in ("bookmarks_queue", "social_queue", "rubber_duck_venues"):
+                path = queues_dir / f"{q}.json"
+                if path.is_file():
+                    try:
+                        queues[q] = json.loads(path.read_text())
+                    except json.JSONDecodeError:
+                        queues[q] = []
+                else:
+                    queues[q] = []
+            return (
+                "Current queue contents (use this to know what's already "
+                "there — don't re-add duplicates):\n"
+                + json.dumps(queues, indent=2)
+            )
+        return None
+
     def _sign(self) -> None:
         body = self._read_json_body()
         cid = body.get("conversation_id")
         if not cid:
             raise _BadRequest("`conversation_id` required to sign")
+
+        state = self.config.conversations.convos.get(cid)
+        kind = state.kind if state else "morning"
+
+        # Queues kind has no contract to sign — it's mutation-only. Treat
+        # /sign as an acknowledgement that the user is done.
+        if kind == "queues":
+            mutations = list(state.queue_mutations) if state else []
+            self._send_json(200, {
+                "kind": "queues",
+                "queue_mutations_applied": mutations,
+            })
+            return
+
         priorities = self.config.conversations.priorities_for(cid)
         if not priorities:
             raise _BadRequest("no priorities crystallized in this conversation")
         settings = self.config.conversations.settings_for(cid)
-        # Allow caller to override ration/threshold from the UI slider.
-        ration = int(body.get("entertainment_ration_min", settings.entertainment_ration_min))
+        ration = int(body.get(
+            "entertainment_ration_min", settings.entertainment_ration_min
+        ))
         threshold = int(body.get("threshold_pct", settings.threshold_pct))
         notes = body.get("notes")
+
+        # Review writes tomorrow's contract (date offset +1 day).
+        when = None
+        if kind == "review":
+            from datetime import datetime, timedelta, timezone
+            when = datetime.now(timezone.utc) + timedelta(days=1)
         contract = bind_morning_contract(
             priorities=priorities,
             entertainment_ration_min=ration,
             threshold_pct=threshold,
             notes=notes,
+            when=when,
             save_to=self.config.contract_path,
         )
         self._send_json(201, {
+            "kind": kind,
             "contract": json.loads(contract.model_dump_json()),
         })
 
@@ -366,6 +491,56 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
         self.wfile.write(body)
+
+    def _serve_chat_shell(self, *, kind: str) -> None:
+        """Render onboard.html with the kind injected so the same SPA
+        serves morning ritual, nightly review, and queue maintenance.
+
+        Onboard.html reads ``window.__FL_KIND`` to know which API
+        endpoints to hit and how to label things.
+        """
+        path = STATIC_DIR / "onboard.html"
+        if not path.is_file():
+            self._send_json(404, {"error": "onboard.html missing"})
+            return
+        body = path.read_text(encoding="utf-8")
+        # Inject kind via a meta tag the JS reads on init. We use a
+        # stable replacement marker so multiple shells stay in sync.
+        injected = body.replace(
+            "<head>",
+            f'<head>\n  <meta name="fl-kind" content="{kind}">',
+            1,
+        )
+        encoded = injected.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(encoded)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(encoded)
+
+    def _serve_doc(self, md_name: str, title: str) -> None:
+        # Try the editable-install path first (docs/ next to the package),
+        # fall back to the package-data static copy.
+        md_path = DOCS_DIR / md_name
+        if not md_path.is_file():
+            md_path = STATIC_DIR / md_name
+        if not md_path.is_file():
+            self._send_json(404, {
+                "error": f"doc not found: {md_name}",
+                "looked_in": [str(DOCS_DIR / md_name), str(STATIC_DIR / md_name)],
+            })
+            return
+        body_html = render_markdown(md_path.read_text(encoding="utf-8"))
+        shell = (STATIC_DIR / "about_shell.html").read_text(encoding="utf-8")
+        page = shell.replace("{{TITLE}}", title).replace("{{BODY}}", body_html)
+        encoded = page.encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(encoded)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(encoded)
 
 
 class _BadRequest(Exception):
@@ -405,11 +580,15 @@ def serve(
     events_path: Optional[Path] = None,
     use_llm: bool = False,
     api_key: Optional[str] = None,
+    tick_interval_min: int = 0,
     block: bool = True,
 ) -> ThreadingHTTPServer:
-    """Start the daemon. Returns the server (already listening)."""
+    """Start the daemon. Returns the server (already listening).
+
+    ``tick_interval_min``: if > 0, daemon runs ``loop.tick()`` every N
+    minutes in a background thread. v0 default is 0 (cron-driven).
+    """
     if host not in {"127.0.0.1", "localhost", "::1"}:
-        # Refuse to bind to non-loopback. This is a personal-data daemon.
         raise ValueError(
             f"refusing to bind to non-loopback host {host!r}; "
             "the daemon is local-only by design"
@@ -426,16 +605,59 @@ def serve(
     FounderLoopHandler.config = cfg
     server = ThreadingHTTPServer((host, port), FounderLoopHandler)
     log.info("founder_loop daemon listening on http://%s:%d", host, port)
+
+    stop_scheduler = threading.Event()
+    if tick_interval_min and tick_interval_min > 0:
+        scheduler = threading.Thread(
+            target=_tick_scheduler,
+            args=(cfg, tick_interval_min, stop_scheduler),
+            daemon=True,
+            name="founder_loop-tick-scheduler",
+        )
+        scheduler.start()
+        log.info(
+            "tick scheduler started (interval = %d min)", tick_interval_min
+        )
+
     if block:
         try:
             server.serve_forever()
         except KeyboardInterrupt:
             log.info("shutting down")
+            stop_scheduler.set()
             server.shutdown()
     else:
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
     return server
+
+
+def _tick_scheduler(
+    cfg: "_Config", interval_min: int, stop_event: threading.Event
+) -> None:
+    """Background thread: run ``loop.tick()`` every ``interval_min``
+    minutes. Skips ticks if no contract is bound (nothing to score
+    against). Logs failures but keeps running."""
+    interval_s = max(60, interval_min * 60)
+    # Sleep first so the daemon's initial state is observable cleanly
+    # before the scheduler races in.
+    if stop_event.wait(min(interval_s, 30)):
+        return
+    while not stop_event.is_set():
+        try:
+            contract = load_latest_contract(cfg.contract_path)
+            if contract is None:
+                log.debug("scheduler: no contract bound — skipping tick")
+            else:
+                loop = cfg.make_loop()
+                result = loop.tick()
+                op = result.action.op
+                log.info("scheduler tick: op=%s (registry: %s)",
+                         op, result.registry_row_id)
+        except Exception as exc:
+            log.exception("scheduler tick failed: %s", exc)
+        if stop_event.wait(interval_s):
+            return
 
 
 __all__ = ["serve", "FounderLoopHandler"]

@@ -181,7 +181,7 @@
   <div class="layout">
     <main class="chat">
       <header>
-        <h1>Morning ritual</h1>
+        <h1 id="page-title">Morning ritual</h1>
         <div class="sub">
           <span class="dot" id="status-dot"></span>
           <span id="status-text">connecting…</span>
@@ -190,20 +190,20 @@
       <div id="banner" class="banner" style="display:none"></div>
       <div class="messages" id="messages"></div>
       <div class="composer">
-        <textarea id="input" placeholder="Tell me one thing that matters today…" rows="1"></textarea>
+        <textarea id="input" placeholder="…" rows="1"></textarea>
         <button id="send">Send</button>
       </div>
     </main>
 
     <aside class="side">
-      <div class="side-section">
-        <h2>Today's priorities</h2>
+      <div class="side-section" id="priorities-section">
+        <h2 id="priorities-heading">Today's priorities</h2>
         <ul id="priorities" class="priorities-list">
           <li class="priorities-empty">Priorities you commit to will appear here as we discuss them.</li>
         </ul>
       </div>
 
-      <div class="side-section">
+      <div class="side-section" id="settings-section">
         <h2>Settings</h2>
         <div class="ration-row" style="margin-bottom: 6px">
           <span>Entertainment ration</span>
@@ -212,6 +212,11 @@
           <input id="ration" type="number" min="0" max="720" value="60">
           <span class="unit">min after 90%</span>
         </div>
+      </div>
+
+      <div class="side-section fl-hidden" id="queues-section">
+        <h2>Current queues</h2>
+        <ul id="queues-list" class="priorities-list"></ul>
       </div>
 
       <button id="sign" class="sign-btn" disabled>Sign contract</button>
@@ -230,6 +235,54 @@
   const statusDot = document.getElementById("status-dot");
   const statusText = document.getElementById("status-text");
   const banner = document.getElementById("banner");
+  const pageTitle = document.getElementById("page-title");
+  const prioritiesHeading = document.getElementById("priorities-heading");
+  const settingsSection = document.getElementById("settings-section");
+  const queuesSection = document.getElementById("queues-section");
+  const queuesList = document.getElementById("queues-list");
+  const prioritiesSection = document.getElementById("priorities-section");
+
+  // Read the kind injected by the server (defaults to morning).
+  const kindMeta = document.querySelector('meta[name="fl-kind"]');
+  const KIND = (kindMeta && kindMeta.getAttribute("content")) || "morning";
+
+  const KIND_CONFIG = {
+    morning: {
+      title: "Morning ritual",
+      placeholder: "Tell me one thing that matters today…",
+      prioritiesHeading: "Today's priorities",
+      signLabel: "Sign contract",
+      showSettings: true,
+      showQueues: false,
+      showPriorities: true,
+    },
+    review: {
+      title: "Nightly review",
+      placeholder: "How did today go?",
+      prioritiesHeading: "Tomorrow's priorities",
+      signLabel: "Sign tomorrow's contract",
+      showSettings: true,
+      showQueues: false,
+      showPriorities: true,
+    },
+    queues: {
+      title: "Tune your queues",
+      placeholder: "Add or remove items from your queues…",
+      prioritiesHeading: "",
+      signLabel: "Done",
+      showSettings: false,
+      showQueues: true,
+      showPriorities: false,
+    },
+  };
+  const cfg = KIND_CONFIG[KIND] || KIND_CONFIG.morning;
+  pageTitle.textContent = cfg.title;
+  inputEl.placeholder = cfg.placeholder;
+  if (cfg.prioritiesHeading) prioritiesHeading.textContent = cfg.prioritiesHeading;
+  signBtn.textContent = cfg.signLabel;
+  if (!cfg.showSettings) settingsSection.classList.add("fl-hidden");
+  if (cfg.showQueues) queuesSection.classList.remove("fl-hidden");
+  if (!cfg.showPriorities) prioritiesSection.classList.add("fl-hidden");
 
   let conversationId = null;
   let canSign = false;
@@ -306,11 +359,59 @@
     const r = await fetch("/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+      body: JSON.stringify({ kind: KIND }),
     });
     const j = await r.json();
     conversationId = j.conversation_id;
     appendMessage("assistant", j.assistant_text);
+    if (KIND === "queues" && j.kickoff) {
+      try {
+        const queues = JSON.parse(j.kickoff.split("\n").slice(2).join("\n").trim());
+        renderQueues(queues);
+      } catch (_) { /* ignore */ }
+      // Queues page is signable from the start (sign = ack done).
+      canSign = true;
+      signBtn.disabled = false;
+    } else if (KIND === "review" && j.kickoff) {
+      // Show today's summary subtly above the chat for context.
+      const note = document.createElement("div");
+      note.className = "banner";
+      note.style.whiteSpace = "pre-wrap";
+      note.style.fontSize = "11px";
+      note.textContent = j.kickoff.slice(0, 600);
+      document.querySelector(".chat header").after(note);
+    }
+  }
+
+  function renderQueues(queues) {
+    queuesList.innerHTML = "";
+    const order = ["bookmarks_queue", "social_queue", "rubber_duck_venues"];
+    order.forEach((qname) => {
+      const items = queues[qname] || [];
+      const wrap = document.createElement("li");
+      wrap.className = "priority-card";
+      const head = document.createElement("div");
+      head.className = "priority-title";
+      head.textContent = `${qname.replaceAll("_", " ")} (${items.length})`;
+      wrap.appendChild(head);
+      const list = document.createElement("ul");
+      list.style.fontSize = "11px";
+      list.style.color = "#8b949e";
+      list.style.paddingLeft = "16px";
+      list.style.margin = "6px 0 0 0";
+      items.slice(0, 5).forEach((it) => {
+        const li = document.createElement("li");
+        li.textContent = it.title || it.name || it.venue || JSON.stringify(it);
+        list.appendChild(li);
+      });
+      if (items.length > 5) {
+        const li = document.createElement("li");
+        li.textContent = `… +${items.length - 5} more`;
+        list.appendChild(li);
+      }
+      wrap.appendChild(list);
+      queuesList.appendChild(wrap);
+    });
   }
 
   async function send() {
@@ -327,6 +428,7 @@
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           conversation_id: conversationId,
+          kind: KIND,
           message: text,
         }),
       });
@@ -337,12 +439,27 @@
       }
       conversationId = j.conversation_id;
       appendMessage("assistant", j.assistant_text);
-      renderPriorities(j.priorities);
+      if (cfg.showPriorities) renderPriorities(j.priorities);
       if (j.settings && typeof j.settings.entertainment_ration_min === "number") {
         rationEl.value = j.settings.entertainment_ration_min;
       }
+      // For queues kind: refresh the queue panel after each turn (the
+      // mutations array tells us what's changed).
+      if (KIND === "queues" && j.queue_mutations && j.queue_mutations.length) {
+        // Re-fetch via a fresh /chat kickoff would lose context; instead
+        // poll the queues file via GET /queues-state below.
+        try {
+          const r2 = await fetch("/queues-state");
+          const queues = await r2.json();
+          renderQueues(queues);
+        } catch (_) { /* ignore */ }
+      }
       canSign = !!j.can_sign;
-      signBtn.disabled = !(canSign && j.priorities && j.priorities.length);
+      if (KIND === "queues") {
+        signBtn.disabled = false; // always closable
+      } else {
+        signBtn.disabled = !(canSign && j.priorities && j.priorities.length);
+      }
       statusText.textContent = j.using_llm ? "ready · LLM mode" : "ready · fallback mode";
     } catch (err) {
       appendMessage("assistant", "Network error: " + err.message);
@@ -373,11 +490,20 @@
         return;
       }
       signResult.style.color = "var(--green)";
-      const c = j.contract;
-      signResult.innerHTML =
-        "✓ Signed for " + c.date +
-        ".<br>Tank starts at 0%. Ration unlocks at " + c.threshold_pct + "%.<br><br>" +
-        "Close this tab. The extension and tray will pick it up automatically.";
+      if (j.kind === "queues") {
+        const n = (j.queue_mutations_applied || []).length;
+        signResult.innerHTML =
+          "✓ " + n + " queue change" + (n === 1 ? "" : "s") + " saved.<br>" +
+          "Close this tab. The next sublimation card will reference your " +
+          "updated queues.";
+      } else {
+        const c = j.contract;
+        const which = j.kind === "review" ? "tomorrow" : "today";
+        signResult.innerHTML =
+          "✓ Signed for " + c.date + " (" + which + ").<br>" +
+          "Ration unlocks at " + c.threshold_pct + "%.<br><br>" +
+          "Close this tab. The extension and tray will pick it up automatically.";
+      }
     } catch (err) {
       signResult.style.color = "#f85149";
       signResult.textContent = "Network error: " + err.message;

@@ -73,6 +73,7 @@ agent = [
     "founder_loop/static/*.html",
     "founder_loop/static/*.css",
     "founder_loop/static/*.js",
+    "founder_loop/static/*.md",
 ]
 
 [tool.pytest.ini_options]

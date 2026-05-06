@@ -284,6 +284,83 @@ def test_healthz_reports_contract_and_llm_state(daemon):
     assert "has_api_key" in r
 
 
+def test_about_renders_markdown_to_html(daemon):
+    """The /about route renders what-is-this.md as styled HTML."""
+    base, *_ = daemon
+    req = urllib.request.Request(base + "/about")
+    with urllib.request.urlopen(req, timeout=2.0) as r:
+        body = r.read().decode("utf-8")
+        ct = r.headers.get("Content-Type", "")
+    assert "text/html" in ct
+    # Markdown features that should round-trip
+    assert "<h1>" in body  # the doc starts with #
+    # Shell wrapper present
+    assert "Founder Loop" in body
+    assert "/onboard" in body  # back-link nav
+
+
+def test_other_doc_routes_render(daemon):
+    base, *_ = daemon
+    for path in ("/how-to-use", "/how-it-works", "/roadmap"):
+        with urllib.request.urlopen(base + path, timeout=2.0) as r:
+            body = r.read().decode("utf-8")
+        assert "<h1>" in body, f"{path} did not render markdown"
+        assert "<table>" in body or "<h2>" in body, (
+            f"{path} body looks empty: {body[:200]}"
+        )
+
+
+def test_review_chat_shell_served(daemon):
+    base, *_ = daemon
+    with urllib.request.urlopen(base + "/review", timeout=2.0) as r:
+        body = r.read().decode("utf-8")
+    assert 'name="fl-kind" content="review"' in body
+
+
+def test_queues_chat_shell_served(daemon):
+    base, *_ = daemon
+    with urllib.request.urlopen(base + "/queues", timeout=2.0) as r:
+        body = r.read().decode("utf-8")
+    assert 'name="fl-kind" content="queues"' in body
+
+
+def test_chat_with_kind_review_uses_review_prompt(daemon):
+    base, *_ = daemon
+    r = _post(base + "/chat", {"kind": "review"})
+    assert r["kind"] == "review"
+    # Greeting differs from morning kind
+    assert "evening" in r["assistant_text"].lower() or \
+           "review" in r["assistant_text"].lower()
+
+
+def test_chat_with_kind_queues_returns_kickoff(daemon):
+    base, *_ = daemon
+    r = _post(base + "/chat", {"kind": "queues"})
+    assert r["kind"] == "queues"
+    # Kickoff should include current queue contents (empty arrays OK)
+    assert r.get("kickoff") and "bookmarks_queue" in r["kickoff"]
+
+
+def test_queues_state_returns_three_arrays(daemon):
+    base, *_ = daemon
+    r = _get(base + "/queues-state")
+    for key in ("bookmarks_queue", "social_queue", "rubber_duck_venues"):
+        assert key in r, f"missing queue: {key}"
+        assert isinstance(r[key], list)
+
+
+def test_unknown_kind_returns_400(daemon):
+    base, *_ = daemon
+    data = json.dumps({"kind": "bogus"}).encode("utf-8")
+    req = urllib.request.Request(
+        base + "/chat", data=data,
+        headers={"Content-Type": "application/json"}, method="POST",
+    )
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        urllib.request.urlopen(req, timeout=2.0)
+    assert exc.value.code == 400
+
+
 def test_serve_refuses_non_loopback(tmp_path: Path):
     """Safety: daemon refuses to bind to a non-loopback host."""
     registry = tmp_path / "r.jsonl"
