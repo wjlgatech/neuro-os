@@ -98,6 +98,52 @@ def _cmd_self_modify(args: argparse.Namespace) -> int:
     return 0
 
 
+def _resolve_workflowx_path(
+    explicit: Optional[str],
+    *,
+    fallback: Path,
+    quiet: bool = False,
+) -> Path:
+    """Run the auto-detect chain when ``explicit`` is None.
+
+    Returns the path the daemon / loop should read. Always logs the
+    detection result (one line) so the user knows whether real data is
+    flowing — unless ``quiet=True`` (used by ``loop workflowx-detect``
+    which prints structured JSON instead).
+    """
+    from agent.founder_loop.workflowx_detect import detect_workflowx_export
+
+    if explicit is not None:
+        result = detect_workflowx_export(
+            explicit=Path(explicit).expanduser(),
+            fallback=fallback,
+        )
+    else:
+        result = detect_workflowx_export(fallback=fallback)
+    if not quiet:
+        print(result.note, file=sys.stderr)
+    return result.path
+
+
+def _cmd_loop_workflowx_detect(args: argparse.Namespace) -> int:
+    """Read-only: run detection and print the structured result as JSON."""
+    from agent.founder_loop.workflowx_detect import detect_workflowx_export
+
+    fallback = Path(args.fallback).expanduser()
+    explicit = Path(args.workflowx_fixture).expanduser() if args.workflowx_fixture else None
+    result = detect_workflowx_export(explicit=explicit, fallback=fallback)
+    print(json.dumps(
+        {
+            "path": str(result.path),
+            "source": result.source,
+            "is_real": result.is_real,
+            "note": result.note,
+        },
+        indent=2,
+    ))
+    return 0
+
+
 def _cmd_loop_morning(args: argparse.Namespace) -> int:
     from agent.founder_loop import FounderLoop, Priority
 
@@ -127,10 +173,15 @@ def _cmd_loop_tick(args: argparse.Namespace) -> int:
     from datetime import datetime
     from agent.founder_loop import FounderLoop
 
+    home_default = Path.home() / ".founder_loop"
+    workflowx_path = _resolve_workflowx_path(
+        args.workflowx_fixture,
+        fallback=home_default / "workflowx.jsonl",
+    )
     loop = FounderLoop(
         registry_path=args.registry,
         contract_path=args.contracts,
-        workflowx_export_path=args.workflowx_fixture,
+        workflowx_export_path=workflowx_path,
         events_path=getattr(args, "events", None),
         use_llm=bool(args.use_llm),
     )
@@ -187,6 +238,7 @@ def _cmd_loop_serve(args: argparse.Namespace) -> int:
     import threading
     import webbrowser
     from agent.founder_loop.server import serve
+    from agent.founder_loop.workflowx_detect import detect_workflowx_export
 
     logging.basicConfig(
         level=logging.INFO,
@@ -194,15 +246,28 @@ def _cmd_loop_serve(args: argparse.Namespace) -> int:
     )
     registry = Path(args.registry).expanduser()
     contracts = Path(args.contracts).expanduser()
-    workflowx = Path(args.workflowx_fixture).expanduser()
-    # First-run convenience: create the data dir and an empty workflowx
-    # fixture so the user can just run `neuro-os loop serve` after
-    # `pip install` and immediately hit /onboard.
+
+    # Auto-detect workflowx unless an explicit path was provided.
+    fallback_workflowx = registry.parent / "workflowx.jsonl"
+    if args.workflowx_fixture is None:
+        detection = detect_workflowx_export(fallback=fallback_workflowx)
+    else:
+        detection = detect_workflowx_export(
+            explicit=Path(args.workflowx_fixture).expanduser(),
+            fallback=fallback_workflowx,
+        )
+    workflowx = detection.path
+    logging.info(detection.note)
+
+    # First-run convenience: create the data dir and (only when we're
+    # using the fallback) an empty workflowx file so the daemon can
+    # boot. Real-detected paths are read-only — we never write into a
+    # user's external workflowx export directory.
     for p in (registry.parent, contracts.parent, workflowx.parent):
         p.mkdir(parents=True, exist_ok=True)
-    if not workflowx.exists():
+    if detection.source == "fallback" and not workflowx.exists():
         workflowx.write_text("", encoding="utf-8")
-        logging.info("created empty workflowx fixture: %s", workflowx)
+        logging.info("created empty workflowx fallback: %s", workflowx)
     onboard_url = f"http://{args.host}:{args.port}/onboard"
     print(f"\n  Open {onboard_url} in your browser\n")
     if getattr(args, "open_browser", False):
@@ -233,10 +298,15 @@ def _cmd_loop_nightly(args: argparse.Namespace) -> int:
     from datetime import datetime
     from agent.founder_loop import FounderLoop
 
+    home_default = Path.home() / ".founder_loop"
+    workflowx_path = _resolve_workflowx_path(
+        args.workflowx_fixture,
+        fallback=home_default / "workflowx.jsonl",
+    )
     loop = FounderLoop(
         registry_path=args.registry,
         contract_path=args.contracts,
-        workflowx_export_path=args.workflowx_fixture,
+        workflowx_export_path=workflowx_path,
     )
     when = datetime.fromisoformat(args.at) if args.at else None
     summary = loop.nightly(day=when)
@@ -318,8 +388,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     loop_tick.add_argument("--registry", required=True)
     loop_tick.add_argument("--contracts", required=True)
-    loop_tick.add_argument("--workflowx-fixture", required=True,
-                           help="JSONL fixture file (v0 always uses fixture adapter)")
+    loop_tick.add_argument("--workflowx-fixture", default=None,
+                           help="JSONL fixture file. When omitted, "
+                                "auto-detect platform paths + WORKFLOWX_EXPORTS_PATH; "
+                                "fall back to ~/.founder_loop/workflowx.jsonl.")
     loop_tick.add_argument("--events", default=None,
                            help="user-logged urge events path "
                                 "(default: registry sibling founder_events.jsonl)")
@@ -374,10 +446,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     loop_serve.add_argument(
         "--workflowx-fixture",
-        default=str(Path(_home_default) / "workflowx.jsonl"),
+        default=None,
         help=(
-            f"default: {_home_default}/workflowx.jsonl "
-            "(auto-created empty if missing)"
+            "explicit JSONL fixture / export path. When omitted, the "
+            "daemon auto-detects via known platform paths "
+            "(macOS Application Support, Linux ~/.config, etc.) and the "
+            "WORKFLOWX_EXPORTS_PATH env var. Falls back to "
+            f"{_home_default}/workflowx.jsonl (auto-created empty)."
         ),
     )
     loop_serve.add_argument(
@@ -423,7 +498,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     start_p.add_argument(
         "--workflowx-fixture",
-        default=str(Path(_home_default) / "workflowx.jsonl"),
+        default=None,
+        help=(
+            "explicit JSONL fixture / export path. When omitted, "
+            "auto-detect runs (see `loop workflowx-detect`)."
+        ),
     )
     start_p.add_argument("--events", default=None)
     start_p.add_argument("--host", default="127.0.0.1")
@@ -470,9 +549,29 @@ def build_parser() -> argparse.ArgumentParser:
     )
     loop_nightly.add_argument("--registry", required=True)
     loop_nightly.add_argument("--contracts", required=True)
-    loop_nightly.add_argument("--workflowx-fixture", required=True)
+    loop_nightly.add_argument("--workflowx-fixture", default=None,
+                              help="explicit fixture path; omit to auto-detect")
     loop_nightly.add_argument("--at", help="ISO timestamp to roll up at (default: now)")
     loop_nightly.set_defaults(func=_cmd_loop_nightly)
+
+    loop_detect = loop_sub.add_parser(
+        "workflowx-detect",
+        help=(
+            "show where the daemon would read workflowx export from. "
+            "Read-only — no side effects. Useful to verify a clean install "
+            "without starting the daemon."
+        ),
+    )
+    loop_detect.add_argument(
+        "--workflowx-fixture", default=None,
+        help="if given, mark this as the explicit path and skip detection",
+    )
+    loop_detect.add_argument(
+        "--fallback",
+        default=str(Path(_home_default) / "workflowx.jsonl"),
+        help=f"path returned when nothing else is found (default: {_home_default}/workflowx.jsonl)",
+    )
+    loop_detect.set_defaults(func=_cmd_loop_workflowx_detect)
 
     return p
 

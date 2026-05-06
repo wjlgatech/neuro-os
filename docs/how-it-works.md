@@ -44,11 +44,33 @@ this, 5 min on that, you switched contexts 4 times." If you don't
 have workflowx, the file is empty and the app has no signal; it
 guesses based on your past trajectory and asks you for intent.
 
+**Where the app finds workflowx (auto-detect precedence):**
+
+1. An explicit `--workflowx-fixture` flag wins everything.
+2. The `WORKFLOWX_EXPORTS_PATH` environment variable (file or
+   directory).
+3. Platform-specific known directories — first match returns the
+   most-recently-modified `.jsonl` inside:
+   * macOS: `~/Library/Application Support/workflowx/exports/`,
+     `~/.workflowx/exports/`
+   * Linux: `~/.config/workflowx/exports/`,
+     `~/.local/share/workflowx/exports/`, `~/.workflowx/exports/`
+   * Windows: `%APPDATA%\workflowx\exports\`,
+     `%LOCALAPPDATA%\workflowx\exports\`
+4. Repo-local `./workflowx.jsonl` (dev convenience).
+5. Fallback: `~/.founder_loop/workflowx.jsonl` (auto-created empty;
+   the loop runs blind unless you log urges manually).
+
+The daemon logs which branch fired at boot, so you always know
+whether real signal is flowing. Run `neuro-os loop workflowx-detect`
+without starting the daemon to print the result as JSON.
+
 In the future, sensors include: sleep from your watch, last-meal time,
 hours-of-screen-time, time-since-last-message-sent. The more sensors,
 the better the diagnoses.
 
-*Code: `agent/founder_loop/observe.py`*
+*Code: `agent/founder_loop/observe.py`,
+`agent/founder_loop/workflowx_detect.py`*
 
 ---
 

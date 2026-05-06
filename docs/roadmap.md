@@ -28,6 +28,7 @@ verifiable: 80 tests pass.
 | **Browser extension (Manifest V3)** | Complete | Toolbar badge, popup, new-tab dashboard, sublimation overlay on 8 distraction hosts. Honors agency: nothing blocks. |
 | **System tray app** | Complete | Cross-platform (Linux / macOS / Windows). Tank gauge in the menu bar; menu actions for tick / show contract / quit. |
 | **`neuro-os start` alias** | Complete | One-shot: starts daemon with `~/.founder_loop/*` defaults, opens `/onboard` in the default browser, runs hourly internal ticks. |
+| **Workflowx auto-detect** | Complete | `loop workflowx-detect` and the daemon boot path now scan platform-specific known directories (macOS `Library/Application Support/workflowx/exports/`, Linux `.config/workflowx/exports/`, etc.), honor `WORKFLOWX_EXPORTS_PATH`, and pick the most-recent `.jsonl`. Falls back to `~/.founder_loop/workflowx.jsonl` and logs which branch fired so the user knows whether real signal is flowing. |
 | **Daemon-internal tick scheduler** | Complete | `--tick-interval-min N` spawns a background thread that calls `loop.tick()` every N minutes. No cron required. |
 | **Auto-start on login** | Complete | `neuro-os autostart {install,uninstall,status}` writes a launchd plist (macOS) / systemd-user unit (Linux) / Task Scheduler XML (Windows) and enables it. `--dry-run` previews the unit. |
 | **Plain-English doc trio + roadmap** | Complete | `docs/{what-is-this,how-to-use-it,how-it-works,roadmap}.md`. Daemon serves them rendered at `/about`, `/how-to-use`, `/how-it-works`, `/roadmap` (markdown→HTML in-process, no new dep). |
@@ -44,11 +45,10 @@ follow-ups that the now-shipped surfaces revealed:
 
 | # | Item | Why now | Days |
 |---|---|---|---|
-| 1 | **Workflowx auto-detect** | Today the empty fixture means `predict.py` returns `urge=none` for everyone. Auto-find `~/Library/.../workflowx/exports/` would unblock real signal. | 0.5 |
-| 2 | **Tests against the live LLM path** | The conversation manager has 11 fallback tests but only one (skipped) LLM test. A small fixture-based recording test would prevent prompt regressions. | 1 |
-| 3 | **`/today` MAE chart** | Currently a CLI nightly print. A small chart in the new-tab dashboard once real ≥7-day data exists. | 0.5 |
-| 4 | **Queue-mutation undo** | `/queues` writes immediately; an "undo last change" button would make experimentation safer. | 0.5 |
-| 5 | **Browser extension store listings** | "Load unpacked" is dev-only. Chrome Web Store + Firefox AMO need review. | 1 (+ wait time) |
+| 1 | **Tests against the live LLM path** | The conversation manager has 11 fallback tests but only one (skipped) LLM test. A small fixture-based recording test would prevent prompt regressions. | 1 |
+| 2 | **`/today` MAE chart** | Currently a CLI nightly print. A small chart in the new-tab dashboard once real ≥7-day data exists. | 0.5 |
+| 3 | **Queue-mutation undo** | `/queues` writes immediately; an "undo last change" button would make experimentation safer. | 0.5 |
+| 4 | **Browser extension store listings** | "Load unpacked" is dev-only. Chrome Web Store + Firefox AMO need review. | 1 (+ wait time) |
 
 ---
 
@@ -95,7 +95,6 @@ A bigger v1 chapter. The premise: when a user proceeds anyway to a distraction, 
 
 | Area | Why it matters | Cost (rough) |
 |---|---|---|
-| **Workflowx auto-detect** | Today the user must pass `--workflowx-fixture`. Should auto-find `~/Library/.../workflowx/exports/` if present. | 1 day. |
 | **MAE-trend dashboard** in `/today` | Currently a CLI nightly print. Worth a small chart in the dashboard once we have ≥7 days of real data. | 0.5 day. |
 
 ---
