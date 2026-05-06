@@ -42,10 +42,22 @@ dateEl.textContent = new Date().toLocaleDateString(undefined, {
   tankSection.classList.remove("fl-loading");
   tankSection.innerHTML = "";
   if (!today.tank) {
+    const onboardUrl = base + "/onboard";
     tankSection.innerHTML = `
-      <div style="font-size:13px;color:#8b949e;text-align:center;padding:24px">
-        No contract bound for today.<br>
-        Run <code style="color:#58a6ff">python -m agent loop morning …</code>
+      <div style="text-align:center;padding:18px 6px">
+        <div style="font-size:15px;color:#e6edf3;margin-bottom:6px">
+          No contract bound for today.
+        </div>
+        <div style="font-size:12px;color:#8b949e;margin-bottom:18px">
+          Yesterday-you hasn't signed a contract yet. Tell the morning-ritual
+          assistant what matters today, and it'll bind the contract for you.
+        </div>
+        <a href="${onboardUrl}" target="_blank" rel="noopener"
+           style="display:inline-block;padding:10px 18px;background:#238636;
+                  color:white;text-decoration:none;border-radius:8px;
+                  border:1px solid #2ea043;font-size:13px;font-weight:500">
+          Sign today's contract →
+        </a>
       </div>`;
     return;
   }

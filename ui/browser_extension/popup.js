@@ -26,11 +26,16 @@ async function render() {
   statusEl.textContent = `daemon: ${base.replace("http://", "")}`;
 
   if (!today.tank) {
+    const onboardUrl = base + "/onboard";
     root.innerHTML = `
       <div class="fl-loading">
         No contract bound for today.<br><br>
-        Run:<br>
-        <code style="font-size:11px;color:#58a6ff">python -m agent loop morning …</code>
+        <a href="${onboardUrl}" target="_blank" rel="noopener"
+           style="display:inline-block;padding:8px 14px;background:#238636;
+                  color:white;text-decoration:none;border-radius:6px;
+                  border:1px solid #2ea043;font-size:12px">
+          Sign today's contract
+        </a>
       </div>`;
     return;
   }

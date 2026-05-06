@@ -147,13 +147,25 @@ def _cmd_loop_serve(args: argparse.Namespace) -> int:
         level=logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s %(message)s",
     )
+    registry = Path(args.registry).expanduser()
+    contracts = Path(args.contracts).expanduser()
+    workflowx = Path(args.workflowx_fixture).expanduser()
+    # First-run convenience: create the data dir and an empty workflowx
+    # fixture so the user can just run `neuro-os loop serve` after
+    # `pip install` and immediately hit /onboard.
+    for p in (registry.parent, contracts.parent, workflowx.parent):
+        p.mkdir(parents=True, exist_ok=True)
+    if not workflowx.exists():
+        workflowx.write_text("", encoding="utf-8")
+        logging.info("created empty workflowx fixture: %s", workflowx)
+    print(f"\n  Open http://{args.host}:{args.port}/onboard in your browser\n")
     serve(
         host=args.host,
         port=args.port,
-        registry_path=Path(args.registry),
-        contract_path=Path(args.contracts),
-        workflowx_fixture=Path(args.workflowx_fixture),
-        events_path=Path(args.events) if args.events else None,
+        registry_path=registry,
+        contract_path=contracts,
+        workflowx_fixture=workflowx,
+        events_path=Path(args.events).expanduser() if args.events else None,
         use_llm=bool(args.use_llm),
         block=True,
     )
@@ -260,15 +272,42 @@ def build_parser() -> argparse.ArgumentParser:
     loop_tick.set_defaults(func=_cmd_loop_tick)
 
     loop_serve = loop_sub.add_parser(
-        "serve", help="start the local HTTP daemon for browser extension + tray app"
+        "serve",
+        help=(
+            "start the local HTTP daemon for browser extension + tray app + "
+            "/onboard webapp (defaults to ~/.founder_loop/* paths so the "
+            "first-time user can just run `neuro-os loop serve`)"
+        ),
     )
-    loop_serve.add_argument("--registry", required=True)
-    loop_serve.add_argument("--contracts", required=True)
-    loop_serve.add_argument("--workflowx-fixture", required=True)
-    loop_serve.add_argument("--events", help="events log path (default: registry sibling events.jsonl)")
+    _home_default = str(Path.home() / ".founder_loop")
+    loop_serve.add_argument(
+        "--registry",
+        default=str(Path(_home_default) / "registry.jsonl"),
+        help=f"default: {_home_default}/registry.jsonl",
+    )
+    loop_serve.add_argument(
+        "--contracts",
+        default=str(Path(_home_default) / "contracts.jsonl"),
+        help=f"default: {_home_default}/contracts.jsonl",
+    )
+    loop_serve.add_argument(
+        "--workflowx-fixture",
+        default=str(Path(_home_default) / "workflowx.jsonl"),
+        help=(
+            f"default: {_home_default}/workflowx.jsonl "
+            "(auto-created empty if missing)"
+        ),
+    )
+    loop_serve.add_argument(
+        "--events",
+        help="events log path (default: registry sibling events.jsonl)",
+    )
     loop_serve.add_argument("--host", default="127.0.0.1")
     loop_serve.add_argument("--port", type=int, default=8765)
-    loop_serve.add_argument("--use-llm", action="store_true")
+    loop_serve.add_argument(
+        "--use-llm", action="store_true",
+        help="route /chat through Anthropic API (requires ANTHROPIC_API_KEY)",
+    )
     loop_serve.set_defaults(func=_cmd_loop_serve)
 
     loop_nightly = loop_sub.add_parser(

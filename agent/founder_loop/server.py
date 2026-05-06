@@ -37,11 +37,14 @@ from agent.founder_loop import (
     FounderLoop,
     diagnose_underlying_need,
 )
-from agent.founder_loop.contract import load_latest_contract
+from agent.founder_loop.contract import bind_morning_contract, load_latest_contract
+from agent.founder_loop.conversation import ConversationManager
 from agent.founder_loop.memory import filter_by_day, read_registry
 from agent.founder_loop.observe import FixtureWorkflowxAdapter
 from agent.founder_loop.reward_ledger import compute_tank
 from agent.founder_loop.state import FounderState
+
+STATIC_DIR = Path(__file__).parent / "static"
 
 log = logging.getLogger("founder_loop.server")
 
@@ -65,6 +68,10 @@ class _Config:
         self.events_path = events_path
         self.use_llm = use_llm
         self.api_key = api_key
+        self.conversations = ConversationManager(
+            use_llm=use_llm,
+            api_key=api_key,
+        )
 
     def make_loop(self) -> FounderLoop:
         return FounderLoop(
@@ -164,6 +171,11 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             self._tick(query)
         elif path == "/today":
             self._today()
+        elif path in ("/onboard", "/onboard/", "/"):
+            self._serve_static("onboard.html", "text/html; charset=utf-8")
+        elif path.startswith("/onboard/"):
+            asset = path[len("/onboard/"):]
+            self._serve_static(asset, _guess_mime(asset))
         else:
             self._send_json(404, {"error": f"unknown route: {path}"})
 
@@ -173,6 +185,8 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             "service": "founder_loop",
             "registry": str(self.config.registry_path),
             "use_llm": self.config.use_llm,
+            "has_api_key": bool(self.config.api_key),
+            "contract_bound": load_latest_contract(self.config.contract_path) is not None,
         })
 
     def _tank(self) -> None:
@@ -234,6 +248,10 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             self._diagnose()
         elif path == "/events":
             self._events()
+        elif path == "/chat":
+            self._chat()
+        elif path == "/sign":
+            self._sign()
         else:
             self._send_json(404, {"error": f"unknown route: {path}"})
 
@@ -277,8 +295,97 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
         self._send_json(201, {"logged": record})
 
 
+    # ------------------------------------------------------------------
+    # Conversational onboarding
+    # ------------------------------------------------------------------
+
+    def _chat(self) -> None:
+        body = self._read_json_body()
+        cid = body.get("conversation_id")
+        message = (body.get("message") or "").strip()
+        if not cid:
+            cid, greeting = self.config.conversations.start()
+            self._send_json(200, {
+                "conversation_id": cid,
+                "assistant_text": greeting,
+                "priorities": [],
+                "settings": {
+                    "entertainment_ration_min": 60,
+                    "threshold_pct": 90,
+                },
+                "can_sign": False,
+                "using_llm": bool(self.config.api_key and self.config.use_llm),
+            })
+            return
+        if not message:
+            raise _BadRequest("`message` required for non-initial /chat calls")
+        turn = self.config.conversations.respond(cid, message)
+        self._send_json(200, turn.to_jsonable())
+
+    def _sign(self) -> None:
+        body = self._read_json_body()
+        cid = body.get("conversation_id")
+        if not cid:
+            raise _BadRequest("`conversation_id` required to sign")
+        priorities = self.config.conversations.priorities_for(cid)
+        if not priorities:
+            raise _BadRequest("no priorities crystallized in this conversation")
+        settings = self.config.conversations.settings_for(cid)
+        # Allow caller to override ration/threshold from the UI slider.
+        ration = int(body.get("entertainment_ration_min", settings.entertainment_ration_min))
+        threshold = int(body.get("threshold_pct", settings.threshold_pct))
+        notes = body.get("notes")
+        contract = bind_morning_contract(
+            priorities=priorities,
+            entertainment_ration_min=ration,
+            threshold_pct=threshold,
+            notes=notes,
+            save_to=self.config.contract_path,
+        )
+        self._send_json(201, {
+            "contract": json.loads(contract.model_dump_json()),
+        })
+
+    # ------------------------------------------------------------------
+    # Static file serving (for /onboard)
+    # ------------------------------------------------------------------
+
+    def _serve_static(self, name: str, mime: str) -> None:
+        # Prevent path traversal — names cannot contain '..' or be absolute.
+        if ".." in name.split("/") or name.startswith("/"):
+            self._send_json(400, {"error": "bad asset path"})
+            return
+        path = STATIC_DIR / name
+        if not path.is_file():
+            self._send_json(404, {"error": f"asset not found: {name}"})
+            return
+        body = path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", mime)
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(body)
+
+
 class _BadRequest(Exception):
     """Raised inside handlers; converted to HTTP 400."""
+
+
+def _guess_mime(name: str) -> str:
+    if name.endswith(".html"):
+        return "text/html; charset=utf-8"
+    if name.endswith(".css"):
+        return "text/css; charset=utf-8"
+    if name.endswith(".js"):
+        return "application/javascript; charset=utf-8"
+    if name.endswith(".json"):
+        return "application/json; charset=utf-8"
+    if name.endswith(".svg"):
+        return "image/svg+xml"
+    if name.endswith(".png"):
+        return "image/png"
+    return "application/octet-stream"
 
 
 def _split_path_query(raw: str) -> Tuple[str, Dict[str, str]]:

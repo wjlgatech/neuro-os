@@ -380,47 +380,51 @@ Run the tests with `pytest`. Mutations must keep the suite green.
 
 ---
 
-## Founder Loop UI surfaces
+## Founder Loop — quick start
 
-The reward-economy + sublimation engine in `agent/founder_loop/` ships
-with two user-facing surfaces, both talking to a local-only HTTP daemon
-on `127.0.0.1:8765`:
-
-* **Browser extension** (Manifest V3, Chrome / Firefox / Edge) —
-  `ui/browser_extension/`. Injects the Sublimation Card on
-  high-distraction sites at the moment of urge; renders the Tank widget
-  in the popup and on the new-tab page. Never blocks navigation.
-  See `ui/browser_extension/README.md`.
-* **System tray app** (Linux / macOS / Windows) — `ui/tray_app/`.
-  Always-visible tank gauge in the menu bar. Polls every 60s.
-  See `ui/tray_app/README.md`.
-
-Start the daemon, then either UI:
+After `pip install neuro-os`, the entire onboarding fits in one command:
 
 ```bash
-# 1. Bind today's contract (yesterday-self's signature)
-python -m agent loop morning \
-    --registry users/me/registry.jsonl \
-    --contracts users/me/contracts.jsonl \
-    --priorities-file priorities.json \
-    --ration 60
-
-# 2. Run the daemon (the bridge for both UIs)
-python -m agent loop serve \
-    --registry users/me/registry.jsonl \
-    --contracts users/me/contracts.jsonl \
-    --workflowx-fixture path/to/workflowx_export.jsonl
-
-# 3. Tray (after `pip install -e ".[tray]"`)
-python -m ui.tray_app.tray
-
-# 4. Browser extension: load `ui/browser_extension/` unpacked
-#    in chrome://extensions/ (Developer mode).
+neuro-os loop serve
 ```
 
-The daemon refuses to bind to non-loopback hosts — your registry never
-leaves the machine. See `agent/founder_loop/server.py::serve` for the
-guard.
+That starts the local daemon on `http://127.0.0.1:8765` and
+auto-creates `~/.founder_loop/` with empty defaults. Open
+[`http://127.0.0.1:8765/onboard`](http://127.0.0.1:8765/onboard) in any
+browser. You'll see a chat-style "Morning ritual" page where you tell
+the AI what matters today in plain English. The AI extracts each
+priority's evidence criterion (a merged PR, pushed commits, a published
+doc, a count, a person's signoff, an uploaded artifact) and binds the
+contract when you click **Sign contract**. No JSON. No CLI flags.
+
+Set `ANTHROPIC_API_KEY` and pass `--use-llm` for the natural-language
+flow; otherwise it falls back to a simple state-machine prompt that
+still works.
+
+### UI surfaces
+
+All three talk to the same local-only daemon (refuses to bind to
+non-loopback hosts):
+
+* **`/onboard` chat page** — primary front door. Conversational
+  morning ritual; binds the contract; visible in any browser at
+  `http://127.0.0.1:8765/onboard`.
+* **Browser extension** (Manifest V3, Chrome / Firefox / Edge) —
+  `ui/browser_extension/`. Tank widget in the popup, badge text on the
+  toolbar icon, dashboard on every new tab. Injects the Sublimation
+  Card on high-distraction sites (YouTube, Twitter/X, Reddit, HN,
+  Instagram, TikTok, Facebook) at the moment of urge. Never blocks
+  navigation. Load unpacked from `chrome://extensions/`.
+* **System tray app** (Linux / macOS / Windows) — `ui/tray_app/`.
+  Always-visible tank gauge in the menu bar. Install with
+  `pip install -e ".[tray]"`, then `python -m ui.tray_app.tray`.
+
+Once you've signed today's contract once via `/onboard`, the badge,
+new-tab page, tray icon, and overlay all activate automatically.
+
+For power users, the equivalent CLI path is still there:
+`neuro-os loop morning --priorities-file priorities.json` (where
+`priorities.json` is a hand-written list of `Priority` objects).
 
 ---
 

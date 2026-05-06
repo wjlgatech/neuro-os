@@ -70,6 +70,9 @@ agent = [
     "data/*.json",
     "founder_loop/data/*.json",
     "founder_loop/data/queues/*.json",
+    "founder_loop/static/*.html",
+    "founder_loop/static/*.css",
+    "founder_loop/static/*.js",
 ]
 
 [tool.pytest.ini_options]

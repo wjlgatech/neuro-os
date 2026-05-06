@@ -202,6 +202,88 @@ def test_unknown_route_returns_404(daemon):
     assert exc.value.code == 404
 
 
+def test_onboard_html_served(daemon):
+    base, *_ = daemon
+    req = urllib.request.Request(base + "/onboard")
+    with urllib.request.urlopen(req, timeout=2.0) as r:
+        assert r.status == 200
+        body = r.read().decode("utf-8")
+        ct = r.headers.get("Content-Type", "")
+    assert "text/html" in ct
+    # Sanity-check the page actually has chat plumbing, not a stub.
+    assert "Morning ritual" in body
+    assert "/chat" in body
+    assert "/sign" in body
+
+
+def test_chat_initial_call_returns_greeting(daemon):
+    base, *_ = daemon
+    r = _post(base + "/chat", {})
+    assert r["conversation_id"]
+    assert r["assistant_text"]
+    assert r["priorities"] == []
+    assert r["can_sign"] is False
+
+
+def test_chat_fallback_extracts_priority(daemon):
+    base, *_ = daemon
+    init = _post(base + "/chat", {})
+    cid = init["conversation_id"]
+    for msg in [
+        "ship founder_loop UI",
+        "pr_merged",
+        "neuro-os#999",
+        "3",
+    ]:
+        r = _post(base + "/chat", {"conversation_id": cid, "message": msg})
+    assert len(r["priorities"]) == 1
+    p = r["priorities"][0]
+    assert p["title"] == "ship founder_loop UI"
+    assert p["evidence_type"] == "pr_merged"
+    assert p["weight"] == 3
+
+
+def test_sign_binds_contract(daemon):
+    base, registry, contracts = daemon
+    init = _post(base + "/chat", {})
+    cid = init["conversation_id"]
+    for msg in ["ship X", "pr_merged", "repo#1", "2", "done", "45"]:
+        _post(base + "/chat", {"conversation_id": cid, "message": msg})
+    r = _post(base + "/sign", {
+        "conversation_id": cid,
+        "entertainment_ration_min": 45,
+    })
+    assert r["contract"]["entertainment_ration_min"] == 45
+    assert len(r["contract"]["priorities"]) >= 1
+    # Side effect: contract written to disk under today's date — but the
+    # daemon fixture already bound one earlier, so we should now have
+    # two rows.
+    rows = contracts.read_text().splitlines()
+    assert len(rows) >= 2
+
+
+def test_sign_without_priorities_returns_400(daemon):
+    base, *_ = daemon
+    init = _post(base + "/chat", {})
+    cid = init["conversation_id"]
+    data = json.dumps({"conversation_id": cid}).encode("utf-8")
+    req = urllib.request.Request(
+        base + "/sign", data=data,
+        headers={"Content-Type": "application/json"}, method="POST",
+    )
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        urllib.request.urlopen(req, timeout=2.0)
+    assert exc.value.code == 400
+
+
+def test_healthz_reports_contract_and_llm_state(daemon):
+    base, *_ = daemon
+    r = _get(base + "/healthz")
+    assert "contract_bound" in r
+    assert r["contract_bound"] is True   # fixture bound one
+    assert "has_api_key" in r
+
+
 def test_serve_refuses_non_loopback(tmp_path: Path):
     """Safety: daemon refuses to bind to a non-loopback host."""
     registry = tmp_path / "r.jsonl"

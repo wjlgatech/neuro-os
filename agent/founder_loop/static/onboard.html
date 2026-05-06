@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Founder Loop · Morning ritual</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --panel-2: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-dim: #8b949e;
+      --text-faint: #6e7681;
+      --accent: #58a6ff;
+      --green: #56d364;
+      --green-line: #2ea043;
+      --amber: #d29922;
+      --red: #f85149;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      grid-template-rows: 1fr;
+      max-width: 1100px; margin: 0 auto; height: 100vh;
+    }
+    @media (max-width: 880px) {
+      .layout { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+      .side { border-left: none !important; border-top: 1px solid var(--border); max-height: 40vh; }
+    }
+
+    .chat {
+      display: flex; flex-direction: column;
+      padding: 32px 28px 24px 28px;
+      overflow: hidden;
+    }
+    .chat header {
+      margin-bottom: 14px;
+    }
+    .chat h1 {
+      font-size: 22px; font-weight: 500; margin: 0;
+      letter-spacing: -0.2px;
+    }
+    .chat .sub {
+      font-size: 12px; color: var(--text-dim); margin-top: 4px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .chat .sub .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); display: inline-block; }
+    .chat .sub .dot.dim { background: var(--amber); }
+
+    .messages {
+      flex: 1; overflow-y: auto;
+      padding: 10px 4px 8px 4px; margin-bottom: 12px;
+    }
+    .msg {
+      max-width: 85%; padding: 10px 14px; border-radius: 12px;
+      margin-bottom: 10px; font-size: 14px; line-height: 1.55;
+      white-space: pre-wrap; word-wrap: break-word;
+    }
+    .msg.assistant {
+      background: var(--panel); border: 1px solid var(--border);
+      align-self: flex-start; margin-right: auto;
+    }
+    .msg.user {
+      background: var(--accent); color: white;
+      align-self: flex-end; margin-left: auto;
+    }
+    .msg-row { display: flex; }
+    .msg.assistant ~ .typing {
+      font-size: 12px; color: var(--text-faint); padding-left: 6px;
+    }
+
+    .composer {
+      display: flex; gap: 8px;
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+    }
+    .composer textarea {
+      flex: 1; min-height: 44px; max-height: 160px;
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 12px;
+      color: var(--text); font: inherit; font-size: 14px;
+      resize: none; outline: none;
+    }
+    .composer textarea:focus { border-color: var(--accent); }
+    .composer button {
+      background: var(--accent); border: none; color: white;
+      border-radius: 10px; padding: 0 18px; font: inherit; font-size: 14px;
+      cursor: pointer; min-width: 80px;
+    }
+    .composer button:disabled {
+      background: var(--panel-2); color: var(--text-faint); cursor: not-allowed;
+    }
+
+    .side {
+      background: var(--panel);
+      border-left: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      padding: 28px 22px 22px 22px;
+      overflow-y: auto;
+    }
+    .side h2 {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.6px;
+      color: var(--text-dim); text-transform: uppercase;
+      margin: 0 0 12px 0;
+    }
+    .side-section { margin-bottom: 22px; }
+
+    .priorities-list { list-style: none; padding: 0; margin: 0; }
+    .priority-card {
+      background: var(--panel-2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
+      animation: slide-in 220ms ease-out;
+    }
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .priority-title { font-size: 13px; font-weight: 500; }
+    .priority-meta { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+    .priority-weight {
+      display: inline-block; font-size: 10px; padding: 1px 6px;
+      border-radius: 4px; background: var(--bg); border: 1px solid var(--border);
+      margin-right: 6px;
+    }
+    .priority-weight.w3 { color: var(--red); border-color: var(--red); }
+    .priority-weight.w2 { color: var(--amber); border-color: var(--amber); }
+    .priority-weight.w1 { color: var(--text-dim); }
+    .priorities-empty {
+      font-size: 12px; color: var(--text-faint);
+      padding: 14px 12px; border: 1px dashed var(--border);
+      border-radius: 10px; text-align: center;
+    }
+
+    .ration-row {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 12px; color: var(--text-dim);
+    }
+    .ration-row input {
+      flex: 1; background: var(--panel-2); border: 1px solid var(--border);
+      color: var(--text); border-radius: 6px; padding: 4px 6px;
+      font: inherit; font-size: 12px;
+    }
+    .ration-row span.unit { color: var(--text-faint); }
+
+    .sign-btn {
+      width: 100%; background: transparent; border: 1px solid var(--green-line);
+      color: var(--green); padding: 12px; border-radius: 10px;
+      font: inherit; font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: background 120ms;
+      margin-top: auto;
+    }
+    .sign-btn:enabled:hover { background: rgba(46, 160, 67, 0.12); }
+    .sign-btn:disabled {
+      border-color: var(--border); color: var(--text-faint); cursor: not-allowed;
+    }
+    .sign-result {
+      margin-top: 12px; font-size: 11px; color: var(--green);
+      text-align: center; line-height: 1.5;
+    }
+
+    .banner {
+      font-size: 11px; padding: 8px 10px; border-radius: 8px;
+      background: var(--panel-2); border: 1px solid var(--border);
+      color: var(--text-dim); margin-bottom: 14px;
+    }
+    .banner.warn { border-color: var(--amber); color: var(--amber); }
+    .banner code { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <main class="chat">
+      <header>
+        <h1>Morning ritual</h1>
+        <div class="sub">
+          <span class="dot" id="status-dot"></span>
+          <span id="status-text">connecting…</span>
+        </div>
+      </header>
+      <div id="banner" class="banner" style="display:none"></div>
+      <div class="messages" id="messages"></div>
+      <div class="composer">
+        <textarea id="input" placeholder="Tell me one thing that matters today…" rows="1"></textarea>
+        <button id="send">Send</button>
+      </div>
+    </main>
+
+    <aside class="side">
+      <div class="side-section">
+        <h2>Today's priorities</h2>
+        <ul id="priorities" class="priorities-list">
+          <li class="priorities-empty">Priorities you commit to will appear here as we discuss them.</li>
+        </ul>
+      </div>
+
+      <div class="side-section">
+        <h2>Settings</h2>
+        <div class="ration-row" style="margin-bottom: 6px">
+          <span>Entertainment ration</span>
+        </div>
+        <div class="ration-row">
+          <input id="ration" type="number" min="0" max="720" value="60">
+          <span class="unit">min after 90%</span>
+        </div>
+      </div>
+
+      <button id="sign" class="sign-btn" disabled>Sign contract</button>
+      <div class="sign-result" id="sign-result"></div>
+    </aside>
+  </div>
+
+  <script>
+  const messagesEl = document.getElementById("messages");
+  const inputEl = document.getElementById("input");
+  const sendBtn = document.getElementById("send");
+  const prioritiesEl = document.getElementById("priorities");
+  const rationEl = document.getElementById("ration");
+  const signBtn = document.getElementById("sign");
+  const signResult = document.getElementById("sign-result");
+  const statusDot = document.getElementById("status-dot");
+  const statusText = document.getElementById("status-text");
+  const banner = document.getElementById("banner");
+
+  let conversationId = null;
+  let canSign = false;
+  let usingLLM = false;
+
+  function appendMessage(role, text) {
+    const wrap = document.createElement("div");
+    wrap.className = "msg-row";
+    const el = document.createElement("div");
+    el.className = "msg " + role;
+    el.textContent = text;
+    if (role === "user") wrap.style.justifyContent = "flex-end";
+    wrap.appendChild(el);
+    messagesEl.appendChild(wrap);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  }
+
+  function renderPriorities(items) {
+    if (!items || !items.length) {
+      prioritiesEl.innerHTML =
+        '<li class="priorities-empty">Priorities you commit to will appear here as we discuss them.</li>';
+      return;
+    }
+    prioritiesEl.innerHTML = "";
+    items.forEach((p) => {
+      const li = document.createElement("li");
+      li.className = "priority-card";
+      const title = document.createElement("div");
+      title.className = "priority-title";
+      const w = document.createElement("span");
+      w.className = "priority-weight w" + p.weight;
+      w.textContent = "P" + p.weight;
+      title.appendChild(w);
+      title.appendChild(document.createTextNode(p.title));
+      const meta = document.createElement("div");
+      meta.className = "priority-meta";
+      meta.textContent = p.evidence_type.replaceAll("_", " ") + " · " + p.evidence_target;
+      li.appendChild(title);
+      li.appendChild(meta);
+      prioritiesEl.appendChild(li);
+    });
+  }
+
+  async function checkHealth() {
+    try {
+      const r = await fetch("/healthz");
+      const j = await r.json();
+      if (j.contract_bound) {
+        statusDot.classList.add("dim");
+        statusText.textContent = "contract already bound for today";
+        banner.style.display = "block";
+        banner.className = "banner warn";
+        banner.innerHTML =
+          "Today's contract is already bound. Re-signing will overwrite it.";
+      } else if (!j.has_api_key || !j.use_llm) {
+        statusText.textContent = "fallback mode — no Anthropic key configured";
+        banner.style.display = "block";
+        banner.className = "banner warn";
+        banner.innerHTML =
+          "Running without an LLM. The conversation will be functional but stiff (one field at a time). " +
+          "Set <code>ANTHROPIC_API_KEY</code> and start the daemon with <code>--use-llm</code> for natural language.";
+        usingLLM = false;
+      } else {
+        statusText.textContent = "ready · LLM mode";
+        usingLLM = true;
+      }
+    } catch (err) {
+      statusDot.style.background = "#f85149";
+      statusText.textContent = "daemon unreachable";
+    }
+  }
+
+  async function startConversation() {
+    const r = await fetch("/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const j = await r.json();
+    conversationId = j.conversation_id;
+    appendMessage("assistant", j.assistant_text);
+  }
+
+  async function send() {
+    const text = inputEl.value.trim();
+    if (!text) return;
+    appendMessage("user", text);
+    inputEl.value = "";
+    inputEl.style.height = "44px";
+    sendBtn.disabled = true;
+    statusText.textContent = "thinking…";
+    try {
+      const r = await fetch("/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversation_id: conversationId,
+          message: text,
+        }),
+      });
+      const j = await r.json();
+      if (j.error) {
+        appendMessage("assistant", "Error: " + j.error);
+        return;
+      }
+      conversationId = j.conversation_id;
+      appendMessage("assistant", j.assistant_text);
+      renderPriorities(j.priorities);
+      if (j.settings && typeof j.settings.entertainment_ration_min === "number") {
+        rationEl.value = j.settings.entertainment_ration_min;
+      }
+      canSign = !!j.can_sign;
+      signBtn.disabled = !(canSign && j.priorities && j.priorities.length);
+      statusText.textContent = j.using_llm ? "ready · LLM mode" : "ready · fallback mode";
+    } catch (err) {
+      appendMessage("assistant", "Network error: " + err.message);
+      statusText.textContent = "daemon unreachable";
+    } finally {
+      sendBtn.disabled = false;
+      inputEl.focus();
+    }
+  }
+
+  async function signContract() {
+    signBtn.disabled = true;
+    signResult.textContent = "";
+    try {
+      const r = await fetch("/sign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversation_id: conversationId,
+          entertainment_ration_min: parseInt(rationEl.value, 10) || 60,
+        }),
+      });
+      const j = await r.json();
+      if (j.error) {
+        signResult.style.color = "#f85149";
+        signResult.textContent = "Failed: " + j.error;
+        signBtn.disabled = false;
+        return;
+      }
+      signResult.style.color = "var(--green)";
+      const c = j.contract;
+      signResult.innerHTML =
+        "✓ Signed for " + c.date +
+        ".<br>Tank starts at 0%. Ration unlocks at " + c.threshold_pct + "%.<br><br>" +
+        "Close this tab. The extension and tray will pick it up automatically.";
+    } catch (err) {
+      signResult.style.color = "#f85149";
+      signResult.textContent = "Network error: " + err.message;
+      signBtn.disabled = false;
+    }
+  }
+
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      send();
+    }
+  });
+  inputEl.addEventListener("input", () => {
+    inputEl.style.height = "auto";
+    inputEl.style.height = Math.min(160, inputEl.scrollHeight) + "px";
+  });
+  sendBtn.addEventListener("click", send);
+  signBtn.addEventListener("click", signContract);
+
+  (async function init() {
+    await checkHealth();
+    await startConversation();
+    inputEl.focus();
+  })();
+  </script>
+</body>
+</html>
