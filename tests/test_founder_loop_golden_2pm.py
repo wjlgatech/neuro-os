@@ -13,15 +13,12 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 
 import pytest
 
 from agent.founder_loop import (
-    Contract,
     FounderLoop,
     Priority,
-    UrgeEvent,
     log_urge_event,
     read_recent_urge,
     resolve_urge,

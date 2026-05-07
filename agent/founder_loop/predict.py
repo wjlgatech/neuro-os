@@ -27,7 +27,7 @@ with a test stub. Used by every UAT fixture.
 """
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, Literal, Optional
+from typing import Callable, Literal, Optional
 
 from pydantic import BaseModel, Field
 

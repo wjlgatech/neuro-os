@@ -19,10 +19,8 @@ sublimation-flow scenarios from the user's reframe.
 """
 from __future__ import annotations
 
-import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Optional
 
 import pytest
 
@@ -30,7 +28,7 @@ from agent.founder_loop import FounderLoop, Priority
 from agent.founder_loop.observe import RawEvent
 from agent.founder_loop.predict import set_predict_fn, reset_predict_fn
 from agent.founder_loop.state import ForecastedState
-from agent.founder_loop.sublimate import set_diagnose_fn, reset_diagnose_fn
+from agent.founder_loop.sublimate import reset_diagnose_fn
 
 
 # ---------------------------------------------------------------------------

@@ -14,11 +14,8 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
-import time
 from datetime import datetime, timezone
-from pathlib import Path
 
-import pytest
 
 
 # ---------------------------------------------------------------------------
@@ -97,8 +94,8 @@ def test_S06_accepted_expression_event_is_persisted(daemon, http):
     assert status == 201, body
     assert body["logged"]["kind"] == "accepted_expression"
     # On-disk: the events file (separate from urge events) has the row.
-    lines = [l for l in daemon.events_path.read_text().splitlines() if l.strip()]
-    assert any('"kind": "accepted_expression"' in l for l in lines)
+    lines = [line for line in daemon.events_path.read_text().splitlines() if line.strip()]
+    assert any('"kind": "accepted_expression"' in line for line in lines)
 
 
 # ---------------------------------------------------------------------------

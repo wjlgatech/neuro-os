@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from pathlib import Path
 
 import pytest
 
@@ -17,7 +16,7 @@ from agent.founder_loop.priorities import (
     mark_evidenced,
     verify_evidence_shape,
 )
-from agent.founder_loop.state import AbuseTax, Contract, Priority, TankState
+from agent.founder_loop.state import Contract, Priority, TankState
 
 
 def test_bind_morning_contract_basic(tmp_path):

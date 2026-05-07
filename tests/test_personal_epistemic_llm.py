@@ -13,7 +13,6 @@ import unittest
 from typing import Any, Dict
 from unittest import mock
 
-import agent.personal_epistemic_domain  # registers the domain
 from agent.personal_epistemic_domain import (
     disable_llm,
     personal_epistemic_extractor,

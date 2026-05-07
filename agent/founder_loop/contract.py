@@ -24,7 +24,6 @@ from agent.founder_loop.state import (
     AbuseTax,
     Contract,
     ContractCheck,
-    ControlAction,
     Priority,
     TankState,
 )

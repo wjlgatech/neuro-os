@@ -64,7 +64,7 @@ class TestGoldenAccuracy(unittest.TestCase):
                     f"expected={case['expected_mechanism']!r} "
                     f"actual={actual!r} text={case['text'][:60]!r}"
                 )
-        self.assertEqual(misses, [], f"Golden cases misclassified:\n  " + "\n  ".join(misses))
+        self.assertEqual(misses, [], "Golden cases misclassified:\n  " + "\n  ".join(misses))
 
     def test_all_goldens_decide_accept(self):
         # A correctly classified golden with full TRUE coverage should ACCEPT.

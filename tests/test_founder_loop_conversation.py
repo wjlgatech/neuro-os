@@ -12,9 +12,7 @@ import pytest
 from agent.founder_loop.conversation import (
     EVIDENCE_VOCAB,
     ConversationManager,
-    ContractSettings,
 )
-from agent.founder_loop.state import Priority
 
 
 @pytest.fixture

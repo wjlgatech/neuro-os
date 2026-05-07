@@ -104,9 +104,10 @@ class FixtureWorkflowxAdapter:
                         continue
                     try:
                         events.append(RawEvent.from_jsonl_line(line))
-                    except (json.JSONDecodeError, ValueError, Exception):
+                    except Exception:
                         # Malformed line — skip silently. Workflowx
                         # is an external sensor; partial corruption
+                        # (bad JSON, missing fields, wrong types)
                         # shouldn't take down the loop. Surfaces in
                         # e2e scenario S15.
                         continue

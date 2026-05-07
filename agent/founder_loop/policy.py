@@ -30,7 +30,7 @@ The function is pure: same inputs → same output. I/O happens in
 from __future__ import annotations
 
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from agent.founder_loop import sublimate
 from agent.founder_loop.contract import check_contract

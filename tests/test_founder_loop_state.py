@@ -7,7 +7,6 @@ import pytest
 from pydantic import ValidationError
 
 from agent.founder_loop.state import (
-    AbuseTax,
     AUTO_APPLY_DEFAULT,
     AUTO_APPLY_GRADUATABLE,
     Contract,
@@ -15,11 +14,8 @@ from agent.founder_loop.state import (
     ContractCheck,
     ControlAction,
     Diagnosis,
-    ForecastedState,
-    FounderState,
     Priority,
     TankState,
-    TickResult,
 )
 
 

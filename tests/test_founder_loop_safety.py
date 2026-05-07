@@ -7,20 +7,18 @@ behavior tests pass. Run as part of CI on every change.
 from __future__ import annotations
 
 import json
-import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
 
-from agent.founder_loop import FounderLoop, Priority
+from agent.founder_loop import FounderLoop
 from agent.founder_loop.contract import check_contract
 from agent.founder_loop.memory import append_registry_row, read_registry
-from agent.founder_loop.predict import set_predict_fn, reset_predict_fn
+from agent.founder_loop.predict import reset_predict_fn
 from agent.founder_loop.state import (
     AUTO_APPLY_DEFAULT,
     AUTO_APPLY_GRADUATABLE,
-    AbuseTax,
     Contract,
     ContractCheck,
     ControlAction,

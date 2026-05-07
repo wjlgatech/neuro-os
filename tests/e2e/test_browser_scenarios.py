@@ -26,7 +26,6 @@ Maps to scenario.md S04, S05, S06, S07, S08, S09, S10, S13, S16, S20.
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pytest
@@ -162,8 +161,8 @@ def test_S06_accept_alternative_credits_tank(browser, daemon, http):
     # Wait for the click to flush to the daemon.
     page.wait_for_timeout(500)
     # On-disk: the events file has the row.
-    lines = [l for l in daemon.events_path.read_text().splitlines() if l.strip()]
-    assert any('"kind": "accepted_expression"' in l for l in lines)
+    lines = [line for line in daemon.events_path.read_text().splitlines() if line.strip()]
+    assert any('"kind": "accepted_expression"' in line for line in lines)
 
 
 # ---------------------------------------------------------------------------
@@ -183,8 +182,8 @@ def test_S07_override_records_event_and_lets_user_through(browser, daemon, http)
     # Card dismissed.
     assert overlay.is_visible() is False
     # On-disk: the override is logged.
-    lines = [l for l in daemon.events_path.read_text().splitlines() if l.strip()]
-    assert any('"kind": "overrode_proposal"' in l for l in lines)
+    lines = [line for line in daemon.events_path.read_text().splitlines() if line.strip()]
+    assert any('"kind": "overrode_proposal"' in line for line in lines)
 
 
 # ---------------------------------------------------------------------------

@@ -20,7 +20,7 @@ from __future__ import annotations
 
 import html
 import re
-from typing import List, Tuple
+from typing import List
 
 
 def render_markdown(src: str) -> str:
@@ -50,7 +50,8 @@ def render_markdown(src: str) -> str:
 
         # Fenced code block
         if stripped.startswith("```"):
-            close_list(); close_blockquote()
+            close_list()
+            close_blockquote()
             lang = stripped[3:].strip()
             i += 1
             buf = []
@@ -67,7 +68,8 @@ def render_markdown(src: str) -> str:
 
         # Horizontal rule
         if re.match(r"^[-*_]{3,}\s*$", stripped):
-            close_list(); close_blockquote()
+            close_list()
+            close_blockquote()
             out.append("<hr>")
             i += 1
             continue
@@ -75,7 +77,8 @@ def render_markdown(src: str) -> str:
         # Headers
         m = re.match(r"^(#{1,6})\s+(.+)$", stripped)
         if m:
-            close_list(); close_blockquote()
+            close_list()
+            close_blockquote()
             level = len(m.group(1))
             out.append(f"<h{level}>{_inline(m.group(2))}</h{level}>")
             i += 1
@@ -88,7 +91,8 @@ def render_markdown(src: str) -> str:
                 r"^\s*\|?\s*:?[-]+:?\s*(\|\s*:?[-]+:?\s*)+\|?\s*$",
                 lines[i + 1],
             ):
-                close_list(); close_blockquote()
+                close_list()
+                close_blockquote()
                 header = _split_table_row(stripped)
                 i += 2  # skip separator
                 rows = []

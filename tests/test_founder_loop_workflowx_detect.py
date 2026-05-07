@@ -15,7 +15,6 @@ from pathlib import Path
 import pytest
 
 from agent.founder_loop.workflowx_detect import (
-    DetectionResult,
     candidate_directories,
     detect_workflowx_export,
     newest_jsonl_in,

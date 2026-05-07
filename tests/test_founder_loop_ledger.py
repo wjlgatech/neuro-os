@@ -7,10 +7,7 @@ from agent.founder_loop.contract import bind_morning_contract
 from agent.founder_loop.priorities import mark_evidenced
 from agent.founder_loop.reward_ledger import compute_tank
 from agent.founder_loop.state import (
-    AbuseTax,
     Contract,
-    ControlAction,
-    ContractCheck,
     Priority,
 )
 
