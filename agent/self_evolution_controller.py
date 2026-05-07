@@ -10,7 +10,7 @@ metrics without regressing TRUE acceptance quality.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict
 from typing import Any, Callable, Dict, Iterable, List, Optional
 
 try:
@@ -80,7 +80,8 @@ class ValidationReport:
 def observe(cases: Iterable[GoldenCase], pipeline_fn: Optional[PipelineFn] = None) -> List[Observation]:
     """Run cases through the pipeline and capture structured observations."""
     if pipeline_fn is None:
-        pipeline_fn = lambda text: run_pipeline(text)
+        def pipeline_fn(text: str) -> Dict[str, Any]:
+            return run_pipeline(text)
 
     observations: List[Observation] = []
     for case in cases:

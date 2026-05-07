@@ -278,7 +278,8 @@ def _build_knowledge(text: str, mechanism: str, ontology: Dict[str, Any]) -> Dic
 
 def _true_validation(knowledge: Dict[str, Any]) -> Dict[str, Any]:
     """Compute lightweight per-dimension TRUE scores and a composite TRUE score."""
-    has = lambda f: bool(knowledge.get(f))
+    def has(f: str) -> bool:
+        return bool(knowledge.get(f))
     e = 1.0 if has("experiment_design") and has("failure_condition") else 0.0
     u = 1.0 if has("one_sentence_definition") and has("immediate_use_case") else 0.0
     r = 1.0 if has("repeat_protocol") and has("measurement") and has("refinement_signal") else 0.0

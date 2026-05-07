@@ -31,7 +31,9 @@ Start here. All detailed docs live behind these links:
 | [**Browser extension README**](./ui/browser_extension/README.md) | Power users | Manifest V3 setup, how the Sublimation Card injects, how the badge polls. |
 | [**Tray app README**](./ui/tray_app/README.md) | Power users | Cross-platform tray icon (Linux / macOS / Windows). |
 | [**Streamlit UI README**](./ui/README.md) | Researchers | The 4-tab Streamlit app: Try It / Watch It Learn / Self-Repair / Readiness. |
-| [**AI-Native engineering principles**](./docs/AI_NATIVE_ENGINEERING_PRINCIPLES.md) | Contributors | The non-negotiable laws governing the system. |
+| [**AI-Native engineering principles**](./docs/AI_NATIVE_ENGINEERING_PRINCIPLES.md) | Contributors | The 10 non-negotiable laws, each tagged `[ENFORCED-by-test/type/runtime]` or `[ASPIRATIONAL]`. |
+| [**CLAUDE.md**](./CLAUDE.md) | AI agents writing code | The L1 prompt-time gate: where to put new code, what NOT to do, the commit-message format, how to add or revise a law. |
+| [**Principle enforcers**](./tests/test_engineering_principles.py) | Contributors / CI | The L3 test-time gate: 8 deterministic checks for Laws 1, 3, 4, 5, 6, 7, 9. Run with `pytest tests/test_engineering_principles.py`. |
 | [**Agent-system research notes**](./docs/AGENT_SYSTEM_RESEARCH_HERMES_OPENCLAW.md) | Researchers | External-pattern review (Hermes, OpenClaw) translated into Neuro-OS decisions. |
 
 ---
@@ -75,7 +77,7 @@ Or stay in the terminal:
 ```bash
 python -m agent extract "Dopamine neurons encode reward prediction error signals."
 python examples/03_self_repair.py      # watch the system fix itself
-pytest                                  # 214 tests, 11 skipped
+pytest                                  # 222 tests, 12 skipped
 ```
 
 Architecture deep-dive: [**How it works**](./docs/how-it-works.md). Streamlit tabs: [**ui/README.md**](./ui/README.md).
@@ -124,7 +126,7 @@ neuro-os/
 │   │   └── data/                   # sublimation_catalog.json + queues
 │   └── data/priority_rules.json    # the only file L2 is allowed to mutate
 ├── docs/                           # plain-English docs (linked above)
-├── tests/                          # 214 unit + 23 e2e (HTTP + Playwright + Computer Use)
+├── tests/                          # 234 total: unit + 23 e2e + 9 principle-enforcers
 ├── examples/                       # 8 runnable scripts
 ├── ui/                             # Streamlit + browser extension + tray app
 └── pyproject.toml
