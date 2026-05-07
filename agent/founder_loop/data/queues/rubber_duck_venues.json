@@ -1,0 +1,7 @@
+{
+  "items": [
+    {"venue": "#engineering-rubberduck", "kind": "discord", "notes": "low-stakes; people sometimes reply with hints"},
+    {"venue": "voice memo to self (transcribed)", "kind": "voice", "notes": "describing the bug as if to a junior"},
+    {"venue": "stuck.md scratchpad", "kind": "text", "notes": "personal stuck-log; reviewed weekly"}
+  ]
+}

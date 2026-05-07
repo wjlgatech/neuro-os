@@ -1,0 +1,7 @@
+{
+  "items": [
+    {"name": "Sarah", "channel": "imessage", "last_contacted": "2026-03-28", "why": "she sent a long message in March and you never replied", "preferred_contact_form": "voice_message"},
+    {"name": "Daniel", "channel": "signal", "last_contacted": "2026-04-10", "why": "co-founder of competing startup; quarterly check-in is overdue", "preferred_contact_form": "voice_message"},
+    {"name": "Jenny (mom)", "channel": "phone", "last_contacted": "2026-04-25", "why": "weekly call ritual", "preferred_contact_form": "phone_call"}
+  ]
+}

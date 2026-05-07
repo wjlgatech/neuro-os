@@ -9,7 +9,6 @@ the missing rule. The original file is restored on teardown.
 from __future__ import annotations
 
 import json
-import shutil
 import tempfile
 import unittest
 from pathlib import Path
