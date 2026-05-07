@@ -29,7 +29,7 @@ the dep is missing.
 """
 from __future__ import annotations
 
-from typing import Any, Callable, Dict, List, Literal, Optional
+from typing import Any, Callable, Dict, Literal, Optional
 
 try:
     from pydantic import BaseModel, Field

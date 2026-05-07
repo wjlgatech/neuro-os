@@ -22,7 +22,7 @@ Contract
 """
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable
+from typing import Any, Dict
 
 REQUIRED_FIELDS: tuple[str, ...] = (
     "primitive_name",

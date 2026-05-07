@@ -21,8 +21,6 @@ from typing import Any, Callable, Dict, List, Optional
 # Re-export the substrate primitives that have no neuro-os flavor.
 from flywheel_loop.sandbox_runner import (
     apply_bounded_change,
-    cleanup_sandbox as _fw_cleanup_sandbox,
-    promote_files as _fw_promote_files,
 )
 
 Validator = Callable[[str], Dict[str, Any]]
@@ -48,7 +46,6 @@ def cleanup_sandbox(sandbox_path: str) -> None:
 
 _SMOKE_TEST_SKIP = frozenset(
     {
-        "true_runtime.py",
         "multi_agent_orchestrator.py",
         "self_modification_controller.py",
     }

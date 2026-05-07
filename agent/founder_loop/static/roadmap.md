@@ -16,8 +16,9 @@ work for you, that's a bug — please file it. If something in
 ## SHIPPED (v0.4)
 
 The reward-economy + sublimation engine, plus three UI surfaces. All
-verifiable: 214 tests pass (10 e2e Playwright tests skip when chromium
-isn't installed).
+verifiable: 222 tests pass, 12 skipped (10 e2e Playwright tests skip
+when chromium isn't installed; 1 Law 9 enforcer skips when no commits
+ahead of main; 1 LLM test is permanently skipped).
 
 | Area | Status | What's there |
 |---|---|---|
