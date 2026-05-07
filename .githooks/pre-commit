@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Pre-commit hook — runs the engineering-principles enforcer.
+#
+# Goal: catch Law 1, 3, 4, 5, 6, 7 violations BEFORE they become
+# commits in the history. This is L3 (test-time) enforcement.
+#
+# Skip mode: set FOUNDER_LOOP_SKIP_HOOKS=1 in the environment for
+# truly transient cases. Don't make this a habit — silent bypass is
+# how laws atrophy.
+set -euo pipefail
+
+if [[ "${FOUNDER_LOOP_SKIP_HOOKS:-0}" == "1" ]]; then
+    echo "pre-commit: FOUNDER_LOOP_SKIP_HOOKS=1 set; skipping enforcer" >&2
+    exit 0
+fi
+
+# If pytest isn't available, fail loudly (don't silently let commits
+# through that the enforcer would have caught).
+if ! command -v python >/dev/null 2>&1; then
+    echo "pre-commit: python not on PATH; cannot run enforcer" >&2
+    exit 1
+fi
+
+# Run only the engineering-principles test file. ~0.2s on a clean
+# tree; cheap enough to run on every commit.
+echo "pre-commit: running engineering-principles enforcer..." >&2
+if ! python -m pytest tests/test_engineering_principles.py -q --tb=line 2>&1; then
+    cat >&2 <<EOF
+
+✗ pre-commit (engineering principles): one or more law enforcers failed.
+
+Read the failure above to see which law fired. Fix the change OR (rarer)
+propose a law revision in the same PR — see
+docs/AI_NATIVE_ENGINEERING_PRINCIPLES.md → "How to revise an existing law".
+
+To bypass once: FOUNDER_LOOP_SKIP_HOOKS=1 git commit ...
+EOF
+    exit 1
+fi
+
+exit 0

@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Commit-message validator — Law 9 (versioned justification).
+#
+# Every commit message body must contain three sections in order:
+#   What changed
+#   Why it changed
+#   Validation
+#
+# Trivial commits (Merge / Initial / Bump / Revert) are exempted.
+# Cosmetic docs-only commits can use a single-line "What changed: ..."
+# prefix and skip the others (the enforcer recognises this shape).
+#
+# To bypass for a one-off (e.g. a partial save you want to amend
+# later), use `git commit --no-verify` — but you'll be asked to
+# rebase the messages back into compliance before pushing to main.
+set -euo pipefail
+
+MSG_FILE="${1:-}"
+if [[ -z "$MSG_FILE" || ! -f "$MSG_FILE" ]]; then
+    echo "commit-msg hook: no message file passed; nothing to check" >&2
+    exit 0
+fi
+
+MSG="$(cat "$MSG_FILE")"
+SUBJECT="$(printf '%s' "$MSG" | head -n1)"
+
+# Skip trivial commits (merges, releases, reverts, initial commits).
+case "$SUBJECT" in
+    Merge*|Initial*|"Bump "*|"Release "*|"Revert "*|"Add .gitignore"*)
+        exit 0 ;;
+esac
+
+# Skip cosmetic docs-only commits (single-line What changed: ...).
+if [[ "$MSG" =~ ^What\ changed:\ .+ ]] || [[ "$SUBJECT" =~ ^docs:|^typo: ]]; then
+    exit 0
+fi
+
+# Require all three sections (case-insensitive).
+MISSING=()
+for section in "What changed" "Why it changed" "Validation"; do
+    if ! grep -iqF -- "$section" <<< "$MSG"; then
+        MISSING+=("$section")
+    fi
+done
+
+if [[ ${#MISSING[@]} -gt 0 ]]; then
+    cat >&2 <<EOF
+✗ commit-msg hook (Law 9): missing required sections: ${MISSING[*]}
+
+Every commit message body MUST contain (case-insensitive):
+
+  What changed
+    - <bullet 1>
+    - <bullet 2>
+
+  Why it changed
+    <one paragraph>
+
+  Validation
+    - <how you verified>
+
+See CLAUDE.md → "Commit-message format" for the full template.
+
+To bypass once: git commit --no-verify
+But you'll be asked to rebase compliant messages before pushing to main.
+EOF
+    exit 1
+fi
+
+exit 0
