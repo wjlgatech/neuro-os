@@ -26,6 +26,7 @@ single ``UrgeEvent`` with ``resolved_at`` populated when applicable.
 from __future__ import annotations
 
 import json
+import os
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -37,6 +38,36 @@ from agent.founder_loop.state import UrgeType
 
 
 _URGE_CONTEXT_MAX = 400
+
+# Default daily rate limit on user-logged urges. The point isn't to
+# stop the user from reporting urges (the loop wants the data); it's
+# to guarantee Law 6's rejection rule has a concrete trigger. Without
+# a cap, a panicked user could write thousands of rows per second, the
+# 'most recent' lookup degenerates, and the daemon has no signal that
+# something's wrong. 5/day is generous for normal use and still
+# catches the pathological case.
+_DEFAULT_DAILY_CAP = 5
+
+
+class RateLimitExceeded(RuntimeError):
+    """Raised by ``log_urge_event`` when the daily cap is exceeded.
+
+    Carries the cap and the count for clear error messages. Callers
+    (CLI, browser extension) should surface this to the user — Law 6's
+    rejection rule says the system must say no out loud, not silently
+    deny.
+    """
+
+    def __init__(self, *, cap: int, count: int, day: str) -> None:
+        super().__init__(
+            f"daily urge cap exceeded: {count} urges already logged on "
+            f"{day}, cap is {cap}/day. To raise the cap, set the "
+            f"FOUNDER_LOOP_URGE_DAILY_CAP env var or pass "
+            f"daily_cap=N to log_urge_event()."
+        )
+        self.cap = cap
+        self.count = count
+        self.day = day
 
 
 UrgeSource = Literal["user_logged", "predicted"]
@@ -69,6 +100,45 @@ def _new_id() -> str:
     return uuid.uuid4().hex[:12]
 
 
+def _daily_cap_from_env(default: int = _DEFAULT_DAILY_CAP) -> int:
+    """Read the daily cap from FOUNDER_LOOP_URGE_DAILY_CAP if set."""
+    raw = os.environ.get("FOUNDER_LOOP_URGE_DAILY_CAP")
+    if not raw:
+        return default
+    try:
+        n = int(raw)
+        if n < 1:
+            return default
+        return n
+    except ValueError:
+        return default
+
+
+def _count_urges_on_day(path: Union[str, Path], day_iso: str) -> int:
+    """Count user-logged urge rows whose ts starts with ``day_iso``."""
+    p = Path(path)
+    if not p.exists():
+        return 0
+    count = 0
+    with p.open("r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if row.get("kind") != "urge":
+                continue
+            if row.get("source") != "user_logged":
+                continue
+            ts = row.get("ts", "")
+            if isinstance(ts, str) and ts.startswith(day_iso):
+                count += 1
+    return count
+
+
 def log_urge_event(
     *,
     urge_type: UrgeType,
@@ -76,11 +146,28 @@ def log_urge_event(
     path: Union[str, Path],
     ts: Optional[datetime] = None,
     source: UrgeSource = "user_logged",
+    daily_cap: Optional[int] = None,
 ) -> UrgeEvent:
-    """Append a new urge event to ``path``. Returns the created event."""
+    """Append a new urge event to ``path``. Returns the created event.
+
+    Raises ``RateLimitExceeded`` when the per-day cap has already been
+    reached for this ``path`` on the same UTC day. The cap is
+    enforced only for ``source="user_logged"`` rows — predictor-emitted
+    rows aren't bound by the cap. Default cap: 5/day (configurable via
+    ``daily_cap=N`` argument or ``FOUNDER_LOOP_URGE_DAILY_CAP`` env
+    var).
+    """
     ts = ts or datetime.now(timezone.utc)
     if ts.tzinfo is None:
         ts = ts.replace(tzinfo=timezone.utc)
+
+    if source == "user_logged":
+        cap = daily_cap if daily_cap is not None else _daily_cap_from_env()
+        day_iso = ts.date().isoformat()
+        existing = _count_urges_on_day(path, day_iso)
+        if existing >= cap:
+            raise RateLimitExceeded(cap=cap, count=existing, day=day_iso)
+
     event = UrgeEvent(
         id=_new_id(),
         ts=ts,
@@ -211,6 +298,7 @@ __all__ = [
     "UrgeEvent",
     "UrgeSource",
     "UrgeResolution",
+    "RateLimitExceeded",
     "log_urge_event",
     "resolve_urge",
     "read_urges",
