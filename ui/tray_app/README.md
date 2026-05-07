@@ -19,11 +19,9 @@ GNOME extension or run on KDE / XFCE / etc. directly.
 
 Start the daemon first (in another terminal)::
 
-    python -m agent loop serve \
-      --registry users/me/registry.jsonl \
-      --contracts users/me/contracts.jsonl \
-      --workflowx-fixture path/to/exports.jsonl
+    neuro-os start
 
+That picks up `~/.founder_loop/*` defaults and auto-detects workflowx.
 Then launch the tray::
 
     python -m ui.tray_app.tray

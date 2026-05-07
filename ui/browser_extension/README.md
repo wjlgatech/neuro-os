@@ -26,17 +26,16 @@ contract's abuse-tax.
 
 ## Install (Chrome / Chromium / Edge)
 
-1. Build the daemon's runtime data (see top-level `README.md` for the
-   `loop morning` step).
-2. Start the daemon:
+1. Start the daemon. The simplest path:
 
    ```bash
-   python -m agent loop serve \
-     --registry users/me/registry.jsonl \
-     --contracts users/me/contracts.jsonl \
-     --workflowx-fixture path/to/exports.jsonl \
-     --port 8765
+   neuro-os start
    ```
+
+   This boots on `127.0.0.1:8765`, auto-detects your workflowx export
+   (or falls back honestly to an empty fixture), and opens
+   `/onboard` in your default browser. For older flag-driven
+   invocations see top-level `README.md`.
 
 3. Open `chrome://extensions/`, toggle **Developer mode**, click
    **Load unpacked**, and select this directory

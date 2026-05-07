@@ -3,10 +3,9 @@
 This doc covers the five moments you'll have with the app. For each
 one: what you do, what happens, and what it looks like.
 
-Honest note: the app is alpha. Three of the five moments are polished;
-two still require typing a command in a terminal — those are marked
-**rough**. The roadmap (`./roadmap.md`) tracks when they get the chat
-treatment.
+Honest note: the app is alpha. All five moments are polished — what's
+still rough is **distribution** (today you install via `pip`, not a
+one-click `.dmg`). The roadmap (`./roadmap.md`) tracks distribution.
 
 ---
 
@@ -20,22 +19,27 @@ pip install neuro-os
 neuro-os start
 ```
 
-The `start` command does three things in the background:
+The `start` command does four things in the background:
 - Creates a folder at `~/.founder_loop/` for your private data.
 - Boots a small server on `127.0.0.1:8765` (only your machine can
   reach it; nothing leaves your computer).
-- Prints a URL.
+- **Auto-detects your workflowx export** if it exists (macOS
+  Application Support, Linux `~/.config`, etc.) — see
+  [Box 1 in how-it-works](./how-it-works.md) for the full precedence.
+  Logs the detected path so you know whether real signal is flowing.
+- Opens [`http://127.0.0.1:8765/onboard`](http://127.0.0.1:8765/onboard)
+  in your default browser.
 
-Open that URL — `http://127.0.0.1:8765/onboard` — in any browser. From
-here on, you mostly won't touch the terminal.
+From here on, you mostly won't touch the terminal.
 
-> **Note**: if your terminal-fear is real and even the two commands
-> above are too much, see "Coming soon" at the bottom — a one-click
-> `.dmg` (Mac) / `.exe` (Windows) / `.AppImage` (Linux) installer is
-> tier-one on the roadmap.
+> **Want it to start when you log in?** Run
+> `neuro-os autostart install` once. That writes a launchd plist
+> (macOS), a systemd-user service (Linux), or a Task Scheduler XML
+> (Windows). `--dry-run` previews what would be written. Reverse with
+> `neuro-os autostart uninstall`.
 
-> **Note 2**: today the command is `neuro-os loop serve`, not
-> `neuro-os start`. The shorter alias is on the roadmap.
+> **One-click installer (`.dmg` / `.exe` / `.AppImage`)** is on the
+> roadmap if even `pip install` feels like too much.
 
 ---
 
@@ -180,30 +184,49 @@ in 3 days; your lighter priority you can switch to).
   you'll get a card again that diagnoses what you *actually* still
   need (often: rest, since reward-watching can be tiring).
 
----
-
-## Moment 4 — Look back (rough)
-
-**You do** *(today, terminal)*: Run a one-line command at the end of
-the day:
+**No browser? No extension? Log the urge from the terminal.** If
+you're working in a non-browser app and feel an urge — or you're on a
+machine where you haven't installed the extension — you can tell the
+app directly:
 
 ```
-neuro-os loop nightly
+neuro-os loop urge entertainment --context "I'm bored fighting this bug"
 ```
 
-**The app does**: Prints a one-screen summary — Mean Absolute Error
-between predicted and actual distraction (the lower, the better the AI
-is learning you), contract-honor rate (how often you stuck to
-yesterday-you's deal), which goldens triggered (e.g. *"diagnosis was
-wrong 3 times today"*), and what to do about it.
-
-**Coming soon (next-week roadmap)**: a `/review` chat page that asks
-*"How did today go?"* and walks you through it conversationally,
-ending with *"Want me to draft tomorrow's contract?"*
+The next tick honors it as ground truth (your reported urge always
+beats the predictor's guess), runs the same diagnosis, and proposes
+the same constructive expression in the next hourly tick or the next
+time you open the dashboard.
 
 ---
 
-## Moment 5 — Tweak the rules (rough)
+## Moment 4 — Look back
+
+**You do**: Open
+[`http://127.0.0.1:8765/review`](http://127.0.0.1:8765/review) in your
+browser. The chat page kicks off with today's summary — four numbers:
+
+- **Prediction MAE** — how wrong the brain was about your distraction
+  minutes today. Lower over time = the AI is learning you.
+- **Contract-honor rate** — what fraction of decisions today went the
+  way yesterday-you wanted. Higher = today-you is increasingly willing
+  to keep the deal.
+- **Entertainment minutes used** — total YouTube/TikTok/etc. time
+  consumed (honored OR overridden).
+- **Sublimation success rate** — of times the system proposed a
+  constructive alternative, what fraction "stuck" (you didn't override
+  the contract afterwards).
+
+The AI then walks you through the day: what worked, what didn't, what
+to change for tomorrow. Ends with *"Want me to draft tomorrow's
+contract?"* — when you say yes, you're back at the morning ritual.
+
+> **Power-user CLI** equivalent (no chat, just the numbers):
+> `neuro-os loop nightly`. Same four metrics printed as JSON.
+
+---
+
+## Moment 5 — Tweak the rules
 
 The app keeps three little lists that make Moment-3 cards feel
 personal:
@@ -212,13 +235,16 @@ personal:
 - **Social queue** — people to reach when loneliness fires.
 - **Rubber-duck venues** — where to externalize when you're stuck.
 
-**You do** *(today)*: Edit JSON files in
-`agent/founder_loop/data/queues/` directly. There's a sample of each
-shipped with the app.
+**You do**: Open
+[`http://127.0.0.1:8765/queues`](http://127.0.0.1:8765/queues) in your
+browser. Tell the AI *"three people I've been meaning to reach out
+to"* or *"add the Karpathy attention lecture to my bookmarks"* — it
+writes the list for you. The side panel re-renders after each turn so
+you can see what changed.
 
-**Coming soon**: a `/queues` chat page where the AI asks *"Three
-people you've been meaning to reach out to?"* and writes the list for
-you. Same for the other two queues. ~1 day of work.
+> **Power-user fallback**: edit the JSON files in
+> `agent/founder_loop/data/queues/` directly if you'd rather. There's
+> a sample of each shipped with the app.
 
 ---
 
@@ -232,9 +258,9 @@ Even then, only your *messages to the AI* go to Anthropic; your
 contract, your tank, your priorities — those never leave.
 
 **What if I close the terminal that's running it?**
-Today: the app stops. Tomorrow morning when you want to use it, run
-`neuro-os start` again. The roadmap has *"auto-start on login"* as
-the next thing to fix.
+Run `neuro-os autostart install` once and the daemon will come up
+on every login (launchd on macOS, systemd-user on Linux, Task
+Scheduler on Windows). Reverse with `neuro-os autostart uninstall`.
 
 **Do I have to use Anthropic?**
 No. Without an API key, the morning ritual still works — it just asks

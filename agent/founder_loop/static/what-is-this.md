@@ -110,10 +110,15 @@ It's a system to help you become more honest with yourself, not a cage.
 
 ## What it doesn't do (yet)
 
-- It doesn't track your sleep or HRV — those go in via the workflowx
-  app you connect (or are entered manually).
-- It doesn't auto-sync to your phone — for now it's a desktop app.
+- It doesn't watch your phone — for now it's a desktop app.
 - It doesn't tell anyone else how you're doing — your data lives only
   on your own machine. Nothing leaves it.
+- It doesn't track your sleep or HRV directly — those signals come
+  from a separate tool called **workflowx**. If you have workflowx
+  installed, the app finds it automatically and uses it; if you don't,
+  the app still works (it just relies on you logging urges manually
+  via the browser extension or `neuro-os loop urge`). See
+  [how it works](./how-it-works.md#box-1--sensors-what-the-app-knows-about-your-day)
+  for what gets read where.
 
 If any of this sounds interesting, see [how to use it](./how-to-use-it.md).

@@ -65,12 +65,28 @@ The daemon logs which branch fired at boot, so you always know
 whether real signal is flowing. Run `neuro-os loop workflowx-detect`
 without starting the daemon to print the result as JSON.
 
+**The other channel is you.** When workflowx is silent (or wrong)
+and you feel an urge anyway, you can tell the app directly:
+
+```
+neuro-os loop urge entertainment --context "want YouTube"
+```
+
+This writes to `~/.founder_loop/founder_events.jsonl` as a
+`UrgeEvent`. The next tick reads recent events (15-minute window by
+default) and treats your reported urge as **ground truth** — the
+predictor's guess is overridden, the diagnosis runs against the
+state, and the Sublimation Card surfaces in the dashboard. The
+browser extension's "I'm tempted right now" button uses the same
+mechanism via `POST /events`.
+
 In the future, sensors include: sleep from your watch, last-meal time,
 hours-of-screen-time, time-since-last-message-sent. The more sensors,
 the better the diagnoses.
 
 *Code: `agent/founder_loop/observe.py`,
-`agent/founder_loop/workflowx_detect.py`*
+`agent/founder_loop/workflowx_detect.py`,
+`agent/founder_loop/urge_log.py`*
 
 ---
 
@@ -154,16 +170,26 @@ prediction, the action, whether the contract was honored, and the
 delta to the tank.
 
 At the end of the day, the **nightly summary** reads the whole day and
-computes:
+computes four numbers:
 
 - **MAE** — Mean Absolute Error between what the brain predicted and
   what you actually did. Lower over time = the AI is learning you.
 - **Contract-honor rate** — what fraction of decisions today went the
   way yesterday-you wanted. Higher over time = today-you is
   increasingly willing to keep the deal.
-- **Goldens failed** — pre-defined "the system is broken if X" rules.
-  Triggers a rebuild of either the predictor prompt or the
-  sublimation catalog.
+- **Entertainment minutes used** — total entertainment time consumed
+  today (honored unlocks AND overrides combined).
+- **Sublimation success rate** — of times the system proposed a
+  constructive alternative, what fraction "stuck" — i.e. you didn't
+  override the contract afterwards. The signal that says whether the
+  philosophy is actually working.
+
+The summary also surfaces **goldens failed** — pre-defined "the system
+is broken if X" rules. Triggers a rebuild of either the predictor
+prompt or the sublimation catalog when ≥2 fire in a 7-day window.
+
+You see all four numbers in the `/review` chat page kickoff, and the
+same numbers via `neuro-os loop nightly` in the terminal.
 
 *Code: `agent/founder_loop/memory.py`,
 `agent/founder_loop/golden_cases.py`*
@@ -195,12 +221,12 @@ for the laws governing it.
 Three UI surfaces, all talking to the same local server:
 
 ```
-       Browser extension                  System tray app                 /onboard chat
+       Browser extension                  System tray app                  Chat surfaces
   ┌──────────────────────┐         ┌──────────────────────┐         ┌──────────────────────┐
-  │  Toolbar badge       │         │  Menu bar gauge      │         │  Conversational      │
-  │  Popup dashboard     │         │  Always-visible      │         │  morning ritual      │
-  │  New tab dashboard   │         │  Quick actions       │         │  /review (planned)   │
-  │  Sublimation overlay │         │                      │         │  /queues (planned)   │
+  │  Toolbar badge       │         │  Menu bar gauge      │         │  /onboard (morning)  │
+  │  Popup dashboard     │         │  Always-visible      │         │  /review  (nightly)  │
+  │  New tab dashboard   │         │  Quick actions       │         │  /queues  (curate)   │
+  │  Sublimation overlay │         │                      │         │                      │
   └──────────┬───────────┘         └──────────┬───────────┘         └──────────┬───────────┘
              │                                │                                │
              │  HTTP                          │  HTTP                          │  HTTP

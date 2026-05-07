@@ -385,21 +385,38 @@ Run the tests with `pytest`. Mutations must keep the suite green.
 After `pip install neuro-os`, the entire onboarding fits in one command:
 
 ```bash
-neuro-os loop serve
+neuro-os start
 ```
 
-That starts the local daemon on `http://127.0.0.1:8765` and
-auto-creates `~/.founder_loop/` with empty defaults. Open
-[`http://127.0.0.1:8765/onboard`](http://127.0.0.1:8765/onboard) in any
-browser. You'll see a chat-style "Morning ritual" page where you tell
-the AI what matters today in plain English. The AI extracts each
-priority's evidence criterion (a merged PR, pushed commits, a published
-doc, a count, a person's signoff, an uploaded artifact) and binds the
+That starts the local daemon on `http://127.0.0.1:8765`, **auto-detects
+your workflowx export** (or falls back honestly to an empty fixture
+and logs which path it chose), and opens
+[`/onboard`](http://127.0.0.1:8765/onboard) in your default browser.
+You'll see a chat-style "Morning ritual" page where you tell the AI
+what matters today in plain English. The AI extracts each priority's
+evidence criterion (a merged PR, pushed commits, a published doc, a
+count, a person's signoff, an uploaded artifact) and binds the
 contract when you click **Sign contract**. No JSON. No CLI flags.
 
 Set `ANTHROPIC_API_KEY` and pass `--use-llm` for the natural-language
 flow; otherwise it falls back to a simple state-machine prompt that
 still works.
+
+### Daily commands you might use
+
+| Command | What it does |
+|---|---|
+| `neuro-os start` | Boot the daemon + open `/onboard`. Auto-detects workflowx. Auto-runs an internal tick every 60 minutes. |
+| `neuro-os autostart install` | Install a launchd / systemd-user / Task Scheduler unit so the daemon comes up on login. `--dry-run` to preview. |
+| `neuro-os loop urge entertainment --context "want YouTube"` | Log a user-reported urge from the terminal. The next tick honors it as ground truth over the predictor. |
+| `neuro-os loop workflowx-detect` | Read-only: print where the daemon would read your workflowx export from (and which precedence rung matched). Useful for troubleshooting. |
+| `neuro-os loop nightly` | Print the end-of-day rollup: prediction MAE, contract-honor rate, entertainment minutes used, sublimation success rate. |
+
+The `loop urge` route is the answer to the v0 acceptance question
+*"how do I log an urge when the system didn't predict one?"* —
+user-reported urges always beat the predictor. Stored in
+`~/.founder_loop/founder_events.jsonl`; resolved when you accept a
+constructive expression or override the proposal.
 
 ### Plain-English docs
 
@@ -420,9 +437,10 @@ Four short documents written for non-engineers:
 All three talk to the same local-only daemon (refuses to bind to
 non-loopback hosts):
 
-* **`/onboard` chat page** — primary front door. Conversational
-  morning ritual; binds the contract; visible in any browser at
-  `http://127.0.0.1:8765/onboard`.
+* **Chat surfaces** — `/onboard` (morning), `/review` (nightly), and
+  `/queues` (curate the bookmarks / social / rubber-duck queues that
+  the Sublimation Card pulls from). All conversational; all bind their
+  output to the on-disk store via tool use.
 * **Browser extension** (Manifest V3, Chrome / Firefox / Edge) —
   `ui/browser_extension/`. Tank widget in the popup, badge text on the
   toolbar icon, dashboard on every new tab. Injects the Sublimation
@@ -439,6 +457,25 @@ new-tab page, tray icon, and overlay all activate automatically.
 For power users, the equivalent CLI path is still there:
 `neuro-os loop morning --priorities-file priorities.json` (where
 `priorities.json` is a hand-written list of `Priority` objects).
+
+### End-to-end tests
+
+The system ships with an e2e test catalog at
+[`tests/e2e/scenarios.md`](./tests/e2e/scenarios.md) — 20
+deterministic user-journey scenarios (S01–S20: morning ritual,
+sublimation card, override, nightly review, edge cases) plus 3
+judgment scenarios (J1–J3) that drive a Claude Computer Use agent
+against the running system to answer subjective questions like *"does
+the 2pm-YouTube flow actually help?"*.
+
+```bash
+pytest tests/e2e/test_http_scenarios.py -v          # 10 HTTP scenarios, no browser
+pytest tests/e2e/test_browser_scenarios.py -v       # 10 Playwright scenarios (needs chromium)
+ANTHROPIC_API_KEY=sk-... \
+  python -m tests.e2e.computer_use_runner --all     # 3 judgment scenarios
+```
+
+See [`tests/e2e/README.md`](./tests/e2e/README.md) for setup.
 
 ---
 

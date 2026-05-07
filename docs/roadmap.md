@@ -16,7 +16,8 @@ work for you, that's a bug — please file it. If something in
 ## SHIPPED (v0.4)
 
 The reward-economy + sublimation engine, plus three UI surfaces. All
-verifiable: 80 tests pass.
+verifiable: 214 tests pass (10 e2e Playwright tests skip when chromium
+isn't installed).
 
 | Area | Status | What's there |
 |---|---|---|
@@ -29,6 +30,9 @@ verifiable: 80 tests pass.
 | **System tray app** | Complete | Cross-platform (Linux / macOS / Windows). Tank gauge in the menu bar; menu actions for tick / show contract / quit. |
 | **`neuro-os start` alias** | Complete | One-shot: starts daemon with `~/.founder_loop/*` defaults, opens `/onboard` in the default browser, runs hourly internal ticks. |
 | **Workflowx auto-detect** | Complete | `loop workflowx-detect` and the daemon boot path now scan platform-specific known directories (macOS `Library/Application Support/workflowx/exports/`, Linux `.config/workflowx/exports/`, etc.), honor `WORKFLOWX_EXPORTS_PATH`, and pick the most-recent `.jsonl`. Falls back to `~/.founder_loop/workflowx.jsonl` and logs which branch fired so the user knows whether real signal is flowing. |
+| **User-logged urge events** | Complete | `neuro-os loop urge entertainment --context "..."` writes a `UrgeEvent` to `founder_events.jsonl`. The daemon's next tick reads recent events (15-min window) and treats user-reported urges as ground truth — overrides the predictor's guess. Browser extension's "I'm tempted right now" maps to the same surface via `POST /events`. Closes V0 acceptance criterion #2. |
+| **Daily report — four metrics** | Complete | `NightlySummary` and the `/review` kickoff now surface all four V0 metrics: prediction MAE, contract-honor rate, entertainment minutes used, and sublimation success rate. The last metric is the signal that says whether the philosophy is actually working (proposals that "stuck" without subsequent override). |
+| **End-to-end test catalog** | Complete | `tests/e2e/scenarios.md` lists 20 deterministic scenarios (S01–S20: morning ritual, sublimation card, override, nightly review, edge cases) plus 3 judgment scenarios (J1–J3) for Computer Use. Three harnesses share the same scenario IDs: `test_http_scenarios.py` (10 HTTP-only, runs in CI), `test_browser_scenarios.py` (10 Playwright, runs locally), `computer_use_runner.py` (3 judgment scenarios driven by Claude). |
 | **Daemon-internal tick scheduler** | Complete | `--tick-interval-min N` spawns a background thread that calls `loop.tick()` every N minutes. No cron required. |
 | **Auto-start on login** | Complete | `neuro-os autostart {install,uninstall,status}` writes a launchd plist (macOS) / systemd-user unit (Linux) / Task Scheduler XML (Windows) and enables it. `--dry-run` previews the unit. |
 | **Plain-English doc trio + roadmap** | Complete | `docs/{what-is-this,how-to-use-it,how-it-works,roadmap}.md`. Daemon serves them rendered at `/about`, `/how-to-use`, `/how-it-works`, `/roadmap` (markdown→HTML in-process, no new dep). |
