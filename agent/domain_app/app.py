@@ -155,20 +155,27 @@ class DomainApp:
         intent: Optional[str] = None,
         now: Optional[Any] = None,
         dry_run: bool = False,
+        **kwargs: Any,
     ) -> Dict[str, Any]:
-        """One tick. Delegates to the vertical's tick hook."""
+        """One tick. Delegates to the vertical's tick hook.
+
+        Verticals can declare extra kwargs on their tick hook (e.g. the
+        research vertical accepts ``observed_failure_mode``); they're
+        forwarded transparently.
+        """
         hook = self.hooks.get("tick")
         if hook is None:
             raise DomainAppError(
                 f"vertical {self.config.vertical_name!r} did not provide a "
                 f"'tick' hook."
             )
-        return hook(intent=intent, now=now, dry_run=dry_run)
+        return hook(intent=intent, now=now, dry_run=dry_run, **kwargs)
 
     def nightly(
         self,
         *,
         day: Optional[Any] = None,
+        **kwargs: Any,
     ) -> NightlySummaryBase:
         """End-of-day rollup."""
         hook = self.hooks.get("nightly")
@@ -177,7 +184,7 @@ class DomainApp:
                 f"vertical {self.config.vertical_name!r} did not provide a "
                 f"'nightly' hook."
             )
-        return hook(day=day)
+        return hook(day=day, **kwargs)
 
     # ------------------------------------------------------------------
     # Helpers verticals can reuse (no need to override)

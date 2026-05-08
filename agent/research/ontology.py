@@ -1,0 +1,214 @@
+"""
+Research-vertical Pydantic schemas.
+
+The substrate's ``DailyContractBase`` carries a generic
+``priorities: List[Dict]``; we override that here with a typed
+``ResearchPriority`` list. The substrate's tank/ledger code reads
+``priorities`` by attribute name, so subclassing works cleanly.
+
+Four user-facing primitives:
+
+* **MechanismCard** — one per paper read. Captures mechanism /
+  invariant / prediction / failure mode. The unit of "iteration" on a
+  thesis is a card revision OR a PredictionLog entry citing the thesis.
+* **AssumptionMap** — explicit list of assumptions a paper rests on.
+  ≥3 assumptions/paper is the SMART target from the PRD.
+* **PredictionLog** — a falsifiable prediction extracted from a paper,
+  with a verification timestamp set to "+90 days" by default.
+* **ResearchThesis** — the load-bearing question the researcher
+  commits to for 40 days. Single-thesis enforcement: changing it
+  requires a ``kill_event`` row.
+"""
+from __future__ import annotations
+
+from datetime import datetime
+from typing import List, Literal, Optional
+
+from pydantic import BaseModel, ConfigDict, Field
+
+from agent.domain_app.state import DailyContractBase
+
+
+# Research-specific evidence vocabulary. Picked tighter than founder_loop's
+# (no "commit_pushed" etc. — research evidence is paper- or experiment-shaped).
+EVIDENCE_TYPE = Literal[
+    "paper_read",        # mechanism card produced
+    "experiment_run",    # falsifiable test executed
+    "prediction_logged", # falsifiable prediction filed
+    "contradiction_resolved",  # two prior cards reconciled
+    "thesis_iterated",   # mechanism-card revision OR prediction citing thesis
+    "transfer_observed", # cross-domain abstraction borrowed
+]
+
+
+class MechanismCard(BaseModel):
+    """One per paper. The 4-field card from the PRD's Transformation #1.
+
+    Frozen — once you've extracted a mechanism card, you log
+    *revisions* as new versions, you don't mutate the original. That
+    keeps the audit trail honest.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    id: str = Field(min_length=1, max_length=64)
+    ts: datetime
+    paper_title: str = Field(min_length=1, max_length=400)
+    paper_source: str = Field(
+        min_length=1,
+        max_length=400,
+        description="DOI / URL / arXiv id / human-readable cite. "
+                    "Required for evidence_strength scoring.",
+    )
+    mechanism: str = Field(
+        min_length=1,
+        max_length=600,
+        description="What CAUSAL STRUCTURE generates the paper's behavior?",
+    )
+    invariant: str = Field(
+        min_length=1,
+        max_length=400,
+        description="What stays the same across the cases the paper covers?",
+    )
+    prediction: str = Field(
+        min_length=1,
+        max_length=400,
+        description="A falsifiable consequence of the mechanism.",
+    )
+    failure_mode: str = Field(
+        min_length=1,
+        max_length=400,
+        description="A condition under which the mechanism breaks.",
+    )
+    thesis_id: Optional[str] = Field(
+        default=None,
+        max_length=64,
+        description="The ResearchThesis.id this card iterates on, if any. "
+                    "Cards without a thesis_id count toward the "
+                    "'topic_hopper' failure-mode signal.",
+    )
+    revision_of: Optional[str] = Field(
+        default=None,
+        max_length=64,
+        description="If this is a revision of an earlier card, the prior "
+                    "card's id. Iterations on a thesis are counted by "
+                    "summing revisions.",
+    )
+
+
+class AssumptionMap(BaseModel):
+    """≥3 assumptions per paper (PRD SMART actionable #4)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    id: str = Field(min_length=1, max_length=64)
+    ts: datetime
+    mechanism_card_id: str = Field(min_length=1, max_length=64)
+    assumptions: List[str] = Field(
+        min_length=1,
+        max_length=20,
+        description="Hidden / unstated assumptions the paper rests on.",
+    )
+    invalidation_conditions: List[str] = Field(
+        default_factory=list,
+        max_length=20,
+        description="Conditions under which each assumption would fail.",
+    )
+
+
+class PredictionLog(BaseModel):
+    """A falsifiable prediction filed against a thesis or paper.
+
+    PRD SMART #3 target: 60 predictions by Day 40.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    id: str = Field(min_length=1, max_length=64)
+    ts: datetime
+    thesis_id: Optional[str] = Field(
+        default=None,
+        max_length=64,
+        description="The thesis this prediction supports/tests.",
+    )
+    mechanism_card_id: Optional[str] = Field(
+        default=None,
+        max_length=64,
+    )
+    prediction: str = Field(
+        min_length=1,
+        max_length=600,
+        description="What the researcher predicts will be observed.",
+    )
+    verification_at: datetime = Field(
+        description="When the prediction can be checked. Default +90 days "
+                    "from filing if not specified by caller.",
+    )
+    outcome: Optional[Literal["correct", "incorrect", "unresolved"]] = None
+    outcome_notes: Optional[str] = Field(default=None, max_length=600)
+
+
+class ResearchThesis(BaseModel):
+    """The load-bearing question the researcher commits to.
+
+    Single-thesis enforcement: ``status='active'`` means the
+    researcher is iterating on this; changing the active thesis
+    requires explicitly killing the prior one (``status='killed'``)
+    with a ``kill_reason``. The substrate's tank logic charges an
+    abuse-tax for >2 kills/40d (anti-novelty-addiction guard from
+    PRD's first-principles foundation).
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    id: str = Field(min_length=1, max_length=64)
+    title: str = Field(min_length=1, max_length=400)
+    question: str = Field(
+        min_length=10,
+        max_length=600,
+        description="The thesis as a precise question. e.g. 'How do "
+                    "stable world models emerge through recursive "
+                    "memory and prediction loops?'",
+    )
+    signed_at: datetime
+    status: Literal["active", "killed", "graduated"] = "active"
+    kill_reason: Optional[str] = Field(default=None, max_length=600)
+
+
+class ResearchPriority(BaseModel):
+    """One priority on the daily research contract.
+
+    Verticals override DailyContractBase.priorities with a typed
+    list of these. Each priority is bound to the active thesis
+    (single-thesis enforcement) — priorities that don't reference a
+    thesis_id count as topic-hopper drift.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    title: str = Field(min_length=1, max_length=200)
+    evidence_type: EVIDENCE_TYPE
+    evidence_target: str = Field(min_length=1, max_length=200)
+    weight: int = Field(ge=1, le=3)
+    thesis_id: str = Field(
+        min_length=1,
+        max_length=64,
+        description="Required: the active thesis this priority advances. "
+                    "Substrate enforces that priorities tie to a thesis.",
+    )
+    status: Literal["pending", "in_progress", "evidenced", "abandoned"] = "pending"
+    evidenced_at: Optional[datetime] = None
+
+
+class ResearchContract(DailyContractBase):
+    """Research's daily contract. Overrides ``priorities`` with the
+    typed list. ``primary_resource_budget`` here counts maximum
+    papers-to-read per day (default 1, per the PRD's Mechanism
+    Extraction SMART #1)."""
+
+    priorities: List[ResearchPriority] = Field(min_length=1, max_length=5)
+    active_thesis_id: str = Field(
+        min_length=1,
+        max_length=64,
+        description="The single load-bearing thesis for the 40-day window.",
+    )
