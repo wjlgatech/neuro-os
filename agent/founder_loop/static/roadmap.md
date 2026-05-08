@@ -13,15 +13,23 @@ work for you, that's a bug — please file it. If something in
 
 ---
 
-## SHIPPED (v0.4)
+## SHIPPED (v0.5 — four verticals on a shared substrate)
 
-The reward-economy + sublimation engine, plus three UI surfaces. All
-verifiable: 222 tests pass, 12 skipped (10 e2e Playwright tests skip
-when chromium isn't installed; 1 Law 9 enforcer skips when no commits
-ahead of main; 1 LLM test is permanently skipped).
+The reward-economy + sublimation engine, three UI surfaces, AND three
+new verticals (research / investment / startup) on the
+`agent/domain_app/` substrate. All verifiable: 308 tests pass, 12
+skipped (10 e2e Playwright tests skip when chromium isn't installed;
+1 Law 9 enforcer skips when no commits ahead of main; 1 LLM test is
+permanently skipped).
 
 | Area | Status | What's there |
 |---|---|---|
+| **`agent/domain_app/` substrate** | Complete | Protocol-based shared loop. `DomainApp` orchestrator validates every vertical has exactly 6 named failure modes + ≥1 constructive expression per mode (Law 3). 4 first-class metrics + `extra: dict` (anti-metric-overload). Frozen base schemas for `Contract`, `Tank`, `ControlAction`, `Diagnosis`. 18 substrate tests pin the contract. |
+| **`agent/cross_vertical.py`** | Complete | Typed inter-vertical reads. `VerticalNote` frozen. **Default-PRIVATE** to source vertical; explicit `share_with=[...]` to broaden. `share_note` broadens via append-only event without mutating original row. 12 tests pin the visibility model. |
+| **Research vertical** (`agent/research/`) | Complete | 6 failure modes (paper_collector / topic_hopper / memorizer / authority_acceptor / overloaded / forgetting). MechanismCard / AssumptionMap / PredictionLog / ResearchThesis ontology. Single-thesis enforcement via required `thesis_id`. 19 tests. |
+| **Investment vertical** (`agent/investment/`) | Complete — advisory-only | 6 failure modes (emotional / narrative_following / price_obsessed / overconfident / social_proof_following / ego_attached). PositionThesis (requires `invalidation_condition`), BiasCheck, CalibrationRecord. **Anti-goal: no broker integration, no trade execution.** Reuses `agent/belief_os.py::check_decision_text` for bias detection. 17 tests. |
+| **Startup vertical** (`agent/startup/`) | Complete | 6 failure modes (idea_chaos / broadcasting / feature_creep / vision_intoxicated / vanity_metrics / random_execution). StartupHypothesis / Bottleneck (typed enum) / AudienceSignal (typed channel) / StartupPriority. Hard cap: thesis_pivots/day ≤ 1. Trust density via repeat-engagement count. 20 tests. |
+| **Cross-vertical demo** | Complete | `examples/09_cross_vertical_demo.py` walks research → investment → bias_check via belief_os, with privacy boundary verified end-to-end. |
 | **Engine** | Complete | Five boxes (sensors → brain → contract → carrot/stick → memory) wired end-to-end. 14 user-acceptance scenarios pass. |
 | **Local daemon** | Complete | `127.0.0.1:8765`, twelve endpoints, refuses non-loopback bind, no auth (boundary is the loopback). |
 | **Conversational morning ritual** | Complete | `/onboard` chat page. Users tell the AI what matters; AI extracts structured priorities via tool use. Falls back to a state-machine without an API key. |

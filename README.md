@@ -1,11 +1,25 @@
 # Neuro-OS
 
-> A self-evolving, self-modifying knowledge OS — closed-loop OEC over both knowledge and code, with allowlisted patches and sandboxed validation. **Founder Loop** is the daily reward-economy + sublimation product built on top of it.
+> A self-evolving, self-modifying knowledge OS plus **four verticals** running on a shared `agent/domain_app/` substrate. Each vertical is the same closed-loop OEC machine (Observe → Evaluate → Control → Validate) with different vocabulary.
 
-Two products in one repo, sharing the same OEC substrate (Observe → Evaluate → Control → Validate):
+## Four verticals on one substrate
 
-* **Founder Loop** — a desktop companion that helps you keep promises to yourself. Morning ritual, a tank that fills as you make progress, a Sublimation Card when an entertainment urge fires that names the underlying need (fatigue, novelty, social, frustration, decision-fatigue, embodied) and proposes a constructive expression. Never blocks; logs everything; agency intact.
-* **Knowledge OS** — the underlying engine: an L1 self-evolving ontology loop and an L2 self-modification loop that patches its own routing logic with sandboxed validation and one-step rollback.
+| Vertical | Audience | Primary metric | Primary resource | 6 named failure modes |
+|---|---|---|---|---|
+| **Founder Loop** (`agent/founder_loop/`) | Solo founders fighting distraction | prediction MAE | entertainment minutes | fatigue / novelty / social / frustration / decision_fatigue / embodied |
+| **Research** (`agent/research/`) | Researchers turning paper-collecting into recursive world-model refinement | mechanism cards/day | papers read | paper_collector / topic_hopper / memorizer / authority_acceptor / overloaded / forgetting |
+| **Investment** (`agent/investment/`) ⚠️ advisory-only | Investors converting emotional reactions into epistemic calibration | calibration error | position edits | emotional / narrative_following / price_obsessed / overconfident / social_proof_following / ego_attached |
+| **Startup** (`agent/startup/`) | Founders converting reactive chaos into market-aligned convergence | strategic continuity score | thesis pivots | idea_chaos / broadcasting / feature_creep / vision_intoxicated / vanity_metrics / random_execution |
+
+Plus the underlying **Knowledge OS** engine (L1 self-evolving ontology + L2 self-modification with allowlisted patches, sandboxed validation, one-step rollback).
+
+The substrate (`agent/domain_app/`) enforces, for every vertical:
+* Exactly **6 named failure modes**, each with **≥1 constructive expression** (substrate raises at construction otherwise).
+* **4 first-class metrics** + an `extra: dict` for vertical-specific (anti-metric-overload).
+* **`Confidence` enum** shared (low / medium / high) — no parallel float scales.
+* **`ContractCheck`** on every action (audit trail).
+
+The cross-vertical interface (`agent/cross_vertical.py`) lets one vertical read another's outputs — **default-PRIVATE**; explicit `share_with=[...]` to broaden. Investment positions, startup confidentials, and research IP stay in their own vertical unless the user opts in. See `examples/09_cross_vertical_demo.py` for an end-to-end research → investment hand-off with the privacy boundary verified.
 
 ---
 
