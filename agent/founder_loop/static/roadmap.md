@@ -58,10 +58,12 @@ follow-ups that the now-shipped surfaces revealed:
 
 | # | Item | Why now | Days |
 |---|---|---|---|
-| 1 | **Tests against the live LLM path** | The conversation manager has 11 fallback tests but only one (skipped) LLM test. A small fixture-based recording test would prevent prompt regressions. | 1 |
-| 2 | **`/today` MAE chart** | Currently a CLI nightly print. A small chart in the new-tab dashboard once real ≥7-day data exists. | 0.5 |
-| 3 | **Queue-mutation undo** | `/queues` writes immediately; an "undo last change" button would make experimentation safer. | 0.5 |
-| 4 | **Browser extension store listings** | "Load unpacked" is dev-only. Chrome Web Store + Firefox AMO need review. | 1 (+ wait time) |
+| 1 | **40-day real-user trial of one vertical** *(Phase D of A-C-B-D plan)* | The 6 named failure modes per vertical were hand-guessed from the PRDs; the constructive expressions are educated guesses. Until a real user (Paul) runs one vertical for 40 days, the catalog can't be refined against evidence. Suggested: research vertical (lowest stakes, shippable today). After 40 days the registry will show which failure modes fired most often, which constructive expressions stuck (no later override), which categories were missing. Then revise the catalog from data, not opinion. | 40 days of YOUR time, no engineer time |
+| 2 | **Founder_loop full structural refactor onto the substrate** *(continuation of Phase B)* | The Phase B adapter (`agent/founder_loop/domain_app_adapter.py`) proves founder_loop satisfies the substrate's `DomainConfig` protocol but DOESN'T replace founder_loop's internal `state.py`/`reward_ledger.py` with substrate-base subclasses. The full refactor would let bug fixes propagate uniformly across all 4 verticals (Story 3 of the before/after writeup). Risky: 222 founder_loop tests are the regression bar. | 3 days, 1 PR |
+| 3 | **Tests against the live LLM path** | The conversation manager has 11 fallback tests but only one (skipped) LLM test. A small fixture-based recording test would prevent prompt regressions. | 1 |
+| 4 | **`/today` MAE chart** | Currently a CLI nightly print. A small chart in the new-tab dashboard once real ≥7-day data exists. | 0.5 |
+| 5 | **Queue-mutation undo** | `/queues` writes immediately; an "undo last change" button would make experimentation safer. | 0.5 |
+| 6 | **Browser extension store listings** | "Load unpacked" is dev-only. Chrome Web Store + Firefox AMO need review. | 1 (+ wait time) |
 
 ---
 
