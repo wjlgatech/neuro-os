@@ -573,7 +573,197 @@ def build_parser() -> argparse.ArgumentParser:
     )
     loop_detect.set_defaults(func=_cmd_loop_workflowx_detect)
 
+    # ---------------------------------------------------------------------
+    # Top-level vertical subcommands (research / invest / startup).
+    # founder_loop keeps its `loop ...` subtree above for backwards compat.
+    # The 3 new verticals are top-level because neuro-os is now a
+    # 4-vertical platform, not a single-product project.
+    # ---------------------------------------------------------------------
+    _add_vertical_subcommands(
+        sub,
+        vertical_name="research",
+        description="research vertical: turn paper-collecting into recursive world-model refinement",
+        drift_choices=[
+            "paper_collector", "topic_hopper", "memorizer",
+            "authority_acceptor", "overloaded", "forgetting",
+        ],
+        needs_thesis_id=True,
+        needs_hypothesis_id=False,
+    )
+    _add_vertical_subcommands(
+        sub,
+        vertical_name="invest",
+        description="investment vertical (advisory-only): epistemic calibration, no trade execution",
+        drift_choices=[
+            "emotional", "narrative_following", "price_obsessed",
+            "overconfident", "social_proof_following", "ego_attached",
+        ],
+        needs_thesis_id=False,
+        needs_hypothesis_id=False,
+    )
+    _add_vertical_subcommands(
+        sub,
+        vertical_name="startup",
+        description="startup vertical: market-aligned convergence via tight OEC loops",
+        drift_choices=[
+            "idea_chaos", "broadcasting", "feature_creep",
+            "vision_intoxicated", "vanity_metrics", "random_execution",
+        ],
+        needs_thesis_id=False,
+        needs_hypothesis_id=True,
+    )
+
     return p
+
+
+# ---------------------------------------------------------------------------
+# Vertical CLI helpers (research / invest / startup)
+# ---------------------------------------------------------------------------
+
+
+def _vertical_onboard_handler(*, vertical_name: str):
+    """Build a handler that signs a contract from a JSON priorities file.
+
+    Each vertical's priorities have a slightly different shape, so the
+    handler imports the right factory + Pydantic schema lazily and
+    forwards the parsed list to the morning_ritual hook.
+    """
+    def handler(args: argparse.Namespace) -> int:
+        priorities_raw = json.loads(Path(args.priorities_file).read_text())
+        if vertical_name == "research":
+            from agent.research import ResearchPriority, make_research_app
+            priorities = [ResearchPriority.model_validate(p) for p in priorities_raw]
+            app = make_research_app(home=Path(args.home).expanduser() if args.home else None)
+            contract = app.morning_ritual(
+                active_thesis_id=args.active_thesis_id,
+                priorities=priorities,
+                primary_resource_budget=args.budget,
+                threshold_pct=args.threshold,
+            )
+        elif vertical_name == "invest":
+            from agent.investment import InvestmentPriority, make_investment_app
+            priorities = [InvestmentPriority.model_validate(p) for p in priorities_raw]
+            app = make_investment_app(home=Path(args.home).expanduser() if args.home else None)
+            contract = app.morning_ritual(
+                priorities=priorities,
+                primary_resource_budget=args.budget,
+                threshold_pct=args.threshold,
+            )
+        elif vertical_name == "startup":
+            from agent.startup import StartupPriority, make_startup_app
+            priorities = [StartupPriority.model_validate(p) for p in priorities_raw]
+            app = make_startup_app(home=Path(args.home).expanduser() if args.home else None)
+            contract = app.morning_ritual(
+                active_hypothesis_id=args.active_hypothesis_id,
+                priorities=priorities,
+                primary_resource_budget=args.budget,
+                threshold_pct=args.threshold,
+            )
+        else:
+            raise SystemExit(f"unknown vertical: {vertical_name}")
+        print(contract.model_dump_json(indent=2))
+        return 0
+    return handler
+
+
+def _vertical_tick_handler(*, vertical_name: str):
+    def handler(args: argparse.Namespace) -> int:
+        if vertical_name == "research":
+            from agent.research import make_research_app as factory
+        elif vertical_name == "invest":
+            from agent.investment import make_investment_app as factory
+        elif vertical_name == "startup":
+            from agent.startup import make_startup_app as factory
+        else:
+            raise SystemExit(f"unknown vertical: {vertical_name}")
+
+        app = factory(home=Path(args.home).expanduser() if args.home else None)
+        result = app.tick(
+            observed_failure_mode=args.drift,
+            dry_run=args.dry_run,
+        )
+        print(json.dumps(result, indent=2, default=str))
+        return 0
+    return handler
+
+
+def _vertical_nightly_handler(*, vertical_name: str):
+    def handler(args: argparse.Namespace) -> int:
+        if vertical_name == "research":
+            from agent.research import make_research_app as factory
+        elif vertical_name == "invest":
+            from agent.investment import make_investment_app as factory
+        elif vertical_name == "startup":
+            from agent.startup import make_startup_app as factory
+        else:
+            raise SystemExit(f"unknown vertical: {vertical_name}")
+
+        app = factory(home=Path(args.home).expanduser() if args.home else None)
+        summary = app.nightly()
+        print(summary.model_dump_json(indent=2))
+        return 0
+    return handler
+
+
+def _add_vertical_subcommands(
+    sub: "argparse._SubParsersAction",
+    *,
+    vertical_name: str,
+    description: str,
+    drift_choices: List[str],
+    needs_thesis_id: bool,
+    needs_hypothesis_id: bool,
+) -> None:
+    """Add `<vertical_name> onboard / tick / nightly` to the top-level
+    parser. Used 3 times: once per new vertical."""
+    top = sub.add_parser(vertical_name, help=description)
+    top_sub = top.add_subparsers(dest=f"{vertical_name}_command", required=True)
+
+    # onboard
+    onb = top_sub.add_parser(
+        "onboard",
+        help=f"sign today's {vertical_name} contract from a JSON priorities file",
+    )
+    onb.add_argument("--priorities-file", required=True,
+                     help="JSON file with the vertical's priority list")
+    onb.add_argument("--home", default=None,
+                     help=f"vertical home dir (default: ~/.neuro_os_{vertical_name}/)")
+    onb.add_argument("--budget", type=int, default=1,
+                     help="primary_resource_budget for today (papers / position-edits / pivots)")
+    onb.add_argument("--threshold", type=int, default=90,
+                     help="tank-threshold percent (default 90)")
+    if needs_thesis_id:
+        onb.add_argument("--active-thesis-id", required=True,
+                         help="The active research-thesis id (single-thesis enforcement)")
+    if needs_hypothesis_id:
+        onb.add_argument("--active-hypothesis-id", required=True,
+                         help="The active startup-hypothesis id (single-thesis enforcement)")
+    onb.set_defaults(func=_vertical_onboard_handler(vertical_name=vertical_name))
+
+    # tick
+    tk = top_sub.add_parser(
+        "tick",
+        help=f"run one {vertical_name} tick (optionally with --drift <mode>)",
+    )
+    tk.add_argument("--home", default=None)
+    tk.add_argument(
+        "--drift",
+        choices=drift_choices,
+        default=None,
+        help="if set, the failure mode the user observed; substrate "
+             "produces a propose_constructive_expression action",
+    )
+    tk.add_argument("--dry-run", action="store_true",
+                    help="produce the action without writing the registry")
+    tk.set_defaults(func=_vertical_tick_handler(vertical_name=vertical_name))
+
+    # nightly
+    ngt = top_sub.add_parser(
+        "nightly",
+        help=f"print today's {vertical_name} 4-metric summary",
+    )
+    ngt.add_argument("--home", default=None)
+    ngt.set_defaults(func=_vertical_nightly_handler(vertical_name=vertical_name))
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
