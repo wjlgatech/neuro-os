@@ -33,6 +33,12 @@ from agent.research.ontology import (
     ResearchPriority,
     ResearchContract,
     EVIDENCE_TYPE,
+    EXTRACTION_METHOD,
+    RawSource,
+    MechanismCardProposal,
+    IngestionRun,
+    GbrainEntity,
+    GbrainQuerySpec,
 )
 from agent.research.config import ResearchConfig, make_research_app
 
@@ -46,6 +52,12 @@ __all__ = [
     "ResearchPriority",
     "ResearchContract",
     "EVIDENCE_TYPE",
+    "EXTRACTION_METHOD",
+    "RawSource",
+    "MechanismCardProposal",
+    "IngestionRun",
+    "GbrainEntity",
+    "GbrainQuerySpec",
     "ResearchConfig",
     "make_research_app",
 ]

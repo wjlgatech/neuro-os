@@ -22,7 +22,8 @@ Four user-facing primitives:
 from __future__ import annotations
 
 from datetime import datetime
-from typing import List, Literal, Optional
+from pathlib import Path
+from typing import List, Literal, Optional, Tuple
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -212,3 +213,154 @@ class ResearchContract(DailyContractBase):
         max_length=64,
         description="The single load-bearing thesis for the 40-day window.",
     )
+
+
+# ---------------------------------------------------------------------------
+# Ingestion-pipeline schemas (Lane 1: Plan B / gbrain adapter).
+#
+# These three schemas pin the L0–L1 ingestion contract: a corpus comes in,
+# proposed mechanism cards land in a review queue, the human decides what
+# becomes a real `MechanismCard`. The queue is on disk under
+# ~/.neuro_os_research/proposals/{pending,accepted,rejected}/.
+# ---------------------------------------------------------------------------
+
+
+EXTRACTION_METHOD = Literal["llm-anthropic", "gbrain-mcp", "fallback-heuristic"]
+
+
+class RawSource(BaseModel):
+    """One ingestible source file. v0 is text-only; PDFs / videos must
+    be pre-converted to .txt or .md by the user (or by gbrain upstream)."""
+
+    model_config = ConfigDict(frozen=True)
+
+    source_id: str = Field(min_length=1, max_length=128)
+    path: Path
+    title: str = Field(min_length=1, max_length=400)
+    author: str = Field(min_length=1, max_length=200)
+    publish_date: Optional[str] = Field(
+        default=None,
+        max_length=32,
+        description="ISO-8601 date string; kept as str so frozen=True works "
+                    "across pickle/JSON round-trips uniformly.",
+    )
+    source_url: Optional[str] = Field(default=None, max_length=2000)
+    topic_tags: List[str] = Field(default_factory=list, max_length=20)
+    word_count: int = Field(ge=0)
+    sha256: str = Field(
+        min_length=64,
+        max_length=64,
+        description="Hex digest of the file body. Used to detect re-ingestion "
+                    "of an unchanged source.",
+    )
+
+
+class MechanismCardProposal(BaseModel):
+    """A `MechanismCard`-shaped object that hasn't been accepted yet.
+
+    Mirrors `MechanismCard` field-for-field plus provenance + extraction
+    metadata. Lives in `proposals/{pending,accepted,rejected}/<id>.json`.
+    Acceptance writes a `MechanismCard` to `mechanism_cards/<id>.json`
+    via the existing `write_mechanism_card(...)` and moves the proposal
+    file to `accepted/`.
+
+    Frozen — once a proposal exists, it does not mutate; user edits
+    happen via a new proposal that supersedes it.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    proposal_id: str = Field(min_length=1, max_length=128)
+    proposed_at: datetime
+    status: Literal["pending", "accepted", "rejected", "edited"] = "pending"
+
+    # Candidate card payload — same shape as MechanismCard:
+    paper_title: str = Field(min_length=1, max_length=400)
+    paper_source: str = Field(min_length=1, max_length=2000)
+    mechanism: str = Field(min_length=1, max_length=600)
+    invariant: str = Field(min_length=1, max_length=400)
+    prediction: str = Field(min_length=1, max_length=400)
+    failure_mode: str = Field(min_length=1, max_length=400)
+    thesis_id: Optional[str] = Field(default=None, max_length=64)
+
+    # Provenance — every claim traces back to an excerpt (Law 2 prompt-time
+    # enforcement; pinned here as a typed field so the audit trail is real):
+    source_id: str = Field(min_length=1, max_length=128)
+    source_excerpt: str = Field(
+        min_length=1,
+        max_length=1000,
+        description="The exact text the extractor pulled this proposal from.",
+    )
+    line_range: Optional[Tuple[int, int]] = None
+
+    # Extraction metadata:
+    extraction_method: EXTRACTION_METHOD
+    extraction_model: Optional[str] = Field(default=None, max_length=128)
+    confidence: Literal["low", "medium", "high"] = "low"
+    reasoning: str = Field(
+        min_length=1,
+        max_length=1000,
+        description="One paragraph: why the extractor thinks this is a real "
+                    "mechanism (not just a description).",
+    )
+
+
+class IngestionRun(BaseModel):
+    """Audit row for one ``research ingest`` invocation.
+
+    Appended to ``~/.neuro_os_research/ingestion_runs.jsonl`` so the
+    user can later answer ``research dashboard``-style questions like
+    "how many sources did I ingest in the last 40 days, and how many
+    of them produced accepted cards?" (Lane 5 reads this file.)
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    run_id: str = Field(min_length=1, max_length=128)
+    started_at: datetime
+    finished_at: datetime
+    sources_scanned: int = Field(ge=0)
+    sources_skipped_unchanged: int = Field(ge=0)
+    proposals_emitted: int = Field(ge=0)
+    extraction_method: EXTRACTION_METHOD
+    cost_usd_estimate: float = Field(ge=0.0)
+
+
+# ---------------------------------------------------------------------------
+# gbrain-MCP boundary schemas (Plan B).
+#
+# These pin the gbrain MCP response shape so any drift in gbrain's API
+# becomes an explicit ValidationError instead of silent data corruption.
+# ---------------------------------------------------------------------------
+
+
+class GbrainEntity(BaseModel):
+    """A single entity returned by gbrain's MCP query.
+
+    Field names mirror gbrain's response shape; if gbrain ever changes
+    its API, this schema is the single break-point — Pydantic will raise
+    in CI before any production data is touched.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    slug: str = Field(min_length=1, max_length=200)
+    title: str = Field(min_length=1, max_length=400)
+    page_kind: Literal["claim", "person", "company", "topic", "note", "other"]
+    body_excerpt: str = Field(min_length=1, max_length=2000)
+    typed_relationships: List[str] = Field(default_factory=list, max_length=50)
+    backlinks: int = Field(ge=0, default=0)
+    confidence_hint: Optional[Literal["low", "medium", "high"]] = None
+
+
+class GbrainQuerySpec(BaseModel):
+    """The MCP query the adapter issues. Pinned to keep the call site
+    auditable: every gbrain call is shaped by one of these."""
+
+    model_config = ConfigDict(frozen=True)
+
+    query: str = Field(min_length=1, max_length=400)
+    page_kinds: List[str] = Field(default_factory=lambda: ["claim"], max_length=10)
+    limit: int = Field(ge=1, le=200, default=25)
+    since: Optional[datetime] = None
+    typed_relationships: List[str] = Field(default_factory=list, max_length=20)
