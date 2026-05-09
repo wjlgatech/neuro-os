@@ -27,7 +27,12 @@ sharpenings:
 from __future__ import annotations
 
 from agent.investment.catalog import INVESTMENT_CATALOG
-from agent.investment.config import InvestmentConfig, make_investment_app
+from agent.investment.config import (
+    InvestmentConfig,
+    make_investment_app,
+    run_bias_check,
+    run_cross_modal_bias_check,
+)
 from agent.investment.ontology import (
     BiasCheck,
     CalibrationRecord,
@@ -42,6 +47,8 @@ __all__ = [
     "INVESTMENT_CATALOG",
     "InvestmentConfig",
     "make_investment_app",
+    "run_bias_check",
+    "run_cross_modal_bias_check",
     "BiasCheck",
     "CalibrationRecord",
     "EVIDENCE_TYPE",

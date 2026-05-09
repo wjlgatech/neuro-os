@@ -8,7 +8,10 @@ import json
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from agent.cross_modal import CrossModalEval
 
 from agent.cross_vertical import write_note
 from agent.domain_app import (
@@ -306,3 +309,79 @@ def run_bias_check(
     )
     (biases_dir / f"{check.id}.json").write_text(check.model_dump_json(indent=2))
     return check
+
+
+def run_cross_modal_bias_check(
+    *,
+    thesis: PositionThesis,
+    home: Optional[Path] = None,
+    scorers: Optional[List[Tuple[str, Any]]] = None,
+    use_llm: bool = False,
+) -> Tuple[BiasCheck, "CrossModalEval"]:
+    """Lane-3 cross-modal version of ``run_bias_check``.
+
+    Fans the thesis text through K scorers (default: 3 — Haiku /
+    Sonnet / Opus). Returns a ``(BiasCheck, CrossModalEval)`` pair.
+    The BiasCheck reflects the consensus verdict; the CrossModalEval
+    carries the per-scorer breakdown + disagreement score for the
+    audit trail.
+
+    ``scorers`` is injectable so tests pin every consensus path
+    deterministically. ``use_llm=True`` wires the default scorers to
+    real Anthropic calls; ``use_llm=False`` (default) falls back to
+    the heuristic matcher (fast + free + deterministic in CI).
+
+    The CrossModalEval is persisted to
+    ``<home>/cross_modal_evals/<id>.json`` for audit. The BiasCheck
+    keeps its existing on-disk shape for backwards-compat with the
+    nightly summary.
+    """
+    from agent.cross_modal import (
+        CrossModalEval,  # noqa: F401  (re-exported in the return type)
+        make_default_scorers,
+        run_cross_modal_check,
+    )
+
+    if scorers is None:
+        scorers = make_default_scorers(use_llm=use_llm)
+
+    text = f"{thesis.thesis}\n\nEvidence:\n" + "\n".join(thesis.evidence)
+    eval_result: CrossModalEval = run_cross_modal_check(text, scorers=scorers)
+
+    base = home or (Path.home() / ".neuro_os_investment")
+    biases_dir = base / "bias_checks"
+    evals_dir = base / "cross_modal_evals"
+    biases_dir.mkdir(parents=True, exist_ok=True)
+    evals_dir.mkdir(parents=True, exist_ok=True)
+
+    # Reason field carries the consensus reason if any scorer flagged;
+    # if disagreement is high, prepend a low_confidence_warning marker
+    # so the nightly summary can surface it.
+    reasons = [v.reason for v in eval_result.verdicts if v.reason]
+    consensus_reason: Optional[str] = None
+    if reasons:
+        consensus_reason = reasons[0]
+    if eval_result.low_confidence_warning:
+        prefix = "[low_confidence: cross-modal disagreement] "
+        consensus_reason = prefix + (consensus_reason or "")
+
+    consensus_primitive: Optional[str] = None
+    primitive_votes = [v.primitive for v in eval_result.verdicts if v.primitive]
+    if primitive_votes:
+        # Most common primitive across scorers (with majority flag).
+        from collections import Counter
+        consensus_primitive = Counter(primitive_votes).most_common(1)[0][0]
+
+    check = BiasCheck(
+        id=_new_id(),
+        ts=datetime.now(timezone.utc),
+        thesis_id=thesis.id,
+        mechanism=consensus_primitive,
+        flagged=eval_result.consensus_flagged,
+        reason=consensus_reason,
+    )
+    (biases_dir / f"{check.id}.json").write_text(check.model_dump_json(indent=2))
+    (evals_dir / f"{check.id}.json").write_text(
+        eval_result.model_dump_json(indent=2)
+    )
+    return (check, eval_result)
