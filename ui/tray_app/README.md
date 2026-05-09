@@ -4,6 +4,12 @@ Cross-platform tray icon (Linux / macOS / Windows) that polls the local
 `founder_loop` daemon every 60 seconds and renders the current tank
 percent in your menu bar.
 
+> **Scope:** this tray app is for the **Founder Loop** vertical only.
+> The other three verticals (Research, Investment, Startup) ship as
+> CLI flows in v0; their tray/browser surfaces are roadmapped. See
+> [`docs/what-is-this.md`](../../docs/what-is-this.md) for the
+> 4-vertical overview.
+
 ## Install
 
 The tray app needs `pystray` and `Pillow`. They're in the optional

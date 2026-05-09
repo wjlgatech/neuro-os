@@ -1,5 +1,22 @@
 # What is this?
 
+**Neuro-OS** is one platform with **four daily-ritual products** for four different audiences. Each product is the same shape — a typed daily contract, a tank that scores progress, a "drift card" that names what's really going on when you're about to abandon the contract — but with different vocabulary for different lives.
+
+| The product | For | What kind of contract | What "drift" looks like |
+|---|---|---|---|
+| **Founder Loop** | A solo founder fighting distraction | "Ship the PR; call my sister; 2 deep-work blocks" | YouTube urge at 3pm |
+| **Research** | A researcher building a world-model from papers | "Extract one mechanism card today; tied to my active thesis" | Bookmarking 10 papers, reading 0 |
+| **Investment** *(advisory-only)* | An investor making epistemically calibrated decisions | "Document the AAPL thesis with falsification condition; check for survivorship bias" | Trading on a story instead of a mechanism |
+| **Startup** | A founder building a startup | "Capture 3 audience signals; identify this week's bottleneck; stay on the active hypothesis" | Pivoting to a shiny new idea every Thursday |
+
+The same machine, four lives. You pick the one(s) you want; they share the system but stay in their own boundaries. (Investment positions don't leak to Startup. Research notes can be explicitly shared with Investment for cross-domain mechanism transfer, but only when you say so.)
+
+The rest of this doc walks through the metaphor stack with **Founder Loop** as the worked example, then closes with what the other three look like.
+
+---
+
+# Founder Loop — the canonical example
+
 **Founder Loop** is an app that helps you keep promises to yourself.
 
 You know how you wake up planning to ship something today, and at 3pm
@@ -11,7 +28,9 @@ deliberate, rested version of you who set the goals at 9am. So the app
 helps morning-you write a contract that afternoon-you is bound by — but
 in a way that's kind, not punishing.
 
-Here's the metaphor stack the whole thing runs on.
+Here's the metaphor stack the whole thing runs on. **The other three
+products use the same metaphor stack with their own vocabulary** — see
+the per-product sections below.
 
 ## The deal with tomorrow-you
 
@@ -90,35 +109,93 @@ That's it. That's the whole product.
 
 ---
 
-## Why this rather than another habit-tracker?
+# The other three products
 
-Three things that aren't in habit-trackers:
+**Same machine.** The morning ritual, the tank, the drift-card-at-the-moment-of-temptation, the nightly summary — all four products work this way. What changes is the **vocabulary** (what counts as a priority, what "the tank" measures, what counts as "drift") and the **6 named drift modes** the app diagnoses when you're about to abandon the contract.
 
-1. **The deal is signed by yesterday-you, not enforced by some
-   external thing.** It's not Instagram telling you you've used it too
-   long. It's *you*, this morning, asking *you, this afternoon* to
-   honor a thing you both agreed to.
-2. **Distraction is treated as a misaimed real desire, not a moral
-   failure.** The app's job is to help you find the real thing you
-   want, not to suppress the surface-level want.
-3. **You always retain agency.** Nothing is ever blocked outright. The
-   app makes the cost visible, but the choice is always yours.
+Each product also lives in its own **private store** by default. Your investment positions don't show up in the research view. Your startup confidentials don't show up in the investment view. You explicitly opt into sharing per-note (e.g. researcher: "send this mechanism card to investment so I can stress-test the thesis").
 
-It's a system to help you become more honest with yourself, not a cage.
+## Research — for a researcher building a world model
+
+**The deal:** every morning you commit to reading **at most one paper today**, tied to a single load-bearing thesis you've signed up to refine for 40 days. (No more bookmarking 30 papers and reading 2.)
+
+**The score:** the **mechanism cards/day** count and the **continuity score** (how many of the last 40 days have you stayed on the same thesis).
+
+**The drift card:** when you find yourself bookmarking instead of extracting, or jumping to a new topic, or memorizing terms without predicting consequences, the system names which of the **6 research drift modes** you're in:
+
+| Drift mode | What it looks like | What the app suggests |
+|---|---|---|
+| Paper-collector | Bookmarking without extracting | Extract one MechanismCard now (20 min) |
+| Topic-hopper | Jumping off your active thesis | Bind today's reading back to the thesis (5 min) |
+| Memorizer | Reciting terms without prediction | File a PredictionLog (10 min) |
+| Authority-acceptor | Taking the paper at face value | Build an AssumptionMap (15 min) |
+| Overloaded | Feed is firehose, signal is dead | Triage; cap at 1 paper today |
+| Forgetting | Concepts evaporate | Re-paraphrase 3 random cards from memory |
+
+**The reward:** there isn't a "ration unlock" for research the way YouTube minutes is for founder loop — the reward is the visible compounding of MechanismCards in your private store and the rising continuity score.
+
+**Try it now:** `neuro-os research onboard --priorities-file priorities.json --active-thesis-id thesis-001` (see [how to use it](./how-to-use-it.md)).
+
+## Investment — for the epistemically calibrated investor
+
+⚠️ **v0 is advisory-only.** No broker integration. No trade execution. The app logs theses, scores them, surfaces bias warnings via Belief OS. *You read; you decide.*
+
+**The deal:** every position you hold (or are about to hold) gets a **PositionThesis** with: the thesis text, supporting evidence, an explicit invalidation condition, an expected timeline, a confidence level (low/medium/high). 100% thesis coverage is the bar.
+
+**The score:** the **calibration error** — over time, how well does your stated confidence match the rate at which your theses survive vs invalidate. Plus thesis-survival rate, bias-detection rate, decision consistency.
+
+**The drift card:** when you're about to act on a position, the system runs a **Belief OS bias check** on the thesis text and surfaces warnings:
+
+| Drift mode | What it looks like | What the app suggests |
+|---|---|---|
+| Emotional | Fear / FOMO / volatility-induced action | File the thesis BEFORE acting (15 min); defer 24h |
+| Narrative-following | "AI is huge, X is the AI play" | Map the causal mechanism (20 min) |
+| Price-obsessed | Refreshing the chart hourly | Pause; recheck thesis (10 min); close the chart for 24h |
+| Overconfident | Confidence > evidence | Log a CalibrationRecord; enumerate 3 failure paths |
+| Social-proof-following | "X said it's good" | Run Belief OS bias check on the thesis |
+| Ego-attached | Position became identity | Write the kill-condition; role-play a short-seller |
+
+**Privacy:** position theses default to **private to investment**. They never reach research or startup unless you explicitly share. Founder Loop never sees them.
+
+## Startup — for a founder building a startup
+
+**The deal:** commit to one **load-bearing hypothesis** for 40 days. Changing the active hypothesis is allowed but expensive — `thesis_pivots/day` is hard-capped at 1, and the abuse-tax bites at 3+ kills in 40 days. Anti-novelty-addiction.
+
+**The score:** the **strategic continuity score** (1 - kill_count/40), **trust density** (fraction of audience members who engaged with you twice or more), audience-signals captured, conversion quality.
+
+**The drift card:** the founder-OEC review when you're about to abandon the active hypothesis or re-feature-creep:
+
+| Drift mode | What it looks like | What the app suggests |
+|---|---|---|
+| Idea-chaos | A new "what if we…" every day | Park the idea; reaffirm the active hypothesis aloud |
+| Broadcasting | Pushing without listening | Capture an AudienceSignal from a recent reply |
+| Feature-creep | Building without identifying the constraint | Identify this week's Bottleneck (15 min) |
+| Vision-intoxicated | Excitement over evidence | Stress-test against the falsification signal |
+| Vanity-metrics | Counting impressions, not retention | Switch the dashboard to repeat-engagement |
+| Random-execution | Mood-driven days | Run the nightly OEC review |
+
+**Try it now:** `neuro-os startup onboard --priorities-file priorities.json --active-hypothesis-id hyp-001`.
+
+---
+
+# Why this shape, four times
+
+Three things that aren't in habit-trackers / research apps / portfolio trackers / startup-OS-apps:
+
+1. **The deal is signed by yesterday-you**, not enforced by some external thing. It's not Instagram telling you you've used it too long. It's *you*, this morning, asking *you, this afternoon* to honor a thing you both agreed to. Same shape across all four products.
+2. **Drift is treated as a misaimed real desire**, not a moral failure. The app's job is to help you find the real thing you want, not to suppress the surface-level want. Same machine across all four — what differs is the catalog of "real things you want."
+3. **You always retain agency.** Nothing is ever blocked outright. The app makes the cost visible, but the choice is always yours.
+
+It's a system to help you become more honest with yourself, in whichever life-domain you've chosen to focus on. Not a cage.
 
 ---
 
 ## What it doesn't do (yet)
 
-- It doesn't watch your phone — for now it's a desktop app.
-- It doesn't tell anyone else how you're doing — your data lives only
-  on your own machine. Nothing leaves it.
-- It doesn't track your sleep or HRV directly — those signals come
-  from a separate tool called **workflowx**. If you have workflowx
-  installed, the app finds it automatically and uses it; if you don't,
-  the app still works (it just relies on you logging urges manually
-  via the browser extension or `neuro-os loop urge`). See
-  [how it works](./how-it-works.md#box-1--sensors-what-the-app-knows-about-your-day)
-  for what gets read where.
+- **Phone**: it doesn't watch your phone — for now it's a desktop app.
+- **Anyone else**: your data lives only on your own machine. Nothing leaves it. Cross-vertical reads are default-private and require explicit opt-in.
+- **Sleep / HRV** (founder loop): those signals come from a separate tool called **workflowx**. If you have workflowx installed, the app finds it automatically and uses it; if you don't, the app still works (it just relies on you logging urges manually via the browser extension or `neuro-os loop urge`). See [how it works](./how-it-works.md#box-1--sensors-what-the-app-knows-about-your-day) for what gets read where.
+- **Browser extension** (founder loop only today): the YouTube/Twitter/etc. overlay is built for founder loop. The other three products are CLI-only in v0; their browser surfaces are roadmapped.
+- **Mobile / voice / multi-user**: roadmapped. See [the roadmap](./roadmap.md).
 
 If any of this sounds interesting, see [how to use it](./how-to-use-it.md).

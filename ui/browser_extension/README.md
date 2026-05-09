@@ -4,6 +4,13 @@ Manifest V3 extension. Companion to the `founder_loop` engine in
 `agent/founder_loop/`. Renders the **Tank widget** and the
 **Sublimation Card** at the moment of urge.
 
+> **Scope:** this extension is for the **Founder Loop** vertical only.
+> The other three verticals (Research, Investment, Startup) ship as
+> CLI flows in v0; their browser/chat surfaces are roadmapped. See
+> [`docs/what-is-this.md`](../../docs/what-is-this.md) for the
+> 4-vertical overview and [`docs/roadmap.md`](../../docs/roadmap.md)
+> for what's coming.
+
 ## What it does
 
 1. **Badge** — every 5 minutes, polls `http://127.0.0.1:8765/tank` and
