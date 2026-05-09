@@ -111,7 +111,7 @@ Law revisions are a separation-of-concerns issue today (single author writes, en
 
 - Not a substitute for `docs/AI_NATIVE_ENGINEERING_PRINCIPLES.md` — that's the source of truth for the laws.
 - Not a substitute for `tests/test_engineering_principles.py` — that's the deterministic gate.
-- Not a place to encode product roadmap (use `docs/roadmap.md`) or feature design (use the `~/.claude/plans/` folder for in-flight design notes).
+- Not a place to encode product roadmap (use `docs/roadmap.md`) or feature design (use `docs/plans/` for design notes referenced from in-repo docs; `~/.claude/plans/` for personal in-flight scratch that isn't referenced from anywhere public).
 
 This file is the *prompt-time* layer of a 4-layer enforcement stack:
 
