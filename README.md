@@ -1,5 +1,13 @@
 # Neuro-OS
 
+**What it is** — a local, self-modifying knowledge OS that catches your daily drift modes and converts them into evidence-graded decisions. Four verticals (Founder Loop / Research / Investment / Startup) on one substrate.
+**Who it's for** — solo founders, researchers, calibrated investors, and indie builders who want one closed loop instead of five disconnected tools.
+**Status** — v0 shipped: Founder Loop is the daily product; Research / Investment / Startup expose CLI + cross-vertical reads with `mutable_paths=[]` until human-gated promotion. 100% local; no telemetry.
+**Try it** — `pip install neuro-os && neuro-os start` (boots at `127.0.0.1:8765`).
+**Contribute** — read [`CONTRIBUTING.md`](./CONTRIBUTING.md) (humans) or [`CLAUDE.md`](./CLAUDE.md) (AI agents).
+
+---
+
 > A self-evolving, self-modifying knowledge OS plus **four verticals** running on a shared `agent/domain_app/` substrate. Each vertical is the same closed-loop OEC machine (Observe → Evaluate → Control → Validate) with different vocabulary.
 
 ## Four verticals on one substrate
@@ -40,15 +48,15 @@ Start here. All detailed docs live behind these links:
 
 | Doc | For whom | What's in it |
 |---|---|---|
-| [**E2E test catalog**](./tests/e2e/scenarios.md) | Contributors | 23 scenarios (20 deterministic + 3 judgment) describing user journeys with personas, steps, expected outcomes. |
+| [**E2E test catalog**](./tests/e2e/scenarios.md) | Contributors | 29 scenarios (26 deterministic + 3 judgment) describing user journeys with personas, steps, expected outcomes — covers all four verticals. |
 | [**E2E test runner README**](./tests/e2e/README.md) | Contributors | How to run the HTTP / Playwright / Computer Use harnesses. |
 | [**Browser extension README**](./ui/browser_extension/README.md) | Power users | Manifest V3 setup, how the Sublimation Card injects, how the badge polls. |
 | [**Tray app README**](./ui/tray_app/README.md) | Power users | Cross-platform tray icon (Linux / macOS / Windows). |
 | [**Streamlit UI README**](./ui/README.md) | Researchers | The 4-tab Streamlit app: Try It / Watch It Learn / Self-Repair / Readiness. |
 | [**AI-Native engineering principles**](./docs/AI_NATIVE_ENGINEERING_PRINCIPLES.md) | Contributors | The 10 non-negotiable laws, each tagged `[ENFORCED-by-test/type/runtime]` or `[ASPIRATIONAL]`. |
+| [**CONTRIBUTING.md**](./CONTRIBUTING.md) | Human contributors | One-page fast path: setup, the gates to run, where to put new code, the 3-section commit format, what NOT to do. |
 | [**CLAUDE.md**](./CLAUDE.md) | AI agents writing code | The L1 prompt-time gate: where to put new code, what NOT to do, the commit-message format, how to add or revise a law. |
 | [**Principle enforcers**](./tests/test_engineering_principles.py) | Contributors / CI | The L3 test-time gate: 8 deterministic checks for Laws 1, 3, 4, 5, 6, 7, 9. Run with `pytest tests/test_engineering_principles.py`. |
-| [**Agent-system research notes**](./docs/AGENT_SYSTEM_RESEARCH_HERMES_OPENCLAW.md) | Researchers | External-pattern review (Hermes, OpenClaw) translated into Neuro-OS decisions. |
 
 ---
 
