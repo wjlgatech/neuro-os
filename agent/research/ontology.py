@@ -95,6 +95,15 @@ class MechanismCard(BaseModel):
                     "card's id. Iterations on a thesis are counted by "
                     "summing revisions.",
     )
+    entity_mentions: List[str] = Field(
+        default_factory=list,
+        max_length=20,
+        description="Lane-4 entity propagation: slugs (kebab-case) of "
+                    "Entity rows that this card mentions. On card "
+                    "acceptance, each slug is upsert_entity'd into the "
+                    "cross-vertical store (default-PRIVATE to research "
+                    "until the user explicitly shares).",
+    )
 
 
 class AssumptionMap(BaseModel):
@@ -302,6 +311,14 @@ class MechanismCardProposal(BaseModel):
         max_length=1000,
         description="One paragraph: why the extractor thinks this is a real "
                     "mechanism (not just a description).",
+    )
+    entity_mentions: List[str] = Field(
+        default_factory=list,
+        max_length=20,
+        description="Lane-4 entity propagation: candidate slugs the user "
+                    "may bind to this proposal at /research-review accept "
+                    "time. Empty in the v0 adapter (extractor is conservative "
+                    "and lets the user name entities manually).",
     )
 
 

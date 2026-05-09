@@ -116,6 +116,91 @@ class VerticalNote(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Entity (Lane 4 — entity propagation across verticals).
+#
+# An Entity is a stable, slugged page about a person / company / topic /
+# mechanism that multiple verticals may reference. Entities are
+# ALSO default-PRIVATE to their source vertical: cross-vertical
+# visibility requires explicit opt-in via ``share_entity`` (or by
+# passing a non-default ``visible_to`` at upsert time).
+#
+# Storage: same ``cross_vertical.jsonl`` store, with row ``kind:
+# "entity"``. Entity rows are append-only — multiple upserts of the
+# same slug write multiple rows; ``read_entity`` folds them and returns
+# the latest visible snapshot. This preserves the audit trail (you can
+# replay how an entity's compiled_truth evolved over time).
+# ---------------------------------------------------------------------------
+
+
+EntityKind = Literal["person", "company", "topic", "mechanism", "other"]
+
+
+class Entity(BaseModel):
+    """A typed reference page that multiple verticals may share.
+
+    Frozen — once written, an entity row is immutable. Updates are new
+    rows referencing the same ``slug``; ``read_entity`` folds them and
+    returns the latest visible snapshot (per-field latest-write-wins).
+
+    Examples:
+      slug='nvda', kind='company', title='NVIDIA Corp.'
+      slug='moat-theory', kind='topic', title='Moat / pricing-power theory'
+      slug='yang-2024-pricing-power', kind='mechanism', title='Yang on pricing power'
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    id: str = Field(min_length=1, max_length=64)
+    slug: str = Field(
+        min_length=1,
+        max_length=128,
+        description=(
+            "Stable lowercase-kebab-case identifier. Multiple rows with "
+            "the same slug build the entity's timeline."
+        ),
+    )
+    kind: EntityKind
+    title: str = Field(min_length=1, max_length=400)
+    source_vertical: VerticalName
+
+    compiled_truth: str = Field(
+        default="",
+        max_length=2000,
+        description=(
+            "The current best understanding of this entity in plain text. "
+            "Latest-write-wins; older rows preserve history for audit."
+        ),
+    )
+    mentioned_in_note_id: Optional[str] = Field(
+        default=None,
+        max_length=64,
+        description=(
+            "If this row was created in response to a VerticalNote write "
+            "(e.g. accepting a MechanismCard that mentioned this entity), "
+            "the originating note id."
+        ),
+    )
+
+    ts: datetime
+    visible_to: List[str] = Field(
+        description=(
+            "Same visibility model as VerticalNote: defaults to "
+            "[source_vertical] (private). Use ['__all__'] for cross-vertical."
+        ),
+    )
+
+    def is_visible_to(self, reader: VerticalName) -> bool:
+        """Same rule as VerticalNote.is_visible_to — source always sees its
+        own; otherwise reader must be in visible_to OR visible_to contains
+        the all-marker."""
+        if reader == self.source_vertical:
+            return True
+        if _VISIBILITY_ALL in self.visible_to:
+            return True
+        return reader in self.visible_to
+
+
+# ---------------------------------------------------------------------------
 # I/O
 # ---------------------------------------------------------------------------
 
@@ -276,11 +361,179 @@ def query(
     return out
 
 
+# ---------------------------------------------------------------------------
+# Entity I/O (Lane 4)
+# ---------------------------------------------------------------------------
+
+
+def upsert_entity(
+    *,
+    slug: str,
+    kind: EntityKind,
+    title: str,
+    source_vertical: VerticalName,
+    compiled_truth: str = "",
+    mentioned_in_note_id: Optional[str] = None,
+    visible_to: Optional[List[str]] = None,
+    store: Optional[Union[str, Path]] = None,
+    ts: Optional[datetime] = None,
+) -> Entity:
+    """Append a new ``Entity`` row.
+
+    Multiple upserts of the same ``slug`` are normal — each writes a new
+    row, building an append-only timeline. ``read_entity`` returns the
+    LATEST visible snapshot. Default ``visible_to`` is
+    ``[source_vertical]`` (private).
+    """
+    ts = ts or datetime.now(timezone.utc)
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    if visible_to is None:
+        visible_to = [source_vertical]
+
+    entity = Entity(
+        id=_new_id(),
+        slug=slug,
+        kind=kind,
+        title=title,
+        source_vertical=source_vertical,
+        compiled_truth=compiled_truth,
+        mentioned_in_note_id=mentioned_in_note_id,
+        ts=ts,
+        visible_to=visible_to,
+    )
+
+    path = Path(store) if store is not None else default_store_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    # Entity has its own ``kind`` field (EntityKind) so we use a separate
+    # row-level discriminator key (``row_kind``) to avoid collision. The
+    # existing ``kind`` discriminator stays in use for notes/share_events
+    # (those models don't have a clashing field).
+    row = {"row_kind": "entity", **json.loads(entity.model_dump_json())}
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(row, ensure_ascii=False, default=str) + "\n")
+    return entity
+
+
+def share_entity(
+    *,
+    slug: str,
+    add_visible: List[str],
+    store: Optional[Union[str, Path]] = None,
+    ts: Optional[datetime] = None,
+) -> None:
+    """Broaden ALL prior rows of ``slug`` to also be visible to
+    ``add_visible``.
+
+    Appends a single ``share_entity_event`` row referencing the slug.
+    ``read_entity`` and ``list_entities`` fold these events on top of
+    the original rows. The rows themselves are never mutated.
+    """
+    ts = ts or datetime.now(timezone.utc)
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    path = Path(store) if store is not None else default_store_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    row = {
+        "row_kind": "share_entity_event",
+        "slug": slug,
+        "add_visible": list(add_visible),
+        "ts": ts.isoformat(),
+    }
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+
+def _load_entities(rows: List[Dict[str, Any]]) -> Dict[str, List[Entity]]:
+    """Group entity rows by slug, in write order. Apply share_entity_event
+    rows by broadening every entity row of the named slug."""
+    by_slug: Dict[str, List[Entity]] = {}
+    for row in rows:
+        if row.get("row_kind") != "entity":
+            continue
+        try:
+            ent = Entity.model_validate(
+                {k: v for k, v in row.items() if k != "row_kind"}
+            )
+        except Exception:
+            continue
+        by_slug.setdefault(ent.slug, []).append(ent)
+
+    for row in rows:
+        if row.get("row_kind") != "share_entity_event":
+            continue
+        slug = row.get("slug")
+        add = row.get("add_visible", [])
+        if not isinstance(slug, str) or not isinstance(add, list):
+            continue
+        if slug not in by_slug:
+            continue
+        new_list: List[Entity] = []
+        for ent in by_slug[slug]:
+            new_visible = list(ent.visible_to) + [
+                v for v in add if v not in ent.visible_to
+            ]
+            new_list.append(ent.model_copy(update={"visible_to": new_visible}))
+        by_slug[slug] = new_list
+
+    return by_slug
+
+
+def read_entity(
+    *,
+    slug: str,
+    reader: VerticalName,
+    store: Optional[Union[str, Path]] = None,
+) -> Optional[Entity]:
+    """Return the LATEST ``Entity`` row for ``slug`` that ``reader`` is
+    allowed to see, or None if there isn't one (or none are visible).
+    """
+    path = Path(store) if store is not None else default_store_path()
+    rows = _read_rows(path)
+    by_slug = _load_entities(rows)
+    if slug not in by_slug:
+        return None
+    visible = [e for e in by_slug[slug] if e.is_visible_to(reader)]
+    if not visible:
+        return None
+    return max(visible, key=lambda e: e.ts)
+
+
+def list_entities(
+    *,
+    reader: VerticalName,
+    kind: Optional[EntityKind] = None,
+    store: Optional[Union[str, Path]] = None,
+) -> List[Entity]:
+    """List the LATEST visible row per slug. ``kind`` optionally filters
+    by entity kind. Output sorted by ``ts`` descending (newest first)."""
+    path = Path(store) if store is not None else default_store_path()
+    rows = _read_rows(path)
+    by_slug = _load_entities(rows)
+    out: List[Entity] = []
+    for slug, ents in by_slug.items():
+        visible = [e for e in ents if e.is_visible_to(reader)]
+        if not visible:
+            continue
+        latest = max(visible, key=lambda e: e.ts)
+        if kind is not None and latest.kind != kind:
+            continue
+        out.append(latest)
+    out.sort(key=lambda e: e.ts, reverse=True)
+    return out
+
+
 __all__ = [
     "VerticalNote",
     "VerticalName",
+    "Entity",
+    "EntityKind",
     "default_store_path",
     "write_note",
     "share_note",
     "query",
+    "upsert_entity",
+    "share_entity",
+    "read_entity",
+    "list_entities",
 ]
