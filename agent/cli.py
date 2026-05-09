@@ -853,6 +853,46 @@ def _add_research_ingest_subcommands(top_sub: "argparse._SubParsersAction") -> N
     )
     dash.set_defaults(func=_research_dashboard_handler)
 
+    # entity-list (Lane 4)
+    elist = top_sub.add_parser(
+        "entity-list",
+        help="list entities visible to the research vertical (Lane 4)",
+    )
+    elist.add_argument(
+        "--kind", default=None,
+        choices=["person", "company", "topic", "mechanism", "other"],
+        help="filter by entity kind",
+    )
+    elist.add_argument(
+        "--reader", default="research",
+        choices=["research", "investment", "startup", "founder_loop"],
+        help=(
+            "vertical issuing the read (default: research). Useful to test "
+            "cross-vertical visibility from another vertical's perspective."
+        ),
+    )
+    elist.add_argument(
+        "--store", default=None,
+        help="cross-vertical store path (default: ~/.neuro_os/cross_vertical.jsonl)",
+    )
+    elist.set_defaults(func=_research_entity_list_handler)
+
+    # entity-read (Lane 4)
+    eread = top_sub.add_parser(
+        "entity-read",
+        help="read a single entity's latest visible snapshot (Lane 4)",
+    )
+    eread.add_argument("--slug", required=True, help="entity slug to read")
+    eread.add_argument(
+        "--reader", default="research",
+        choices=["research", "investment", "startup", "founder_loop"],
+    )
+    eread.add_argument(
+        "--store", default=None,
+        help="cross-vertical store path (default: ~/.neuro_os/cross_vertical.jsonl)",
+    )
+    eread.set_defaults(func=_research_entity_read_handler)
+
 
 def _research_ingest_handler(args: argparse.Namespace) -> int:
     from agent.research import GbrainQuerySpec
@@ -965,6 +1005,21 @@ def _research_review_handler(args: argparse.Namespace) -> int:
             print(f"  rejected: {prop.proposal_id}")
             continue
         if choice == "a":
+            # Lane-4 entity propagation: ask the user to name entities this
+            # card mentions. Format is comma-separated kebab-case slugs;
+            # blank input = no propagation. v0 is opt-in (no auto-extract).
+            try:
+                mentions_raw = input(
+                    "  entity mentions (comma-separated kebab slugs, blank = none): "
+                ).strip()
+            except EOFError:
+                mentions_raw = ""
+            mentions = [
+                m.strip().lower()
+                for m in mentions_raw.split(",")
+                if m.strip()
+            ] if mentions_raw else []
+
             # Build a frozen MechanismCard from the proposal.
             card = MechanismCard(
                 id=prop.proposal_id,
@@ -976,16 +1031,63 @@ def _research_review_handler(args: argparse.Namespace) -> int:
                 prediction=prop.prediction,
                 failure_mode=prop.failure_mode,
                 thesis_id=prop.thesis_id,
+                entity_mentions=mentions,
             )
             write_mechanism_card(card=card, home=home)
             transition_proposal(
                 prop.proposal_id, home=home,
                 from_status="pending", to_status="accepted",
             )
-            print(f"  accepted: {prop.proposal_id}")
+
+            # Lane-4: upsert each mentioned entity. Default-PRIVATE to research.
+            if mentions:
+                from agent.cross_vertical import upsert_entity
+                # The card was just persisted via write_mechanism_card, which
+                # also wrote a cross_vertical note (kind="mechanism_card").
+                # We don't have the note id back, so we use the card's own id
+                # as the originating reference.
+                for slug in mentions:
+                    upsert_entity(
+                        slug=slug,
+                        kind="topic",   # v0 default; richer kinds are a follow-up
+                        title=slug.replace("-", " ").title(),
+                        source_vertical="research",
+                        compiled_truth=(
+                            f"Mentioned in MechanismCard {card.id} "
+                            f"({card.paper_title!r})."
+                        ),
+                        mentioned_in_note_id=card.id,
+                    )
+                print(f"  accepted: {prop.proposal_id} (with {len(mentions)} entity mention(s))")
+            else:
+                print(f"  accepted: {prop.proposal_id}")
             continue
         print(f"  (unknown choice {choice!r}; skipping)")
     print("\n(end of queue)")
+    return 0
+
+
+def _research_entity_list_handler(args: argparse.Namespace) -> int:
+    from agent.cross_vertical import list_entities
+
+    store = Path(args.store).expanduser() if args.store else None
+    entities = list_entities(reader=args.reader, kind=args.kind, store=store)
+    print(json.dumps(
+        [e.model_dump(mode="json") for e in entities],
+        indent=2, default=str,
+    ))
+    return 0
+
+
+def _research_entity_read_handler(args: argparse.Namespace) -> int:
+    from agent.cross_vertical import read_entity
+
+    store = Path(args.store).expanduser() if args.store else None
+    entity = read_entity(slug=args.slug, reader=args.reader, store=store)
+    if entity is None:
+        print(f"(no entity {args.slug!r} visible to {args.reader!r})")
+        return 0
+    print(entity.model_dump_json(indent=2))
     return 0
 
 
