@@ -613,6 +613,8 @@ def build_parser() -> argparse.ArgumentParser:
         needs_hypothesis_id=True,
     )
 
+    _add_skillify_subcommands(sub)
+
     return p
 
 
@@ -1107,6 +1109,202 @@ def _research_dashboard_handler(args: argparse.Namespace) -> int:
         print(summary.model_dump_json(indent=2))
     else:
         print(render_text(summary))
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# Skillify CLI tree (Lane 2)
+# ---------------------------------------------------------------------------
+
+
+def _add_skillify_subcommands(sub: "argparse._SubParsersAction") -> None:
+    """Top-level `skillify` subcommands: log-override / extract /
+    proposals / review."""
+    top = sub.add_parser(
+        "skillify",
+        help="meta-skill: turn repeated overrides into catalog-revision proposals (Lane 2)",
+    )
+    top_sub = top.add_subparsers(dest="skillify_command", required=True)
+
+    # log-override
+    lo = top_sub.add_parser(
+        "log-override",
+        help="log one OverrideEvent (the user picked something other than the proposed CE)",
+    )
+    lo.add_argument(
+        "--vertical", required=True,
+        choices=["founder_loop", "research", "investment", "startup"],
+    )
+    lo.add_argument(
+        "--drift", required=True,
+        help="the drift mode that fired (must match the vertical's catalog)",
+    )
+    lo.add_argument(
+        "--user-action", required=True,
+        help="what you did instead of the proposed constructive expression",
+    )
+    lo.add_argument("--suggested-action", default=None,
+                    help="optional: what the substrate proposed (the CE you rejected)")
+    lo.add_argument("--notes", default=None,
+                    help="optional one-paragraph: WHY you chose your alternative")
+    lo.add_argument("--home", default=None,
+                    help="skillify home (default: ~/.neuro_os_skillified/)")
+    lo.set_defaults(func=_skillify_log_override_handler)
+
+    # extract
+    ex = top_sub.add_parser(
+        "extract",
+        help="run pattern extraction over the override log; emit SkillProposals",
+    )
+    ex.add_argument("--vertical", default=None,
+                    choices=["founder_loop", "research", "investment", "startup"],
+                    help="filter by vertical (default: all)")
+    ex.add_argument("--threshold", type=int, default=5,
+                    help="minimum events per (vertical, drift_mode) bucket to propose (default 5)")
+    ex.add_argument("--window-days", type=int, default=30,
+                    help="only consider events within this window (default 30)")
+    ex.add_argument("--no-skip-existing", action="store_true",
+                    help="re-propose buckets that already have pending/accepted proposals")
+    ex.add_argument("--home", default=None)
+    ex.set_defaults(func=_skillify_extract_handler)
+
+    # proposals
+    pl = top_sub.add_parser(
+        "proposals",
+        help="list SkillProposals in a status directory",
+    )
+    pl.add_argument("--status", default="pending",
+                    choices=["pending", "accepted", "rejected"])
+    pl.add_argument("--home", default=None)
+    pl.set_defaults(func=_skillify_proposals_handler)
+
+    # review
+    rv = top_sub.add_parser(
+        "review",
+        help="review pending SkillProposals (CLI REPL: a/r/s/q)",
+    )
+    rv.add_argument("--cli", action="store_true",
+                    help="interactive REPL (default just prints count)")
+    rv.add_argument("--home", default=None)
+    rv.set_defaults(func=_skillify_review_handler)
+
+
+def _skillify_log_override_handler(args: argparse.Namespace) -> int:
+    from agent.skillify import write_override_event
+
+    home = Path(args.home).expanduser() if args.home else None
+    event = write_override_event(
+        vertical=args.vertical,
+        drift_mode=args.drift,
+        user_action=args.user_action,
+        suggested_action=args.suggested_action,
+        notes=args.notes,
+        home=home,
+    )
+    print(event.model_dump_json(indent=2))
+    return 0
+
+
+def _skillify_extract_handler(args: argparse.Namespace) -> int:
+    from agent.skillify import run_extraction
+
+    if args.threshold < 1:
+        print(f"error: --threshold must be >= 1 (got {args.threshold})", file=sys.stderr)
+        return 2
+    if args.window_days < 1:
+        print(f"error: --window-days must be >= 1 (got {args.window_days})", file=sys.stderr)
+        return 2
+
+    home = Path(args.home).expanduser() if args.home else None
+    written = run_extraction(
+        vertical=args.vertical,
+        threshold=args.threshold,
+        window_days=args.window_days,
+        home=home,
+        skip_already_proposed=not args.no_skip_existing,
+    )
+    print(json.dumps(
+        [p.model_dump(mode="json") for p in written],
+        indent=2, default=str,
+    ))
+    print(f"\n{len(written)} new SkillProposal(s) written to "
+          f"{home or Path.home() / '.neuro_os_skillified'}/proposals/pending/",
+          file=sys.stderr)
+    return 0
+
+
+def _skillify_proposals_handler(args: argparse.Namespace) -> int:
+    from agent.skillify import list_skill_proposals
+
+    home = Path(args.home).expanduser() if args.home else None
+    proposals = list_skill_proposals(home=home, status=args.status)
+    print(json.dumps(
+        [p.model_dump(mode="json") for p in proposals],
+        indent=2, default=str,
+    ))
+    return 0
+
+
+def _skillify_review_handler(args: argparse.Namespace) -> int:
+    from agent.skillify import (
+        list_skill_proposals,
+        transition_skill_proposal,
+    )
+
+    home = Path(args.home).expanduser() if args.home else None
+    pending = list_skill_proposals(home=home, status="pending")
+
+    if not pending:
+        print("(no pending skill proposals)")
+        return 0
+
+    if not args.cli:
+        print(f"{len(pending)} pending skill proposal(s):")
+        for p in pending[:5]:
+            print(f"  {p.proposal_id}  {p.vertical}/{p.drift_mode}  "
+                  f"(based on {p.based_on_event_count} events)")
+        if len(pending) > 5:
+            print(f"  ... and {len(pending) - 5} more. Run with --cli to review.")
+        return 0
+
+    for prop in pending:
+        print("\n" + "=" * 72)
+        print(f"id:               {prop.proposal_id}")
+        print(f"vertical/drift:   {prop.vertical} / {prop.drift_mode}")
+        print(f"candidate action: {prop.candidate_action}")
+        print(f"duration_min:     {prop.candidate_duration_min}")
+        print(f"tank_credit_pct:  {prop.candidate_tank_credit_pct}")
+        print(f"based_on_events:  {prop.based_on_event_count} "
+              f"({', '.join(prop.based_on_event_ids[:3])}{'...' if len(prop.based_on_event_ids) > 3 else ''})")
+        if prop.notes:
+            print(f"notes:            {prop.notes[:300]}")
+        try:
+            choice = input("\n[a]ccept / [r]eject / [s]kip / [q]uit ? ").strip().lower()
+        except EOFError:
+            print("\n(stdin closed; stopping)")
+            return 0
+        if choice == "q":
+            print("(stopped)")
+            return 0
+        if choice == "s" or choice == "":
+            continue
+        if choice == "r":
+            transition_skill_proposal(
+                prop.proposal_id, home=home,
+                from_status="pending", to_status="rejected",
+            )
+            print(f"  rejected: {prop.proposal_id}")
+            continue
+        if choice == "a":
+            transition_skill_proposal(
+                prop.proposal_id, home=home,
+                from_status="pending", to_status="accepted",
+            )
+            print(f"  accepted: {prop.proposal_id}  (catalog mutation is a "
+                  f"separate human-authored commit — Law 7)")
+            continue
+        print(f"  (unknown choice {choice!r}; skipping)")
+    print("\n(end of queue)")
     return 0
 
 
