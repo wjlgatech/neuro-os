@@ -27,7 +27,7 @@ Required intermediate form:
 source -> structured extraction -> evaluation -> accepted knowledge
 ```
 
-**How enforced:** every external input flows through a Pydantic `BaseModel` (`RawEvent`, `UrgeEvent`, `Priority`, `Contract`). Bad data raises `ValidationError` at construction. `tests/test_engineering_principles.py::test_law_1_no_raw_ingestion` walks `agent/founder_loop/` and asserts that any `json.loads`/`open()` reading external state feeds into a Pydantic model before reaching policy or memory.
+**How enforced:** every external input flows through a Pydantic `BaseModel` (e.g. `RawEvent`, `UrgeEvent`, `Priority`, `Contract` in founder_loop; `ResearchPriority`, `InvestmentPriority`, `StartupPriority` in the other three verticals). Bad data raises `ValidationError` at construction. `tests/test_engineering_principles.py::test_law_1_no_raw_ingestion` walks `agent/founder_loop/`, `agent/research/`, `agent/investment/`, `agent/startup/`, `agent/domain_app/` and asserts that any `json.loads`/`open()` reading external state feeds into a Pydantic model before reaching policy or memory.
 
 ---
 
@@ -56,7 +56,7 @@ Every primitive must include:
 
 If the idea cannot be tested, implemented, or practiced, it is not yet Neuro-OS knowledge.
 
-**How enforced:** `tests/test_engineering_principles.py::test_law_3_executable_knowledge` walks `agent/founder_loop/data/sublimation_catalog.json` and asserts every `underlying_need` has: ≥1 `ConstructiveExpression` option (code experiment), a chat surface that can propose it (mental practice), an observable signal in `FounderState` (observation task), and a named entry in `golden_cases.py` (failure case).
+**How enforced:** the substrate (`agent/domain_app/`) requires every vertical's catalog (`DiagnosisCatalogProtocol`) to expose **exactly 6 named failure modes**, each with **≥1 `ConstructiveExpressionBase` option**. `tests/test_engineering_principles.py::test_law_3_executable_knowledge` walks `agent/founder_loop/data/sublimation_catalog.json` and asserts every `underlying_need` has: ≥1 option (code experiment), a chat surface that can propose it (mental practice), an observable signal in `FounderState` (observation task), and a named entry in `golden_cases.py` (failure case). The substrate-adapter tests in `tests/test_*_substrate_adapter.py` extend the same invariant to research / invest / startup.
 
 ---
 
@@ -73,7 +73,7 @@ Required metrics:
 
 The system must reject or retry low-scoring extractions.
 
-**How enforced:** the L1 golden gate (`tests/test_adoptions.py::TestGoldenGate`) runs the rubric on every proposed primitive update; failed-rubric updates are rolled back. `tests/test_engineering_principles.py::test_law_4_evaluation_rubric` asserts the gate is wired into `agent/self_evolving_loop.py`. **Note:** for product-layer changes (founder_loop schemas, queues), the equivalent gate is `tests/test_founder_loop_safety.py` plus the 4 nightly metrics — same shape, different scope.
+**How enforced:** the L1 golden gate (`tests/test_adoptions.py::TestGoldenGate`) runs the rubric on every proposed primitive update; failed-rubric updates are rolled back. `tests/test_engineering_principles.py::test_law_4_evaluation_rubric` asserts the gate is wired into `agent/self_evolving_loop.py`. **Note:** for product-layer changes (vertical schemas, queues, catalogs), the equivalent gate is `tests/test_founder_loop_safety.py` for founder_loop plus the 4 nightly metrics on each vertical — same shape, different scope. Cross-vertical reads pass an extra gate (`tests/test_cross_vertical_e2e.py`) that defends the default-private boundary.
 
 ---
 
@@ -89,7 +89,7 @@ Preferred formats:
 
 Same input should produce the same class of output.
 
-**How enforced:** every public class returned from a CLI or `/api` route is a Pydantic `BaseModel` or a `frozen=True` dataclass. `tests/test_engineering_principles.py::test_law_5_deterministic_outputs` walks the public surface (`agent/founder_loop/__init__.__all__`) and asserts every exported class is one of those two. Stable on-disk locations live in a single registered set in the same test.
+**How enforced:** every public class returned from a CLI or `/api` route is a Pydantic `BaseModel` or a `frozen=True` dataclass. `tests/test_engineering_principles.py::test_law_5_deterministic_outputs` walks the public surfaces of all four verticals (`agent/founder_loop/__init__.__all__`, `agent/research/__init__.__all__`, `agent/investment/__init__.__all__`, `agent/startup/__init__.__all__`) plus the substrate (`agent/domain_app/__init__.__all__`) and asserts every exported class is one of those two. Stable on-disk locations live in a single registered set in the same test.
 
 ---
 
@@ -118,7 +118,7 @@ Only the human review gate can approve truth mutation.
 
 No autonomous update to source-of-truth primitives without review.
 
-**How enforced:** at runtime, the `AUTO_APPLY_DEFAULT = {"continue"}` allowlist refuses any other op without explicit user graduation; the `mutable_paths` allowlist refuses writes outside the per-domain whitelist (`tests/test_self_modification.py::test_patch_op_refuses_paths_outside_allowlist`). `tests/test_engineering_principles.py::test_law_7_human_in_loop` asserts the founder_loop `Domain` ships with `mutable_paths=[]` (read-only L2) and that `AUTO_APPLY_GRADUATABLE` requires per-user opt-in.
+**How enforced:** at runtime, the `AUTO_APPLY_DEFAULT = {"continue"}` allowlist refuses any other op without explicit user graduation; the `mutable_paths` allowlist refuses writes outside the per-domain whitelist (`tests/test_self_modification.py::test_patch_op_refuses_paths_outside_allowlist`). `tests/test_engineering_principles.py::test_law_7_human_in_loop` asserts that all four vertical `Domain`s (founder_loop / research / investment / startup) ship with `mutable_paths=[]` (read-only L2) and that `AUTO_APPLY_GRADUATABLE` requires per-user opt-in. Promotion is per-vertical and gated; the founder_loop `/catalog-review` chat surface is the template.
 
 ---
 

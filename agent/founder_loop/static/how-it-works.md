@@ -5,7 +5,30 @@ who want to know what's inside, or who might contribute. Some of it
 will sound technical near the end, but the first half should be fine
 for anyone curious.
 
-The whole thing is five boxes wired in a loop:
+---
+
+## Neuro-OS is one substrate, four instances
+
+Neuro-OS ships **four verticals** — Founder Loop, Research, Investment
+(advisory-only), Startup. They are not four separate codebases. They
+are **one substrate** (in `agent/domain_app/`) and **four small
+adapters** (in `agent/founder_loop/`, `agent/research/`,
+`agent/investment/`, `agent/startup/`) that wire the same five-box
+control loop to each vertical's vocabulary.
+
+The substrate enforces, for every vertical:
+
+- A typed daily **contract** (Pydantic, `frozen=True`).
+- Exactly **6 named failure modes** ("drift modes") per vertical.
+- ≥1 **constructive expression** option per failure mode.
+- A **tank** that scores progress against the contract.
+- A nightly **4-metric summary** + a `extra: dict` for vertical-specific signals.
+
+Each vertical fills in the vocabulary; the loop is identical.
+
+The whole thing is **five boxes** wired in a loop — the same five
+boxes for all four verticals, just with different words on the
+labels:
 
 ```
                               YESTERDAY-YOU
@@ -32,9 +55,14 @@ The whole thing is five boxes wired in a loop:
                                                   (signs a new contract)
 ```
 
-Each box, in plain language, then the names of the actual code files.
+The next section explains each box using **Founder Loop** as the
+worked example (it's the most polished surface today). Then we show
+the **per-vertical vocabulary table** — same five boxes, four
+instances. Then we cover the **cross-vertical privacy boundary**.
 
 ---
+
+## The five boxes — Founder Loop as the worked example
 
 ## Box 1 — **Sensors** *(what the app knows about your day)*
 
@@ -196,6 +224,78 @@ same numbers via `neuro-os loop nightly` in the terminal.
 
 ---
 
+## The same five boxes — four vocabularies
+
+Every vertical instantiates the same five-box loop with its own
+words. The substrate (`agent/domain_app/`) factors out the machinery;
+each adapter fills in the vocabulary.
+
+| Box | Founder Loop | Research | Investment *(advisory-only)* | Startup |
+|---|---|---|---|---|
+| **Contract** | Priorities + entertainment ration | At-most-one-paper + active thesis (40-day) | Position theses + invalidation conditions | Active hypothesis (40-day) + audience-signals goal |
+| **Sensors** | workflowx exports + browser extension urges | Manual paper-extraction events | Manual position-edit events; chart-watching events | Manual audience-signal events; pivot urges |
+| **Brain (drift modes)** | fatigue / novelty / social / frustration / decision-fatigue / embodied | paper-collector / topic-hopper / memorizer / authority-acceptor / overloaded / forgetting | emotional / narrative-following / price-obsessed / overconfident / social-proof / ego-attached | idea-chaos / broadcasting / feature-creep / vision-intoxicated / vanity-metrics / random-execution |
+| **Carrot/Stick** | Sublimation Card; entertainment unlock at 90% | Constructive expression (extract → MechanismCard); continuity score rises | Belief OS bias check; defer 24h; falsification-condition prompt | Park-the-idea; reaffirm active hypothesis; pivot tax |
+| **Memory** | MAE + contract-honor + entertainment minutes + sublimation success | mechanism cards/day + continuity score + prediction-log entries + assumption-map updates | calibration error + thesis survival + bias-detection rate + decision consistency | strategic continuity + trust density + audience signals + conversion quality |
+
+The **substrate** (`agent/domain_app/state.py`,
+`agent/domain_app/protocol.py`, `agent/domain_app/app.py`) defines:
+
+- `ConstructiveExpressionBase` — the frozen Pydantic shape every
+  vertical's options must conform to.
+- `DiagnosisCatalogProtocol` — the contract for "give me the 6 needs
+  and the options for any one of them."
+- `DomainConfig` — the contract for "give me a vertical's name,
+  catalog, and resource label."
+- `DomainApp` — the orchestrator. Three hooks (`morning_ritual`,
+  `tick`, `nightly`) delegate vertical-specific shape to the adapter
+  while keeping `make_diagnosis`, `compute_tank`, and audit-trail
+  logic shared.
+
+Each vertical's adapter provides a `make_<vertical>_app(home=...)`
+factory that returns a `DomainApp` wired with that vertical's
+catalog, ontology, and morning/tick/nightly hooks. Founder Loop's
+adapter (`agent/founder_loop/domain_app_adapter.py`) is the most
+recent and the simplest — it wraps the existing
+`sublimation_catalog.json` to satisfy `DiagnosisCatalogProtocol`
+without invasive refactor; the deeper structural collapse is on the
+roadmap.
+
+---
+
+## Cross-vertical privacy boundary
+
+Each vertical writes to its own home dir
+(`~/.founder_loop/`, `~/.neuro_os_research/`,
+`~/.neuro_os_invest/`, `~/.neuro_os_startup/`). **Default is
+private.** A research note is invisible to investment unless the
+user explicitly shares it.
+
+The boundary is enforced in `agent/cross_vertical.py`:
+
+- Every shareable record is a `Shareable[T]` wrapping a payload
+  plus a `share_event: ShareEvent` with `from_vertical`,
+  `to_verticals: list[str]`, `consent_at: datetime`. Frozen.
+- Only records with `to_verticals` containing the reader's vertical
+  are visible to it. The default is `to_verticals=[]` (private).
+- Reads go through `read_shared(reader_vertical, records)` which
+  filters and returns a plain list. There is no other read path; if
+  a vertical wanted to bypass it, it would have to import the
+  payload type directly from another vertical's package, which the
+  test in `tests/test_cross_vertical_e2e.py` flags as a violation.
+- Sharing is a typed action: `share(payload, to_verticals=[...])`
+  produces a new `Shareable`. There is no "broaden later" — extending
+  visibility requires emitting a new share event with provenance.
+
+The CI gate (`tests/test_cross_vertical_e2e.py`) has a
+**privacy-assertion test** that constructs records in each vertical
+and proves the others can't read them by default. If a future change
+relaxes this, the test fails CI.
+
+*Code: `agent/cross_vertical.py`, `tests/test_cross_vertical_e2e.py`*
+
+---
+
 ## How it learns over time
 
 The system has three feedback loops:
@@ -212,13 +312,16 @@ The system has three feedback loops:
 
 The L2 self-modification is the deepest part of the loop and the part
 most under construction. See `docs/AI_NATIVE_ENGINEERING_PRINCIPLES.md`
-for the laws governing it.
+for the laws governing it. v0 ships `mutable_paths=[]` for all
+verticals; promotion is per-vertical and gated.
 
 ---
 
 ## How the UIs fit in
 
-Three UI surfaces, all talking to the same local server:
+Today the **browser/chat surfaces ship for Founder Loop only**. The
+other three verticals are CLI-only in v0 (their browser surfaces are
+roadmapped). All four use the same Python engine.
 
 ```
        Browser extension                  System tray app                  Chat surfaces
@@ -227,6 +330,7 @@ Three UI surfaces, all talking to the same local server:
   │  Popup dashboard     │         │  Always-visible      │         │  /review  (nightly)  │
   │  New tab dashboard   │         │  Quick actions       │         │  /queues  (curate)   │
   │  Sublimation overlay │         │                      │         │                      │
+  │  (Founder Loop only) │         │  (Founder Loop only) │         │  (Founder Loop only) │
   └──────────┬───────────┘         └──────────┬───────────┘         └──────────┬───────────┘
              │                                │                                │
              │  HTTP                          │  HTTP                          │  HTTP
@@ -243,26 +347,39 @@ Three UI surfaces, all talking to the same local server:
                           └─────────────────┬─────────────────────┘
                                             │
                                             ▼
-                                ┌─────────────────────────┐
-                                │     The five boxes      │
-                                │  (Python; one process)  │
-                                └─────────────────────────┘
+                                ┌───────────────────────────────────┐
+                                │     Python engine (one process)   │
+                                │  ┌────────────────────────────┐   │
+                                │  │  agent/domain_app/         │   │  ← substrate
+                                │  └─────────────┬──────────────┘   │
+                                │                │ DomainConfig     │
+                                │   ┌────────────┴────────────┐     │
+                                │   ▼      ▼       ▼          ▼     │
+                                │ founder research invest  startup  │  ← 4 adapters
+                                └───────────────────────────────────┘
+
+       neuro-os {research,invest,startup} {onboard,tick,nightly}    (CLI for the other 3)
 ```
 
-The daemon is one Python process. The UIs are dumb clients; everything
-load-bearing is in the engine. This means:
+The daemon is one Python process. The browser/tray/chat UIs are dumb
+clients that talk HTTP to it. The CLI verticals invoke the engine
+directly without going through the daemon. This means:
 
 - You can build a phone app, a Discord bot, an Apple Watch
   complication — they all just talk HTTP to the same daemon.
 - If you replace the daemon with a hosted service (you wouldn't —
   privacy), the UIs don't change.
 - If you replace the UIs with a single CLI, the engine doesn't change.
+- A research/invest/startup chat UI can be built later without
+  touching the substrate, because the substrate already exposes
+  the same `morning_ritual` / `tick` / `nightly` shape Founder Loop's
+  surfaces consume.
 
 ---
 
 ## What's special about this design
 
-Three things, none of which are revolutionary alone, but the
+Four things, none of which are revolutionary alone, but the
 combination is the actual product:
 
 1. **The control loop is closed against a contract you signed.** Most
@@ -272,17 +389,29 @@ combination is the actual product:
    Most habit apps treat distraction as the problem to suppress; this
    one treats distraction as a misaimed legitimate desire and tries to
    route the desire to a constructive expression.
-3. **The whole thing runs on your laptop and is auditable.** Every
+3. **One substrate, four vocabularies.** The same closed loop is
+   applied to four different lives (working / reading / investing /
+   building) without a per-vertical fork. New verticals are an
+   adapter, not a codebase.
+4. **The whole thing runs on your laptop and is auditable.** Every
    decision, every override, every diagnosis is one line in a JSONL
    file you own. You can read it. You can delete it. No vendor sees
-   it.
+   it. Cross-vertical reads default-private and require explicit
+   opt-in per record.
 
 ---
 
 ## What's still being built
 
 See [the roadmap](./roadmap.md) for the honest list of what works
-today vs. what's coming.
+today vs. what's coming. Highlights:
+
+- **Founder Loop:** browser/tray/chat surfaces shipped; refining.
+- **Research / Investment / Startup:** CLI surface shipped; chat
+  surfaces roadmapped; structural founder_loop refactor onto the
+  substrate (replacing the adapter with subclassing) roadmapped.
+- **40-day live trial across all four verticals** — the eval gate
+  for "the substrate is real, not a coincidence."
 
 Anything missing here? Open an issue. The five-box diagram is the
 mental model we want to keep clean even as features grow underneath

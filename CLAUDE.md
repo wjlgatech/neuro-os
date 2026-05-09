@@ -50,13 +50,23 @@ The pre-commit hook (`.pre-commit-config.yaml`) checks for these section headers
 
 ## Where to put new code
 
+Neuro-OS is **one substrate** (`agent/domain_app/`) with **four
+verticals** layered on top: `agent/founder_loop/`, `agent/research/`,
+`agent/investment/`, `agent/startup/`. New work generally goes in one
+of those four packages or — more rarely — in the substrate itself.
+Cross-vertical reads go through `agent/cross_vertical.py`.
+
 | If you are adding... | Put it under | Pydantic-validate? | Test? |
 |---|---|---|---|
-| A new schema or vocabulary | `agent/founder_loop/state.py` (or a new module if cross-cutting) | YES — frozen if returned to user | unit test pinning the shape |
-| A new ControlOp | `agent/founder_loop/state.ControlOp` enum + `policy.py` decision tree + `policy._inverse` mapping | n/a | golden-case test in `tests/test_founder_loop_policy.py` AND inverse test |
-| A new sensor / sensor input | `agent/founder_loop/observe.py` or a new module mirroring `urge_log.py` | YES | unit test for parsing + an e2e scenario in `tests/e2e/scenarios.md` |
-| A new CLI subcommand | `agent/cli.py` | n/a | smoke-test in `tests/e2e/test_http_scenarios.py` if it touches the daemon |
-| A new chat surface | `agent/founder_loop/conversation.py` (`kind="..."`) + a route in `server.py` | n/a | a Playwright test in `tests/e2e/test_browser_scenarios.py` |
+| A new substrate primitive (used by all 4 verticals) | `agent/domain_app/state.py`, `protocol.py`, or `app.py` | YES — frozen if returned to user | unit test pinning the shape; substrate adapter test in `tests/test_*_substrate_adapter.py` (founder_loop case is the template) |
+| A new schema or vocabulary inside one vertical | `agent/{founder_loop,research,investment,startup}/state.py` (or a new module if cross-cutting) | YES — frozen if returned to user | unit test pinning the shape |
+| A new failure-mode (drift mode) for a vertical | the vertical's `catalog.py` (must keep `len(underlying_needs) == 6`); ensure ≥1 `ConstructiveExpressionBase` option per need (Law 3) | YES | substrate adapter test asserts the 6-mode invariant |
+| A new ControlOp (founder_loop) | `agent/founder_loop/state.ControlOp` enum + `policy.py` decision tree + `policy._inverse` mapping | n/a | golden-case test in `tests/test_founder_loop_policy.py` AND inverse test |
+| A new sensor / sensor input (founder_loop) | `agent/founder_loop/observe.py` or a new module mirroring `urge_log.py` | YES | unit test for parsing + an e2e scenario in `tests/e2e/scenarios.md` |
+| A new sensor for research/invest/startup | the vertical's `ontology.py` or a new sibling module | YES | unit test pinning the shape |
+| A new CLI subcommand | `agent/cli.py`. Founder-loop subcommands live under `loop`; the other three use top-level `research`/`invest`/`startup` namespaces wired by `_add_vertical_subcommands()` | n/a | `tests/test_verticals_cli.py` for top-level subcommands; `tests/e2e/test_http_scenarios.py` if it touches the daemon |
+| A new cross-vertical share/read | `agent/cross_vertical.py` (every shareable record is `Shareable[T]` wrapping a `ShareEvent`; default visibility is private) | YES — frozen `ShareEvent` | privacy-assertion test in `tests/test_cross_vertical_e2e.py`; the existing test is the CI gate that defends the boundary |
+| A new chat surface | `agent/founder_loop/conversation.py` (`kind="..."`) + a route in `server.py` (founder_loop only today; research/invest/startup chat surfaces are roadmapped) | n/a | a Playwright test in `tests/e2e/test_browser_scenarios.py` |
 | A new doc | `docs/<name>.md`. Mirror to `agent/founder_loop/static/<name>.md` if served by daemon | n/a | link-check (manual) |
 | A new patch op (L2 self-modification) | `agent/patches.py` `ALLOWED_OPS` + handler + paired inverse | n/a | `tests/test_self_modification.py` allowlist refusal test |
 
@@ -64,8 +74,10 @@ The pre-commit hook (`.pre-commit-config.yaml`) checks for these section headers
 
 - Do not introduce free-text inputs that flow into the loop without Pydantic validation (Law 1).
 - Do not add a `ControlOp` without an entry in `policy._inverse()` (Law 6 enforces this).
-- Do not flip `mutable_paths=[]` to non-empty for a new domain without a `/catalog-review`-equivalent human gate (Law 7).
+- Do not flip `mutable_paths=[]` to non-empty for any vertical without a `/catalog-review`-equivalent human gate (Law 7). All four verticals ship with `mutable_paths=[]` today; promotion is per-vertical and gated.
 - Do not write a function that returns `dict` to the user — use a Pydantic model or a frozen dataclass (Law 5).
+- Do not let one vertical read another's data without going through `agent/cross_vertical.read_shared(...)` — the privacy-assertion test in `tests/test_cross_vertical_e2e.py` will fire. Default cross-vertical visibility is private.
+- Do not let any vertical's catalog drift from "exactly 6 named failure modes, ≥1 option per failure mode." This is the substrate's invariant; the substrate-adapter tests defend it.
 - Do not commit without the three-section message format (Law 9; pre-commit hook will block you).
 
 ## How to add a new law

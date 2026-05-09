@@ -3,6 +3,16 @@
 User-journey tests for the founder_loop daemon, browser extension, and
 chat surfaces. Three harnesses, one scenario catalog.
 
+> **Scope today:** the existing 20 scenarios (`S01`–`S20`, `J1`–`J3`)
+> exercise the **Founder Loop** vertical because that's where the
+> browser/tray/chat surfaces live. Research / Investment / Startup
+> ship as CLI flows; their e2e coverage is roadmapped — the plan is
+> a parallel `tests/e2e/test_research_e2e.py` /
+> `test_invest_e2e.py` / `test_startup_e2e.py` that drives the
+> top-level `neuro-os {research,invest,startup} {onboard,tick,nightly}`
+> CLI subcommands as subprocess calls. See
+> [`docs/roadmap.md`](../../docs/roadmap.md) NEXT.
+
 ## What's in here
 
 ```

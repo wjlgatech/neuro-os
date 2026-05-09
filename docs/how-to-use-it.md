@@ -1,11 +1,29 @@
 # How to use it
 
-This doc covers the five moments you'll have with the app. For each
-one: what you do, what happens, and what it looks like.
+Neuro-OS ships **four verticals** — Founder Loop, Research, Investment
+(advisory-only), Startup. They share one substrate (typed daily
+contract, tank that scores progress, drift card at the moment of
+temptation, nightly summary) but use different vocabulary for
+different lives. See [what is this](./what-is-this.md) if you haven't
+yet.
 
-Honest note: the app is alpha. All five moments are polished — what's
-still rough is **distribution** (today you install via `pip`, not a
-one-click `.dmg`). The roadmap (`./roadmap.md`) tracks distribution.
+You don't have to pick one — they coexist on your machine in their own
+private stores. But it helps to start with one and add others later.
+
+| If your day looks like… | Start with | Surface |
+|---|---|---|
+| Coding/shipping; your problem is YouTube/Twitter/distraction | **Founder Loop** | Browser + chat + system menu bar |
+| Reading papers; your problem is bookmarking 30, reading 2 | **Research** | CLI today; chat surface roadmapped |
+| Holding positions; your problem is FOMO/narrative-following | **Investment** *(advisory-only)* | CLI today |
+| Building a company; your problem is pivoting every Thursday | **Startup** | CLI today |
+
+The rest of this doc walks **Founder Loop's 5 moments** (browser-first,
+the most polished surface) then **the CLI tour for the other three**.
+
+Honest note: the system is alpha. Founder Loop is the most polished
+surface; the other three ship today as CLI flows that exercise the
+same substrate. Browser/chat surfaces for them are roadmapped — see
+[`./roadmap.md`](./roadmap.md).
 
 ---
 
@@ -20,9 +38,12 @@ neuro-os start
 ```
 
 The `start` command does four things in the background:
-- Creates a folder at `~/.founder_loop/` for your private data.
-- Boots a small server on `127.0.0.1:8765` (only your machine can
-  reach it; nothing leaves your computer).
+- Creates the per-vertical home dirs as you opt in
+  (`~/.founder_loop/`, `~/.neuro_os_research/`, etc.). Founder Loop
+  is created on first start; the other verticals create theirs on
+  their first `onboard` run.
+- Boots a small server on `127.0.0.1:8765` for Founder Loop (only
+  your machine can reach it; nothing leaves your computer).
 - **Auto-detects your workflowx export** if it exists (macOS
   Application Support, Linux `~/.config`, etc.) — see
   [Box 1 in how-it-works](./how-it-works.md) for the full precedence.
@@ -30,7 +51,8 @@ The `start` command does four things in the background:
 - Opens [`http://127.0.0.1:8765/onboard`](http://127.0.0.1:8765/onboard)
   in your default browser.
 
-From here on, you mostly won't touch the terminal.
+From here on, for Founder Loop you mostly won't touch the terminal.
+The other three verticals are CLI-only in v0.
 
 > **Want it to start when you log in?** Run
 > `neuro-os autostart install` once. That writes a launchd plist
@@ -42,6 +64,11 @@ From here on, you mostly won't touch the terminal.
 > roadmap if even `pip install` feels like too much.
 
 ---
+
+# Founder Loop — the 5 moments
+
+The browser-first product. Five moments cover everything the user
+does day-to-day.
 
 ## Moment 1 — Start your day
 
@@ -248,14 +275,190 @@ you can see what changed.
 
 ---
 
+# The other three — CLI tour
+
+Research, Investment, and Startup ship today as CLI flows. They use
+the same three-step daily shape — **onboard** (sign the day's
+contract), **tick** (run a single observation/diagnosis cycle, often
+triggered by a drift), **nightly** (4-metric rollup). The data lives
+under `~/.neuro_os_<vertical>/` and never leaves your machine.
+
+By default each vertical's data is **private to that vertical** — your
+investment positions don't show up in research; your research
+mechanism cards don't reach investment unless you explicitly opt in
+per note. See [how it works](./how-it-works.md) for the privacy model.
+
+## Research — for a researcher building a world model
+
+**Onboard** (every morning, ~2 min). Write today's priorities into a
+JSON file:
+
+```json
+[
+  {
+    "title": "extract one mechanism card from Karpathy attention lecture",
+    "evidence_type": "mechanism_card_filed",
+    "evidence_target": "thesis-001",
+    "weight": 3
+  }
+]
+```
+
+Then sign:
+
+```bash
+neuro-os research onboard \
+    --priorities-file priorities.json \
+    --active-thesis-id thesis-001 \
+    --budget 1 \
+    --threshold 90
+```
+
+`--budget 1` is the day's primary resource: at most ONE paper today.
+This is the heart of research's anti-firehose policy.
+
+**Tick** (when drift fires — you catch yourself bookmarking instead
+of extracting):
+
+```bash
+neuro-os research tick --drift paper_collector
+```
+
+Substrate names the drift (one of: `paper_collector`, `topic_hopper`,
+`memorizer`, `authority_acceptor`, `overloaded`, `forgetting`),
+proposes a constructive expression (e.g. *"extract one MechanismCard
+now (20 min)"*), and credits the tank when you do it.
+
+**Nightly** (~30 sec rollup):
+
+```bash
+neuro-os research nightly
+```
+
+Prints the 4-metric summary as JSON:
+- mechanism cards filed today
+- continuity score (how many of the last 40 days have stayed on
+  the active thesis)
+- prediction-log entries
+- assumption-map updates
+
+## Investment — for the epistemically calibrated investor
+
+⚠️ **Advisory-only.** No broker integration. No trade execution. The
+app logs theses, scores them, surfaces bias warnings. *You read; you
+decide.*
+
+**Onboard** — a position is a Pydantic `InvestmentPriority` with
+ticker, thesis text, supporting evidence, an explicit invalidation
+condition, an expected timeline, and a confidence level:
+
+```json
+[
+  {
+    "title": "AAPL: services revenue compounds at 15%+ through 2027",
+    "ticker": "AAPL",
+    "thesis_text": "Services attach rate keeps rising as devices age in field; revenue pure software-margin.",
+    "invalidation_condition": "services growth drops below 8% for 2 consecutive quarters",
+    "expected_timeline": "12-24 months",
+    "confidence": "medium",
+    "evidence_type": "thesis_documented",
+    "evidence_target": "AAPL",
+    "weight": 2
+  }
+]
+```
+
+```bash
+neuro-os invest onboard \
+    --priorities-file positions.json \
+    --budget 2 \
+    --threshold 90
+```
+
+`--budget 2` caps today at 2 position-edits. Keeps the day from
+becoming a portfolio churn session.
+
+**Tick** (when you catch yourself FOMO-ing or refreshing the chart):
+
+```bash
+neuro-os invest tick --drift emotional
+```
+
+Substrate names the drift (one of: `emotional`, `narrative_following`,
+`price_obsessed`, `overconfident`, `social_proof_following`,
+`ego_attached`), runs a Belief OS bias check on the position thesis,
+and proposes a calibrating action (e.g. *"file the thesis BEFORE
+acting; defer 24h"*).
+
+**Nightly**:
+
+```bash
+neuro-os invest nightly
+```
+
+Prints: calibration error (over time, how well stated confidence
+matches survival rate), thesis-survival rate, bias-detection rate,
+decision consistency.
+
+## Startup — for a founder building a startup
+
+**Onboard** — you commit to ONE load-bearing hypothesis for 40 days.
+Changing the active hypothesis is allowed but **expensive** —
+`thesis_pivots/day` is hard-capped at 1, and the abuse-tax bites at
+3+ kills in 40 days.
+
+```json
+[
+  {
+    "title": "capture 3 audience signals from this week's launch replies",
+    "evidence_type": "audience_signal_logged",
+    "evidence_target": "hyp-001",
+    "weight": 3
+  }
+]
+```
+
+```bash
+neuro-os startup onboard \
+    --priorities-file priorities.json \
+    --active-hypothesis-id hyp-001 \
+    --budget 1 \
+    --threshold 90
+```
+
+**Tick** (when drift fires — a new "what if we…" idea pulls at you):
+
+```bash
+neuro-os startup tick --drift idea_chaos
+```
+
+Substrate names the drift (one of: `idea_chaos`, `broadcasting`,
+`feature_creep`, `vision_intoxicated`, `vanity_metrics`,
+`random_execution`), proposes a constructive expression (e.g.
+*"park the new idea; reaffirm the active hypothesis aloud"*).
+
+**Nightly**:
+
+```bash
+neuro-os startup nightly
+```
+
+Prints: strategic continuity score (`1 - kill_count/40`), trust
+density (fraction of audience members who engaged twice or more),
+audience-signals captured, conversion quality.
+
+---
+
 ## Common questions
 
 **Where is "the app" actually running?**
 On your laptop. The "server" is just a small program that listens on
-your own machine on port 8765. Nothing connects to the internet
-unless you set an Anthropic API key for the natural-language path.
-Even then, only your *messages to the AI* go to Anthropic; your
-contract, your tank, your priorities — those never leave.
+your own machine on port 8765 (Founder Loop browser surface). The
+other three verticals are CLI-only — no server. Nothing connects to
+the internet unless you set an Anthropic API key for the
+natural-language path. Even then, only your *messages to the AI* go
+to Anthropic; your contracts, your tank, your priorities — those
+never leave.
 
 **What if I close the terminal that's running it?**
 Run `neuro-os autostart install` once and the daemon will come up
@@ -265,18 +468,31 @@ Scheduler on Windows). Reverse with `neuro-os autostart uninstall`.
 **Do I have to use Anthropic?**
 No. Without an API key, the morning ritual still works — it just asks
 you one field at a time instead of conversationally. Worse but not
-broken.
+broken. The CLI verticals (research/invest/startup) read priorities
+from JSON files and don't require the API at all.
 
-**Is my data shared?**
-No. Everything lives in `~/.founder_loop/` on your laptop. The
-"server" refuses to bind to anything but your own machine
-(127.0.0.1).
+**Is my data shared between verticals?**
+No, by default. Each vertical has its own private store
+(`~/.founder_loop/`, `~/.neuro_os_research/`,
+`~/.neuro_os_invest/`, `~/.neuro_os_startup/`). Cross-vertical reads
+require explicit per-note opt-in. The privacy boundary is enforced in
+`agent/cross_vertical.py` and tested in CI — see
+[how it works](./how-it-works.md).
+
+**Is my data shared with anyone else?**
+No. Everything lives on your laptop. The "server" refuses to bind to
+anything but your own machine (127.0.0.1).
 
 **I want a phone app.**
 Not yet. Roadmap.
 
+**I want chat surfaces for research / invest / startup, not CLI.**
+Roadmapped. The CLI is the v0 surface; the substrate is shared, so
+the chat surface lifts to all four verticals once Founder Loop's
+chat experience is judged finished.
+
 ---
 
 If you got this far: the next thing to read is
-[how it works](./how-it-works.md) (the five-box architecture, light
-on jargon).
+[how it works](./how-it-works.md) (the substrate + four-vertical
+architecture, light on jargon).
