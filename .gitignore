@@ -10,6 +10,8 @@ __pycache__/
 memory/
 versions/
 *.jsonl
+# Test fixtures are deterministic and version-controlled.
+!tests/fixtures/**/*.jsonl
 
 # C extensions
 *.so
