@@ -1,0 +1,47 @@
+[
+  {
+    "slug": "yang-pricing-power-2024",
+    "title": "Pricing power compounds because customers absorb more cost",
+    "page_kind": "claim",
+    "body_excerpt": "When a company has pricing power, it can raise prices without losing customers. This is because the customer's switching cost exceeds the price increase. The mechanism is simple: pricing power requires a moat that competitors cannot replicate. When the moat erodes, pricing power fails. We predict that companies with pricing power will outperform during inflationary periods because they can pass on costs to customers without margin compression.",
+    "typed_relationships": ["causes:moat-strength", "requires:switching-cost"],
+    "backlinks": 7,
+    "confidence_hint": "high"
+  },
+  {
+    "slug": "garry-tan",
+    "title": "Garry Tan",
+    "page_kind": "person",
+    "body_excerpt": "President and CEO of Y Combinator. Founder of Initialized Capital. Designer at Posterous. This is a person page, not a mechanism claim.",
+    "typed_relationships": ["leads:y-combinator"],
+    "backlinks": 200,
+    "confidence_hint": null
+  },
+  {
+    "slug": "thin-claim-no-substance",
+    "title": "Short claim",
+    "page_kind": "claim",
+    "body_excerpt": "Markets go up.",
+    "typed_relationships": [],
+    "backlinks": 0,
+    "confidence_hint": null
+  },
+  {
+    "slug": "descriptive-not-causal",
+    "title": "A purely descriptive claim with no causal structure",
+    "page_kind": "claim",
+    "body_excerpt": "This is a long description of how things look from the outside. It contains many sentences and many words and discusses several topics in some detail. However, it does not name any mechanism, does not say what is at work behind the observed behavior, and does not propose any falsifiable prediction. It is description, full stop.",
+    "typed_relationships": [],
+    "backlinks": 1,
+    "confidence_hint": null
+  },
+  {
+    "slug": "yang-compounding-2024",
+    "title": "Compounding requires patience and consistency",
+    "page_kind": "claim",
+    "body_excerpt": "Compounding produces large outcomes from small advantages applied consistently over time. The core mechanism: a small daily edge compounds because each period's gain becomes the base for the next period's growth. This breaks when there is volatility large enough to wipe out accumulated gains, or when the underlying advantage decays. Patience is the binding constraint, not intelligence.",
+    "typed_relationships": ["causes:base-effect", "requires:consistency"],
+    "backlinks": 12,
+    "confidence_hint": "medium"
+  }
+]

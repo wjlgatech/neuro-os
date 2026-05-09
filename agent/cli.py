@@ -719,6 +719,10 @@ def _add_vertical_subcommands(
     top = sub.add_parser(vertical_name, help=description)
     top_sub = top.add_subparsers(dest=f"{vertical_name}_command", required=True)
 
+    # research-only: ingestion + review (Lane 1).
+    if vertical_name == "research":
+        _add_research_ingest_subcommands(top_sub)
+
     # onboard
     onb = top_sub.add_parser(
         "onboard",
@@ -764,6 +768,206 @@ def _add_vertical_subcommands(
     )
     ngt.add_argument("--home", default=None)
     ngt.set_defaults(func=_vertical_nightly_handler(vertical_name=vertical_name))
+
+
+# ---------------------------------------------------------------------------
+# Research-vertical ingestion subcommands (Lane 1: gbrain adapter / Plan B).
+#
+# `research ingest --from-gbrain --export-file <path>`
+#     Read a gbrain export JSON, translate gbrain entities to
+#     MechanismCardProposal rows, write to ~/.neuro_os_research/proposals/pending/.
+# `research review --cli`
+#     Minimal REPL: shows next pending proposal, prompts a/r/s, calls
+#     write_mechanism_card on accept (Law 7 — every accept is an explicit user act).
+# ---------------------------------------------------------------------------
+
+
+def _add_research_ingest_subcommands(top_sub: "argparse._SubParsersAction") -> None:
+    """Add `research ingest` + `research review` to the research subtree."""
+
+    # ingest
+    ing = top_sub.add_parser(
+        "ingest",
+        help="ingest a corpus into the proposals queue (Lane 1: gbrain adapter)",
+    )
+    ing.add_argument(
+        "--from-gbrain", action="store_true",
+        help="hard-require gbrain (raises if not installed)",
+    )
+    ing.add_argument(
+        "--export-file", default=None,
+        help="path to a gbrain export JSON file. v0 reads from a file rather "
+             "than calling gbrain MCP live; the MCP wiring is a follow-up. "
+             "Required when --from-gbrain is passed.",
+    )
+    ing.add_argument(
+        "--query", default="mechanism candidates",
+        help="natural-language query recorded in the IngestionRun (audit only "
+             "in v0; gbrain MCP path will use this for live retrieval)",
+    )
+    ing.add_argument(
+        "--limit", type=int, default=25,
+        help="cap on entities pulled from gbrain (default 25)",
+    )
+    ing.add_argument(
+        "--home", default=None,
+        help="vertical home dir (default: ~/.neuro_os_research/)",
+    )
+    ing.set_defaults(func=_research_ingest_handler)
+
+    # review
+    rev = top_sub.add_parser(
+        "review",
+        help="review pending proposals (Lane 1: minimal CLI REPL; chat surface is a follow-up)",
+    )
+    rev.add_argument(
+        "--cli", action="store_true",
+        help="interactive CLI REPL (a/r/s for accept/reject/skip)",
+    )
+    rev.add_argument(
+        "--list", action="store_true",
+        help="just list pending proposals as JSON, no prompts",
+    )
+    rev.add_argument(
+        "--home", default=None,
+        help="vertical home dir (default: ~/.neuro_os_research/)",
+    )
+    rev.set_defaults(func=_research_review_handler)
+
+
+def _research_ingest_handler(args: argparse.Namespace) -> int:
+    from agent.research import GbrainQuerySpec
+    from agent.research.gbrain_adapter import (
+        append_run_log,
+        fetch_from_export_file,
+        ingest as gbrain_ingest,
+    )
+    from agent.research.ingest_router import (
+        IngestRouterError,
+        detect_extraction_method,
+    )
+
+    home = Path(args.home).expanduser() if args.home else None
+
+    try:
+        method = detect_extraction_method(
+            prefer="gbrain" if args.from_gbrain else "auto",
+        )
+    except IngestRouterError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+
+    if method != "gbrain-mcp":
+        # Future: dispatch to Plan A here.
+        print(
+            f"error: extraction method {method!r} not implemented in Lane 1",
+            file=sys.stderr,
+        )
+        return 2
+
+    if not args.export_file:
+        print(
+            "error: --export-file <path> is required in Lane 1 (gbrain MCP "
+            "live wiring is a follow-up PR)",
+            file=sys.stderr,
+        )
+        return 2
+
+    export_path = Path(args.export_file).expanduser()
+    if not export_path.exists():
+        print(f"error: gbrain export file not found: {export_path}", file=sys.stderr)
+        return 2
+
+    spec = GbrainQuerySpec(query=args.query, limit=args.limit)
+    run = gbrain_ingest(
+        spec=spec,
+        call_gbrain=fetch_from_export_file(export_path),
+        home=home,
+    )
+    append_run_log(run, home=home)
+    print(run.model_dump_json(indent=2))
+    return 0
+
+
+def _research_review_handler(args: argparse.Namespace) -> int:
+    from datetime import datetime, timezone
+
+    from agent.research import MechanismCard
+    from agent.research.config import write_mechanism_card
+    from agent.research.proposals import list_proposals, transition_proposal
+
+    home = Path(args.home).expanduser() if args.home else None
+    pending = list_proposals(home=home, status="pending")
+
+    if args.list:
+        print(json.dumps([p.model_dump(mode="json") for p in pending], indent=2, default=str))
+        return 0
+
+    if not pending:
+        print("(no pending proposals)")
+        return 0
+
+    if not args.cli:
+        # Default: print the count and first 3 IDs so the user knows what's there.
+        print(f"{len(pending)} pending proposal(s):")
+        for p in pending[:3]:
+            print(f"  {p.proposal_id}  conf={p.confidence}  source={p.source_id}")
+        if len(pending) > 3:
+            print(f"  ... and {len(pending) - 3} more. Run with --cli to review interactively.")
+        return 0
+
+    # Minimal interactive REPL.
+    for prop in pending:
+        print("\n" + "=" * 72)
+        print(f"id:         {prop.proposal_id}")
+        print(f"confidence: {prop.confidence}")
+        print(f"source:     {prop.source_id}")
+        print(f"title:      {prop.paper_title}")
+        print(f"\nmechanism:    {prop.mechanism}")
+        print(f"invariant:    {prop.invariant}")
+        print(f"prediction:   {prop.prediction}")
+        print(f"failure_mode: {prop.failure_mode}")
+        print(f"\nexcerpt:    {prop.source_excerpt[:300]}{'...' if len(prop.source_excerpt) > 300 else ''}")
+        try:
+            choice = input("\n[a]ccept / [r]eject / [s]kip / [q]uit ? ").strip().lower()
+        except EOFError:
+            print("\n(stdin closed; stopping)")
+            return 0
+        if choice == "q":
+            print("(stopped)")
+            return 0
+        if choice == "s" or choice == "":
+            continue
+        if choice == "r":
+            transition_proposal(
+                prop.proposal_id, home=home,
+                from_status="pending", to_status="rejected",
+            )
+            print(f"  rejected: {prop.proposal_id}")
+            continue
+        if choice == "a":
+            # Build a frozen MechanismCard from the proposal.
+            card = MechanismCard(
+                id=prop.proposal_id,
+                ts=datetime.now(timezone.utc),
+                paper_title=prop.paper_title,
+                paper_source=prop.paper_source,
+                mechanism=prop.mechanism,
+                invariant=prop.invariant,
+                prediction=prop.prediction,
+                failure_mode=prop.failure_mode,
+                thesis_id=prop.thesis_id,
+            )
+            write_mechanism_card(card=card, home=home)
+            transition_proposal(
+                prop.proposal_id, home=home,
+                from_status="pending", to_status="accepted",
+            )
+            print(f"  accepted: {prop.proposal_id}")
+            continue
+        print(f"  (unknown choice {choice!r}; skipping)")
+    print("\n(end of queue)")
+    return 0
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
