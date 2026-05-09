@@ -3,31 +3,32 @@
 User-journey tests for the founder_loop daemon, browser extension, and
 chat surfaces. Three harnesses, one scenario catalog.
 
-> **Scope today:** the existing 20 scenarios (`S01`–`S20`, `J1`–`J3`)
-> exercise the **Founder Loop** vertical because that's where the
-> browser/tray/chat surfaces live. Research / Investment / Startup
-> ship as CLI flows; their e2e coverage is roadmapped — the plan is
-> a parallel `tests/e2e/test_research_e2e.py` /
-> `test_invest_e2e.py` / `test_startup_e2e.py` that drives the
-> top-level `neuro-os {research,invest,startup} {onboard,tick,nightly}`
-> CLI subcommands as subprocess calls. See
-> [`docs/roadmap.md`](../../docs/roadmap.md) NEXT.
+> **Scope today:** scenarios `S01`–`S20` + `J1`–`J3` exercise the
+> **Founder Loop** vertical (the only vertical with a
+> browser/tray/chat surface today). Scenarios `S21`–`S26` cover the
+> three CLI-only verticals end-to-end via subprocess calls against
+> `neuro-os {research,invest,startup} {onboard,tick,nightly}`.
+> Browser/chat surfaces for those three verticals are roadmapped — see
+> [`docs/roadmap.md`](../../docs/roadmap.md).
 
 ## What's in here
 
 ```
 tests/e2e/
-├── scenarios.md              # the catalog: 12 deterministic + 3 judgment
+├── scenarios.md              # the catalog: 26 deterministic + 3 judgment
 ├── conftest.py               # shared `daemon` + `http` fixtures
-├── test_http_scenarios.py    # 10 HTTP-only scenarios (no browser)
-├── test_browser_scenarios.py # 10 Playwright + Chrome extension scenarios
+├── test_http_scenarios.py    # founder_loop: HTTP scenarios (no browser)
+├── test_browser_scenarios.py # founder_loop: Playwright + Chrome extension
+├── test_research_e2e.py      # research: CLI subprocess scenarios (S21, S22)
+├── test_invest_e2e.py        # invest:   CLI subprocess scenarios (S23, S24)
+├── test_startup_e2e.py       # startup:  CLI subprocess scenarios (S25, S26)
 ├── computer_use_runner.py    # 3 Claude Computer Use judgment scenarios
 └── reports/                  # Computer Use review markdown lands here
 ```
 
-Each scenario has a stable id (`S01`, `S02`, … `S20`, `J1`, `J2`,
-`J3`) that's the same across all three harnesses, so a failure shows
-up in one place and is easy to cross-reference with the catalog.
+Each scenario has a stable id (`S01`, …, `S26`, `J1`, `J2`, `J3`)
+that's the same across harnesses, so a failure shows up in one place
+and is easy to cross-reference with the catalog.
 
 ## Running each layer
 
@@ -63,7 +64,22 @@ If Playwright or chromium isn't installed, the tests skip cleanly
 
 **Coverage:** S04, S05, S06, S07, S08, S09, S10, S13, S16, S20.
 
-### 3. Judgment scenarios (Computer Use)
+### 3. CLI-vertical scenarios (research / invest / startup)
+
+No daemon, no browser. Pure subprocess calls against
+`neuro-os {research,invest,startup} {onboard,tick,nightly}`. Each
+test chains `onboard → tick → tick → nightly` so cross-command
+coherence (state persists through the registry under `--home`) is
+exercised, not just per-command parsing.
+
+```bash
+pytest tests/e2e/test_research_e2e.py tests/e2e/test_invest_e2e.py \
+       tests/e2e/test_startup_e2e.py -v
+```
+
+**Coverage:** S21, S22 (research); S23, S24 (invest); S25, S26 (startup).
+
+### 4. Judgment scenarios (Computer Use)
 
 A Claude agent role-plays a founder, drives the system end-to-end on
 a real desktop, and returns a structured review. Three scenarios:

@@ -304,6 +304,96 @@ The AI then walks reflection → tomorrow's contract → "Sign."
 
 ---
 
+## CLI verticals (research / invest / startup)
+
+S01–S20 cover the **founder_loop** vertical (the only vertical with a
+browser/tray/chat surface today). S21–S26 cover the three CLI-only
+verticals end-to-end via subprocess calls against
+`neuro-os {research,invest,startup} {onboard,tick,nightly}`. Each
+chains `onboard → tick → tick → nightly` so cross-command coherence
+(state persists through the registry under `--home`) is exercised,
+not just per-command parsing.
+
+### S21 — Researcher's full day: onboard → drift tick → continue tick → nightly
+**Persona:** Researcher on day 1 of a 40-day thesis on predictive coding.
+**Setup:** Empty `--home` directory; `priorities.json` listing one Friston-2010 extraction priority tied to `thesis-001`.
+**Steps:**
+1. `neuro-os research onboard --priorities-file priorities.json --active-thesis-id thesis-001 --home <tmp>`
+2. At noon: `neuro-os research tick --drift paper_collector --home <tmp>` (writes a row).
+3. At 4pm: `neuro-os research tick --home <tmp>` (no drift; writes a continue row).
+4. At EOD: `neuro-os research nightly --home <tmp>`.
+
+**Expected outcome:**
+* `contracts.jsonl` has the signed contract; `active_thesis_id="thesis-001"`.
+* `registry.jsonl` has 2 rows: one `propose_constructive_expression`, one `continue`.
+* Nightly summary: `vertical=research`, `primary_metric_label="mechanism cards/day"`, `honor_rate_today=1.0`, `primary_success_rate_today=1.0`, `extra` carries `thesis_continuity_check`.
+
+**How it's tested:** HTTP-style (subprocess CLI) — `tests/e2e/test_research_e2e.py::test_s21_research_full_day_flow`.
+
+### S22 — `tick` does not require `--active-thesis-id` after onboard
+**Persona:** Same researcher mid-afternoon.
+**Setup:** Contract from S21 is signed; the tick that follows must not require the user to re-name the thesis.
+**Steps:**
+1. `neuro-os research tick --drift topic_hopper --home <same tmp> --dry-run` (no `--active-thesis-id`).
+
+**Expected outcome:** Tick succeeds (rc=0); diagnosis names `topic_hopper`. If a future change accidentally requires the thesis id on every tick, this test fails.
+
+**How it's tested:** HTTP-style — `tests/e2e/test_research_e2e.py::test_s22_research_tick_does_not_require_thesis_id_after_onboard`.
+
+### S23 — Investor's full day: advisory-only flag survives end-to-end
+**Persona:** Investor with one position thesis (AAPL services revenue).
+**Setup:** Empty `--home`; `priorities.json` with the AAPL thesis.
+**Steps:**
+1. `neuro-os invest onboard --priorities-file priorities.json --home <tmp>`
+2. Mid-day: `neuro-os invest tick --drift narrative_following --home <tmp>` (writes a row).
+3. Afternoon: `neuro-os invest tick --drift price_obsessed --home <tmp>` (writes a row).
+4. EOD: `neuro-os invest nightly --home <tmp>`.
+
+**Expected outcome:**
+* Contract has `advisory_only=True`.
+* Every action's `payload.advisory_only` is `True`.
+* `registry.jsonl` has 2 rows; both carry `advisory_only=True`.
+* Nightly summary: `vertical=investment`, `primary_metric_label="calibration error"`, `primary_resource_used_today=2.0`, `extra.advisory_only=True`.
+
+**How it's tested:** HTTP-style — `tests/e2e/test_invest_e2e.py::test_s23_invest_full_day_flow`.
+
+### S24 — Advisory-only invariant fires for all 6 invest drift modes
+**Persona:** Adversary trying to slip a non-advisory action past the substrate.
+**Setup:** Empty `--home`; parametrized over `{emotional, narrative_following, price_obsessed, overconfident, social_proof_following, ego_attached}`.
+**Steps:** For each drift mode, run `neuro-os invest tick --drift <mode> --home <tmp> --dry-run`.
+
+**Expected outcome:** Every resulting action has `payload.advisory_only=True`. If a future change ever drops the flag for one drift branch, the parametrized case for that mode fails CI.
+
+**How it's tested:** HTTP-style — `tests/e2e/test_invest_e2e.py::test_s24_advisory_only_flag_present_for_every_drift_mode[<mode>]`.
+
+### S25 — Founder's full day: onboard → idea-chaos → broadcasting → continue → nightly
+**Persona:** Startup founder day 1 on `hyp-001`.
+**Setup:** Empty `--home`; `priorities.json` with one audience-signal goal tied to `hyp-001`.
+**Steps:**
+1. `neuro-os startup onboard --priorities-file priorities.json --active-hypothesis-id hyp-001 --budget 1 --home <tmp>`
+2. 11am: `neuro-os startup tick --drift idea_chaos --home <tmp>` (writes a row).
+3. 3pm: `neuro-os startup tick --drift broadcasting --home <tmp>` (writes a row).
+4. 5pm: `neuro-os startup tick --home <tmp>` (continue; writes a row).
+5. EOD: `neuro-os startup nightly --home <tmp>`.
+
+**Expected outcome:**
+* `registry.jsonl` has 3 rows.
+* Day-1 baseline: `primary_metric_today` (continuity score) = 1.0 (no kills); `primary_resource_used_today` (thesis pivots) = 0.0; `honor_rate_today` = 1.0.
+
+**How it's tested:** HTTP-style — `tests/e2e/test_startup_e2e.py::test_s25_startup_full_day_flow`.
+
+### S26 — Pivot cap blocks onboard before any state is written
+**Persona:** Founder trying to game the abuse-tax with `--budget 5`.
+**Setup:** Empty `--home`; valid `priorities.json`.
+**Steps:**
+1. `neuro-os startup onboard --priorities-file priorities.json --active-hypothesis-id hyp-001 --budget 5 --home <tmp>`.
+
+**Expected outcome:** `rc != 0`; `contracts.jsonl` is either absent or empty. The hard cap on `thesis_pivots/day=1` is enforced at construction time, not after a partial write. If a future change moves the cap-check after the write, the assertion that `contracts.jsonl` has zero rows fires.
+
+**How it's tested:** HTTP-style — `tests/e2e/test_startup_e2e.py::test_s26_startup_pivot_cap_blocks_onboard_before_state_write`.
+
+---
+
 ## Judgment scenarios (Computer Use only)
 
 These three need a probabilistic judge — Playwright can verify "the
