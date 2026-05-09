@@ -834,6 +834,25 @@ def _add_research_ingest_subcommands(top_sub: "argparse._SubParsersAction") -> N
     )
     rev.set_defaults(func=_research_review_handler)
 
+    # dashboard (Lane 5)
+    dash = top_sub.add_parser(
+        "dashboard",
+        help="rollup of the last N days (compound curve + drift modes + queue health)",
+    )
+    dash.add_argument(
+        "--window", type=int, default=40,
+        help="window in days (default 40)",
+    )
+    dash.add_argument(
+        "--json", action="store_true",
+        help="emit DashboardSummary as JSON (machine-readable)",
+    )
+    dash.add_argument(
+        "--home", default=None,
+        help="vertical home dir (default: ~/.neuro_os_research/)",
+    )
+    dash.set_defaults(func=_research_dashboard_handler)
+
 
 def _research_ingest_handler(args: argparse.Namespace) -> int:
     from agent.research import GbrainQuerySpec
@@ -967,6 +986,25 @@ def _research_review_handler(args: argparse.Namespace) -> int:
             continue
         print(f"  (unknown choice {choice!r}; skipping)")
     print("\n(end of queue)")
+    return 0
+
+
+def _research_dashboard_handler(args: argparse.Namespace) -> int:
+    from agent.research.dashboard import build_dashboard_summary, render_text
+
+    if args.window < 1 or args.window > 365:
+        print(
+            f"error: --window must be between 1 and 365 (got {args.window})",
+            file=sys.stderr,
+        )
+        return 2
+
+    home = Path(args.home).expanduser() if args.home else None
+    summary = build_dashboard_summary(home=home, window_days=args.window)
+    if args.json:
+        print(summary.model_dump_json(indent=2))
+    else:
+        print(render_text(summary))
     return 0
 
 
