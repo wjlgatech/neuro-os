@@ -42,16 +42,19 @@ def test_gbrain_not_installed_error_inherits_router_base():
 
 
 # ---------------------------------------------------------------------------
-# prefer="local" (Plan A; not implemented in Lane 1)
+# prefer="local" (Plan A — now shipped per PR-1)
 # ---------------------------------------------------------------------------
 
 
-def test_prefer_local_raises_plan_a_not_implemented():
-    with pytest.raises(PlanANotImplementedError):
-        detect_extraction_method(prefer="local")
+def test_prefer_local_returns_llm_anthropic():
+    """Plan A is shipped; prefer='local' returns 'llm-anthropic' regardless
+    of gbrain presence. (PR-1 — Paul's week of May 11.)"""
+    assert detect_extraction_method(prefer="local") == "llm-anthropic"
 
 
 def test_plan_a_not_implemented_inherits_router_base():
+    """The error class is kept as part of the public surface for any
+    external callers that imported it; it just isn't raised anymore."""
     assert issubclass(PlanANotImplementedError, IngestRouterError)
 
 
@@ -65,13 +68,15 @@ def test_auto_returns_gbrain_when_present(monkeypatch):
     assert detect_extraction_method(prefer="auto") == "gbrain-mcp"
 
 
-def test_auto_raises_when_neither_extractor_available(monkeypatch):
+def test_auto_falls_back_to_llm_anthropic_when_gbrain_absent(monkeypatch):
+    """PR-1: auto-detect now ALWAYS produces a usable extractor —
+    Plan A is the universal fallback when gbrain is absent."""
     monkeypatch.setattr(router_mod, "gbrain_available", lambda: False)
-    with pytest.raises(NoExtractorAvailableError):
-        detect_extraction_method(prefer="auto")
+    assert detect_extraction_method(prefer="auto") == "llm-anthropic"
 
 
 def test_no_extractor_available_inherits_router_base():
+    """Class kept for back-compat (no longer raised; superseded by Plan A)."""
     assert issubclass(NoExtractorAvailableError, IngestRouterError)
 
 
@@ -93,11 +98,12 @@ def test_error_messages_point_to_install_command(monkeypatch):
     assert "bun install" in str(exc.value)
 
 
-def test_auto_error_mentions_both_paths(monkeypatch):
+def test_gbrain_error_message_points_at_local_fallback(monkeypatch):
+    """When gbrain is hard-required but absent, the error message
+    points users at `--prefer local` as the alternative."""
     monkeypatch.setattr(router_mod, "gbrain_available", lambda: False)
-    with pytest.raises(NoExtractorAvailableError) as exc:
-        detect_extraction_method(prefer="auto")
+    with pytest.raises(GbrainNotInstalledError) as exc:
+        detect_extraction_method(prefer="gbrain")
     msg = str(exc.value)
-    # User should know both paths and how to remedy.
-    assert "gbrain" in msg
-    assert "Plan A" in msg
+    assert "--prefer local" in msg
+    assert "bun install" in msg

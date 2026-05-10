@@ -790,26 +790,45 @@ def _add_research_ingest_subcommands(top_sub: "argparse._SubParsersAction") -> N
     # ingest
     ing = top_sub.add_parser(
         "ingest",
-        help="ingest a corpus into the proposals queue (Lane 1: gbrain adapter)",
+        help="ingest a corpus into the proposals queue (gbrain adapter OR native LLM extractor)",
     )
     ing.add_argument(
+        "--prefer", default="auto", choices=["auto", "gbrain", "local"],
+        help=(
+            "extractor preference. 'auto' (default) prefers gbrain when "
+            "installed, falls back to native LLM. 'gbrain' hard-requires "
+            "gbrain (raises if absent). 'local' forces the native LLM "
+            "extractor (Plan A) on .txt/.md/.pdf source files."
+        ),
+    )
+    # gbrain-only flags:
+    ing.add_argument(
         "--from-gbrain", action="store_true",
-        help="hard-require gbrain (raises if not installed)",
+        help="alias for --prefer gbrain (kept for backwards compat)",
     )
     ing.add_argument(
         "--export-file", default=None,
-        help="path to a gbrain export JSON file. v0 reads from a file rather "
-             "than calling gbrain MCP live; the MCP wiring is a follow-up. "
-             "Required when --from-gbrain is passed.",
+        help="(gbrain only) path to a gbrain export JSON file. Required "
+             "when the chosen extractor is gbrain-mcp.",
     )
     ing.add_argument(
         "--query", default="mechanism candidates",
-        help="natural-language query recorded in the IngestionRun (audit only "
-             "in v0; gbrain MCP path will use this for live retrieval)",
+        help="(gbrain only) natural-language query recorded in IngestionRun.",
     )
     ing.add_argument(
         "--limit", type=int, default=25,
-        help="cap on entities pulled from gbrain (default 25)",
+        help="(gbrain only) cap on entities pulled from gbrain (default 25)",
+    )
+    # Plan A (local) flags:
+    ing.add_argument(
+        "--source-dir", default=None,
+        help="(local extractor) directory of .txt/.md/.pdf source files. "
+             "Required when the chosen extractor is llm-anthropic.",
+    )
+    ing.add_argument(
+        "--no-llm", action="store_true",
+        help="(local extractor) skip LLM calls; use the regex heuristic. "
+             "Fast + free + offline; produces low-confidence proposals.",
     )
     ing.add_argument(
         "--home", default=None,
@@ -897,12 +916,6 @@ def _add_research_ingest_subcommands(top_sub: "argparse._SubParsersAction") -> N
 
 
 def _research_ingest_handler(args: argparse.Namespace) -> int:
-    from agent.research import GbrainQuerySpec
-    from agent.research.gbrain_adapter import (
-        append_run_log,
-        fetch_from_export_file,
-        ingest as gbrain_ingest,
-    )
     from agent.research.ingest_router import (
         IngestRouterError,
         detect_extraction_method,
@@ -910,30 +923,39 @@ def _research_ingest_handler(args: argparse.Namespace) -> int:
 
     home = Path(args.home).expanduser() if args.home else None
 
+    # --from-gbrain is an alias for --prefer gbrain (back-compat).
+    prefer = "gbrain" if args.from_gbrain else args.prefer
+
     try:
-        method = detect_extraction_method(
-            prefer="gbrain" if args.from_gbrain else "auto",
-        )
+        method = detect_extraction_method(prefer=prefer)
     except IngestRouterError as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
 
-    if method != "gbrain-mcp":
-        # Future: dispatch to Plan A here.
-        print(
-            f"error: extraction method {method!r} not implemented in Lane 1",
-            file=sys.stderr,
-        )
+    if method == "gbrain-mcp":
+        return _research_ingest_gbrain(args, home)
+    elif method == "llm-anthropic":
+        return _research_ingest_local(args, home)
+    else:
+        print(f"error: unknown extraction method {method!r}", file=sys.stderr)
         return 2
+
+
+def _research_ingest_gbrain(args: argparse.Namespace, home: Optional[Path]) -> int:
+    from agent.research import GbrainQuerySpec
+    from agent.research.gbrain_adapter import (
+        append_run_log,
+        fetch_from_export_file,
+        ingest as gbrain_ingest,
+    )
 
     if not args.export_file:
         print(
-            "error: --export-file <path> is required in Lane 1 (gbrain MCP "
-            "live wiring is a follow-up PR)",
+            "error: --export-file <path> is required when the gbrain "
+            "extractor is chosen (live MCP wiring is a follow-up).",
             file=sys.stderr,
         )
         return 2
-
     export_path = Path(args.export_file).expanduser()
     if not export_path.exists():
         print(f"error: gbrain export file not found: {export_path}", file=sys.stderr)
@@ -948,6 +970,83 @@ def _research_ingest_handler(args: argparse.Namespace) -> int:
     append_run_log(run, home=home)
     print(run.model_dump_json(indent=2))
     return 0
+
+
+def _research_ingest_local(args: argparse.Namespace, home: Optional[Path]) -> int:
+    """Plan A: native LLM extractor on a directory of source files."""
+    from agent.research.gbrain_adapter import append_run_log
+    from agent.research.ingest import ingest as local_ingest
+
+    if not args.source_dir:
+        print(
+            "error: --source-dir <path> is required when the local "
+            "extractor is chosen. Pass a directory of .txt/.md/.pdf files.",
+            file=sys.stderr,
+        )
+        return 2
+    source_dir = Path(args.source_dir).expanduser()
+    if not source_dir.exists():
+        print(f"error: source dir not found: {source_dir}", file=sys.stderr)
+        return 2
+    if not source_dir.is_dir():
+        print(f"error: not a directory: {source_dir}", file=sys.stderr)
+        return 2
+
+    llm_fn = None
+    if not args.no_llm:
+        llm_fn = _make_anthropic_llm_fn()
+
+    run = local_ingest(source_dir=source_dir, llm_fn=llm_fn, home=home)
+    append_run_log(run, home=home)
+    print(run.model_dump_json(indent=2))
+    return 0
+
+
+def _make_anthropic_llm_fn():
+    """Build an LLM callable wired to Anthropic Haiku, OR None if no key.
+
+    Returning None tells ``ingest`` to use the regex heuristic — same
+    contract as ``--no-llm``. Honest fallback so users without API keys
+    still get a working pipeline (with low-confidence proposals).
+    """
+    import os
+
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        return None
+    try:
+        import anthropic  # type: ignore
+    except ImportError:
+        return None
+
+    client = anthropic.Anthropic()
+
+    def llm_fn(system_prompt: str, user_text: str) -> List[dict]:
+        # Single Haiku call per source. Trim user_text upstream of this.
+        resp = client.messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=4000,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_text}],
+        )
+        # Expect a JSON array of objects in the first text block.
+        body = "".join(
+            getattr(b, "text", "") for b in resp.content
+            if getattr(b, "type", None) == "text"
+        )
+        # Crude JSON extraction: find the first '[' through the last ']'.
+        start = body.find("[")
+        end = body.rfind("]")
+        if start == -1 or end == -1 or end <= start:
+            return []
+        try:
+            parsed = json.loads(body[start:end + 1])
+        except json.JSONDecodeError:
+            return []
+        if not isinstance(parsed, list):
+            return []
+        return [r for r in parsed if isinstance(r, dict)]
+
+    return llm_fn
 
 
 def _research_review_handler(args: argparse.Namespace) -> int:

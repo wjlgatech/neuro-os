@@ -35,6 +35,7 @@ classifiers = [
 ]
 dependencies = [
     "flywheel-loop>=0.1.0",
+    "pypdf>=4.0",
 ]
 
 [project.optional-dependencies]
