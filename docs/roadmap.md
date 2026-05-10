@@ -13,14 +13,27 @@ work for you, that's a bug — please file it. If something in
 
 ---
 
-## SHIPPED (v0.5 — four verticals on a shared substrate)
+## SHIPPED (v0.7 — five compounding mechanisms on the four-vertical substrate)
+
+**Latest:** PR-1 + PR-2 of Paul's week-of-May-11 cycle landed (PRs #23, #24). All five compounding lanes from the plan + the two follow-ups Paul's actual week needed are merged. **523 tests pass, 12 skipped** (10 e2e Playwright tests skip when chromium isn't installed; 1 Law 9 enforcer skips when no commits ahead of main; 1 LLM test is permanently skipped).
+
+### Just-shipped: 5-lane compounding cycle + Paul-week unblockers
+
+| Area | PR | Status | What's there |
+|---|---|---|---|
+| **Lane 1 — gbrain adapter (corpus ingestion)** | #18 | Complete | `agent/research/gbrain_adapter.py` + `proposals.py` + `ingest_router.py`. `--from-gbrain --export-file` reads gbrain export JSON → `MechanismCardProposal` queue. Conservative skip policy; 0 LLM calls in v0 adapter; 34 tests. |
+| **Lane 5 — research dashboard** | #19 | Complete | `agent/research/dashboard.py` + `research dashboard [--window N] [--json]` CLI. Pure-aggregation rollup over `registry.jsonl` + `ingestion_runs.jsonl` + `proposals/*` + `mechanism_cards/*`. Compound curve, drift histogram, stick-rate, never-fired-catalog signal, action queue. 22 tests. |
+| **Lane 4 — entity propagation** | #20 | Complete | `Entity` frozen schema in `agent/cross_vertical.py` (default-PRIVATE), `upsert_entity` / `share_entity` / `read_entity` / `list_entities`. `MechanismCardProposal` + `MechanismCard` carry `entity_mentions: List[str]`; `research review --cli` accept-prompt asks for slugs. CLI: `research entity-list / entity-read --reader <vertical>`. 23 tests. |
+| **Lane 3 — cross-modal Belief OS** | #21 | Complete | `agent/cross_modal.py` — `CrossModalEval` frozen schema, `run_cross_modal_check` (K-scorer fan-out), `make_default_scorers` (3 Haiku/Sonnet/Opus pairs), `make_fixture_scorers` for tests. `agent/investment/config.py::run_cross_modal_bias_check` persists `(BiasCheck, CrossModalEval)` pair under same id; low-confidence prefix on disagreement. 19 tests. |
+| **Lane 2 — skillify (catalog evolution)** | #22 | Complete | `agent/skillify/` package: `OverrideEvent` + `SkillProposal` frozen schemas, `extract_pattern` (bucket → threshold-gate → most-frequent user_action with recency tiebreak), `run_extraction` (skips already-proposed buckets). Top-level `skillify` CLI: `log-override / extract / proposals / review --cli`. 32 tests. **Law 7 honored: catalog mutation is a separate human commit; acceptance only moves the file to `accepted/`**. |
+| **PR-1 — Plan A native extractor (Paul's week)** | #23 | Complete | `agent/research/ingest.py` — 4-stage pipeline for `.txt` / `.md` / `.pdf` (via `pypdf`). Anthropic Haiku LLM call OR regex-heuristic fallback. `--prefer {auto,gbrain,local}` flag activates Plan A; works without gbrain. 27 tests. |
+| **PR-2 — Paul-week feature bundle** | #24 | Complete | (a) `loop urge --override-of <mode> --override-vertical <v>` auto-emits skillify OverrideEvent in same CLI call; (b) `cross-vertical share-note / query` CLI subtree; (c) `loop anchor --kind {faith,relational}` typed log + `count_anchors_per_day` for "5/7" rendering; (d) `Priority.time_window` regex-validated `HH:MM-HH:MM`. 25 tests. |
+
+### Earlier: v0.5 substrate (the foundation those built on)
 
 The reward-economy + sublimation engine, three UI surfaces, AND three
 new verticals (research / investment / startup) on the
-`agent/domain_app/` substrate. All verifiable: 308 tests pass, 12
-skipped (10 e2e Playwright tests skip when chromium isn't installed;
-1 Law 9 enforcer skips when no commits ahead of main; 1 LLM test is
-permanently skipped).
+`agent/domain_app/` substrate.
 
 | Area | Status | What's there |
 |---|---|---|
@@ -53,18 +66,16 @@ permanently skipped).
 
 ## NEXT (this week)
 
-The previous "NEXT" list shipped — see SHIPPED above. These are the
-follow-ups that the now-shipped surfaces revealed:
+**This week (May 11-17, 2026)** is Paul's first real-user week with the system: 40-day trial begins; daily reading + investment + company-building blocks tracked end-to-end. **Engineer-time deliverables for this week have shipped (PR-1 + PR-2).** The work that remains is non-engineering: actually running the trial. See [`docs/paul-week-may-11.md`](paul-week-may-11.md) for the daily-block CLI runbook.
 
 | # | Item | Why now | Days |
 |---|---|---|---|
-| 1 | **40-day real-user trial of one vertical** *(Phase D of A-C-B-D plan)* | The 6 named failure modes per vertical were hand-guessed from the PRDs; the constructive expressions are educated guesses. Until a real user (Paul) runs one vertical for 40 days, the catalog can't be refined against evidence. Suggested: research vertical (lowest stakes, shippable today). After 40 days the registry will show which failure modes fired most often, which constructive expressions stuck (no later override), which categories were missing. Then revise the catalog from data, not opinion. | 40 days of YOUR time, no engineer time |
-| 2 | **Research-vertical corpus ingestion sensor + Yang walkthrough** | Today the research vertical has no automated input — users type `MechanismCard`s by hand. A user proposal asked for a 10-layer KB with GraphRAG/TypeDB/RDFLib/AtomSpace; eval found L2–L9 already exists in `MechanismCard` + cross_vertical + Belief OS, and what's missing is L0–L1 (corpus ingestion). This entry ships **one sensor + one chat surface + one walkthrough**: the sensor emits `MechanismCardProposal` rows to `~/.neuro_os_research/proposals/pending/`; the `/research-review` chat surface gates acceptance (Law 7 — human-in-loop); the walkthrough (`examples/10_research_to_invest_yang.py`) proves the **whole 4-vertical strange loop closes on one corpus**: research extracts → researcher shares 2 cards with investment → invest files PositionThesis citing them → Belief OS bias-checks → privacy assertion holds. Reuses every shipped primitive. **Two designs share the same downstream surface** (queue + review + accept + walkthrough are identical) and differ only in the extractor: **Plan A** ([`docs/plans/research-graphrag-sensor.md`](plans/research-graphrag-sensor.md)) — 5-day native Python LLM extractor, no extra deps; **Plan B** ([`docs/plans/gbrain-as-upstream-sensor.md`](plans/gbrain-as-upstream-sensor.md)) — 2-day adapter that reads from a locally-running [gbrain](https://github.com/garrytan/gbrain) over MCP, opt-in dependency, falls back to Plan A when gbrain is absent. The runtime router picks per invocation; both plans can coexist. | A: 5d / B: 2d, 1 PR each |
-| 3 | **Founder_loop full structural refactor onto the substrate** *(continuation of Phase B)* | The Phase B adapter (`agent/founder_loop/domain_app_adapter.py`) proves founder_loop satisfies the substrate's `DomainConfig` protocol but DOESN'T replace founder_loop's internal `state.py`/`reward_ledger.py` with substrate-base subclasses. The full refactor would let bug fixes propagate uniformly across all 4 verticals (Story 3 of the before/after writeup). Risky: 222 founder_loop tests are the regression bar. | 3 days, 1 PR |
-| 4 | **Tests against the live LLM path** | The conversation manager has 11 fallback tests but only one (skipped) LLM test. A small fixture-based recording test would prevent prompt regressions. | 1 |
-| 5 | **`/today` MAE chart** | Currently a CLI nightly print. A small chart in the new-tab dashboard once real ≥7-day data exists. | 0.5 |
-| 6 | **Queue-mutation undo** | `/queues` writes immediately; an "undo last change" button would make experimentation safer. | 0.5 |
-| 7 | **Browser extension store listings** | "Load unpacked" is dev-only. Chrome Web Store + Firefox AMO need review. | 1 (+ wait time) |
+| 1 | **40-day real-user trial of the research vertical** *(now actually unblocked)* | Lane 1 + PR-1 mean Paul can ingest the 3 papers + 2 books WITHOUT manual MechanismCard typing; Lane 5 means he can SEE the compound curve daily; Lane 2 + PR-2 (auto-emission) means the catalog will evolve from override evidence; Lane 4 means cross-vertical entity graph forms automatically. The trial that was previously "40 days of YOUR time, no engineer time" is now actually executable end-to-end. | 40 days of Paul's time |
+| 2 | **`/research-review` chat surface** *(replaces Lane 1's CLI REPL for high-volume review)* | The CLI REPL handles 10-30 proposals/week comfortably. If Paul scales to 50+ MechanismCardProposals/week (e.g. ingests his entire reading-list backlog), an LLM-driven review surface that batches approvals + suggests entity_mentions auto-fill would save real time. Defer until usage proves the need. | 2 days, 1 PR |
+| 3 | **Tests against the live LLM path** | The conversation manager has 11 fallback tests but only one (skipped) LLM test. A small fixture-based recording test would prevent prompt regressions. | 1 |
+| 4 | **`/today` MAE chart** | Currently a CLI nightly print. A small chart in the new-tab dashboard once real ≥7-day data exists. | 0.5 |
+| 5 | **Queue-mutation undo** | `/queues` writes immediately; an "undo last change" button would make experimentation safer. | 0.5 |
+| 6 | **Browser extension store listings** | "Load unpacked" is dev-only. Chrome Web Store + Firefox AMO need review. | 1 (+ wait time) |
 
 ---
 
@@ -113,6 +124,20 @@ A bigger v1 chapter. The premise: when a user proceeds anyway to a distraction, 
 | Area | Why it matters | Cost (rough) |
 |---|---|---|
 | **MAE-trend dashboard** in `/today` | Currently a CLI nightly print. Worth a small chart in the dashboard once we have ≥7 days of real data. | 0.5 day. |
+| **Founder_loop full structural refactor onto the substrate** *(continuation of Phase B)* | The Phase B adapter (`agent/founder_loop/domain_app_adapter.py`) proves founder_loop satisfies the substrate's `DomainConfig` protocol but DOESN'T replace founder_loop's internal `state.py`/`reward_ledger.py` with substrate-base subclasses. The full refactor would let bug fixes propagate uniformly across all 4 verticals. Risky: 222 founder_loop tests are the regression bar. Defer until a substrate bug actually requires a 4-vertical fix that the adapter pattern can't deliver. | 3 days, 1 PR. |
+
+### Deferred follow-ups from the Lane 1-5 cycle (filed honestly, not lost)
+
+These were proposed, scoped, and consciously deferred. Each is named with WHY it's not on NEXT.
+
+| Area | Why it's deferred | Cost (rough) |
+|---|---|---|
+| **gbrain MCP live wiring** (Lane 1) | Paul has no gbrain installed on his machine; PR-1 (Plan A native extractor) replaces this for his actual week. ROI = 0 today. Revisit if Paul installs gbrain OR if a second user appears who has it. The wiring would replace the `--export-file` step with a live `gbrain serve` subprocess; same `MechanismCardProposal` schema. | 1 day, 1 PR. |
+| **Parallel scorer execution** (Lane 3) | Engineering hygiene only. Saves ~4 sec on a flow Paul does maybe twice a week (cross-modal bias check on a position thesis). User-value rating: 1/5. Filed here so it's grep-able when someone has spare time; do NOT prioritize over real Paul-week work. | 0.5 day. |
+| **Text-normalization clustering** (Lane 2) | Skillify's `_pick_candidate_action` uses exact-string match today. Normalization (lowercase + strip trailing punctuation + collapse whitespace) would cluster "Wrote a Markdown brief." and "wrote a markdown brief" as the same action. **Useless without cumulative data**: with only 7 days of one user's overrides, exact-match works fine. Revisit after the 40-day trial when there's enough data to cluster. | 0.5 day. |
+| **Semantic-similarity clustering for skillify** (Lane 2 v2) | The "10x" version of the above: real embedding-based similarity (sentence-transformers OR Anthropic embeddings) would catch semantically-equivalent overrides like "wrote a brief" and "did a one-pager." New runtime dep + per-cluster cost. Defer until text-normalization proves insufficient on real data. | 1 day, 1 PR + new dep gate. |
+| **Auto-emission from chat surfaces** | PR-2 ships `loop urge --override-of` for the existing CLI surface. The new chat surfaces (`/research-review`, `/skillify-review`) don't exist yet — only their CLI REPLs do. Auto-emission FROM chat surfaces requires those surfaces to ship first. Folded into the future `/research-review` chat surface ticket above. | Bundled. |
+| **Anchor counts in NightlySummary** | PR-2 ships the typed anchor log + `count_anchors_per_day()` query function. Folding the count into `NightlySummary.extra` requires adding an `extra` field (schema change with regression risk). Defer until the dashboard surfaces the streak (then it's worth the schema change). | 1 day. |
 
 ---
 
