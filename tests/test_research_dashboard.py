@@ -381,12 +381,19 @@ def test_cli_research_dashboard_prints_text(tmp_path):
 def test_cli_research_dashboard_json(tmp_path):
     home = tmp_path / "research"
     _seed_home(home)
-    rc, out, err = _run("research", "dashboard", "--home", str(home), "--json")
+    # Use --window 41 to give a safe buffer against the fixture's
+    # day-39 boundary event drifting out of the window as wall-clock
+    # advances past the fixture-creation date. The unit-test version
+    # of this assertion (test_build_dashboard_summary_against_fixture)
+    # uses an injected `now=NOW` so it's exact at 18.
+    rc, out, err = _run(
+        "research", "dashboard", "--home", str(home),
+        "--window", "41", "--json",
+    )
     assert rc == 0, err
-    # stdout is parseable as DashboardSummary JSON.
     parsed = DashboardSummary.model_validate_json(out)
     assert parsed.vertical == "research"
-    assert parsed.window_days == 40
+    assert parsed.window_days == 41
     assert parsed.drift_mode_counts["paper_collector"] == 18
 
 

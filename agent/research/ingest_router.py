@@ -5,14 +5,10 @@ Three paths:
 
 * ``--from-gbrain`` (Plan B): hard-require gbrain. Raise
   ``GbrainNotInstalledError`` if absent.
-* ``--from-llm`` (Plan A, future PR): hard-require the native LLM
-  extractor. Currently raises ``PlanANotImplementedError`` because Lane
-  1 ships only Plan B. (The error is typed so the CLI can print a
-  helpful message — the auto-fallback path doesn't go through this
-  branch.)
-* default (auto): prefer gbrain when present, raise
-  ``NoExtractorAvailableError`` otherwise (Plan A is the future
-  fallback).
+* ``--prefer local`` (Plan A): force the native LLM extractor. Always
+  available — works without gbrain.
+* default (auto): prefer gbrain when present (gbrain handles richer
+  formats); fall back to Plan A (local LLM extractor) otherwise.
 
 Detection: subprocess ``gbrain --version`` with a 1-second timeout.
 Cached per-invocation; never makes a network call.
@@ -38,13 +34,16 @@ class GbrainNotInstalledError(IngestRouterError):
 
 
 class PlanANotImplementedError(IngestRouterError):
-    """Raised when the user picks Plan A explicitly but it isn't shipped
-    in this build. Lane 1 only ships Plan B; Plan A is in a follow-up."""
+    """Reserved — kept as a class for backwards compatibility with any
+    external code that imported it. Plan A is now shipped; this error
+    is no longer raised by ``detect_extraction_method``."""
 
 
 class NoExtractorAvailableError(IngestRouterError):
-    """Raised when auto-detection finds no usable extractor (gbrain
-    absent AND Plan A not yet implemented)."""
+    """Reserved — superseded by Plan A's universal availability. Kept
+    as a class so existing imports don't break, but this error is no
+    longer raised: ``prefer="auto"`` always returns either gbrain-mcp
+    or llm-anthropic."""
 
 
 _GBRAIN_PROBE_TIMEOUT_SECONDS = 1.0
@@ -77,35 +76,25 @@ def detect_extraction_method(
     """Decide which extractor to use.
 
     ``prefer="gbrain"``: hard-require gbrain, raise if absent.
-    ``prefer="local"``:  hard-require Plan A; not shipped in Lane 1.
-    ``prefer="auto"``:   gbrain if present, else raise (Plan A is the
-                          future fallback but isn't implemented yet).
+    ``prefer="local"``:  force Plan A (native LLM extractor). Always works.
+    ``prefer="auto"``:   gbrain if present, else Plan A.
     """
     if prefer == "gbrain":
         if not gbrain_available():
             raise GbrainNotInstalledError(
                 "gbrain not detected. Install via "
-                "`bun install -g github:garrytan/gbrain` or omit --from-gbrain "
-                "(once Plan A ships, the auto-fallback will use the local "
-                "extractor instead)."
+                "`bun install -g github:garrytan/gbrain` or use "
+                "`--prefer local` to use the native LLM extractor instead."
             )
         return "gbrain-mcp"
 
     if prefer == "local":
-        raise PlanANotImplementedError(
-            "Plan A (native LLM extractor) is not yet shipped. Lane 1 ships "
-            "only Plan B (the gbrain adapter). Use --from-gbrain or omit the "
-            "flag to use auto-detect."
-        )
+        return "llm-anthropic"
 
     # prefer == "auto"
     if gbrain_available():
         return "gbrain-mcp"
-    raise NoExtractorAvailableError(
-        "No extractor available: gbrain is not installed and Plan A (native "
-        "LLM extractor) is not yet shipped. Install gbrain via "
-        "`bun install -g github:garrytan/gbrain` to proceed."
-    )
+    return "llm-anthropic"
 
 
 __all__ = [

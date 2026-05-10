@@ -41,6 +41,13 @@ from agent.research.ontology import (
     GbrainQuerySpec,
 )
 from agent.research.config import ResearchConfig, make_research_app
+from agent.research.ingest import (
+    SUPPORTED_EXTS,
+    UnsupportedSourceFormat,
+    extract_mechanisms,
+    ingest as local_ingest,
+    load_sources,
+)
 
 
 __all__ = [
@@ -60,4 +67,10 @@ __all__ = [
     "GbrainQuerySpec",
     "ResearchConfig",
     "make_research_app",
+    # Plan A — native LLM extractor (PR-1 of Paul's week)
+    "SUPPORTED_EXTS",
+    "UnsupportedSourceFormat",
+    "extract_mechanisms",
+    "local_ingest",
+    "load_sources",
 ]
