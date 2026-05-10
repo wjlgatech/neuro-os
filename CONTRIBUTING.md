@@ -4,7 +4,7 @@
 
 ## 60-second orientation
 
-Neuro-OS is **one substrate** (`agent/domain_app/`) with **four verticals** layered on top: `agent/founder_loop/`, `agent/research/`, `agent/investment/`, `agent/startup/`. Each vertical is the same closed-loop OEC machine (Observe → Evaluate → Control → Validate) with different vocabulary. The cross-vertical interface (`agent/cross_vertical.py`) is **default-private** — one vertical can't read another's data without explicit sharing.
+Neuro-OS is **one substrate** (`agent/domain_app/`) with **four verticals** layered on top: `agent/founder_loop/`, `agent/research/`, `agent/investment/`, `agent/startup/`. Each vertical is the same closed-loop OEC machine (Observe → Evaluate → Control → Validate) with different vocabulary. **Five compounding mechanisms** layer on top of all four: `agent/research/ingest.py` (corpus → proposals), `agent/research/dashboard.py` (rollup), `agent/cross_vertical.py` (entity graph + visibility), `agent/cross_modal.py` (K-scorer fan-out), `agent/skillify/` (catalog evolution from override evidence). The cross-vertical interface is **default-private** — one vertical can't read another's data without explicit sharing.
 
 The codebase is governed by **10 laws** in [`docs/AI_NATIVE_ENGINEERING_PRINCIPLES.md`](./docs/AI_NATIVE_ENGINEERING_PRINCIPLES.md). Each law is honestly tagged `[ENFORCED-by-test/type/runtime]` or `[ASPIRATIONAL]`. The deterministic gate is [`tests/test_engineering_principles.py`](./tests/test_engineering_principles.py).
 
@@ -22,7 +22,7 @@ The hook script enables `commit-msg` (enforces the 3-section message format, Law
 ## Run the gates
 
 ```bash
-pytest tests/                               # full suite (~30s)
+pytest tests/                               # full suite — 523 pass, 12 skipped (~35s)
 pytest tests/test_engineering_principles.py # the law gate (run before every commit)
 ruff check agent/ tests/                    # lint must be clean
 ```

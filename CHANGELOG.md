@@ -4,6 +4,129 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic
 Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.0] — Five compounding mechanisms + Paul-week unblockers
+
+Eight PRs (#18 through #25) shipped in one delivery cycle. The
+four-vertical substrate gains five compounding mechanisms layered on
+top, plus Plan A native ingestion (no gbrain required), plus a
+4-feature Paul-week bundle (auto-emission, share-note CLI, daily
+anchors, `Priority.time_window`). **523 tests pass, 12 skipped**
+(was 471 before this cycle).
+
+### Added — five compounding mechanisms
+
+- **Lane 1 — Corpus ingestion** (PRs #18, #23):
+  - `agent/research/gbrain_adapter.py` (Plan B): reads `gbrain export`
+    JSON via injectable `call_gbrain` callable, validates each entity
+    through frozen `GbrainEntity`, translates to `MechanismCardProposal`
+    with conservative skip policy.
+  - `agent/research/ingest.py` (Plan A): walks `.txt` / `.md` / `.pdf`
+    files via pure-Python `pypdf`. One Anthropic Haiku call per source
+    OR regex heuristic fallback when no API key. Sha256 dedup against
+    pending proposals. YAML front-matter parsing.
+  - `agent/research/ingest_router.py`: `--prefer {auto,gbrain,local}`
+    picks per invocation; auto-detects via `gbrain --version` probe.
+  - `agent/research/proposals.py`: on-disk `MechanismCardProposal` queue
+    with atomic writes + status-dir invariant.
+  - CLI: `research ingest [--from-gbrain | --prefer local]`,
+    `research review --cli`.
+- **Lane 2 — Skillify (catalog evolution)** (PRs #22, #24):
+  - `agent/skillify/` package: `OverrideEvent` + `SkillProposal` frozen
+    schemas; `extract_pattern` (bucket → threshold-gate → most-frequent
+    user_action with recency tie-break); `run_extraction` skips
+    already-proposed buckets.
+  - `loop urge --override-of <mode> --override-vertical <v>` CLI flags
+    write both the `UrgeEvent` AND a skillify `OverrideEvent` in one
+    command (the auto-emission flag is load-bearing — without it, the
+    override log stays empty).
+  - CLI: `skillify {log-override, extract, proposals, review --cli}`.
+  - **Law 7 honored**: `mutable_paths=[]` for all verticals stays `[]`.
+    Acceptance moves a `SkillProposal` from `pending/` to `accepted/`;
+    the catalog change is a separate human-authored commit.
+- **Lane 3 — Cross-modal Belief OS** (PR #21):
+  - `agent/cross_modal.py`: `CrossModalEval` frozen schema +
+    `run_cross_modal_check` (K-scorer fan-out) + `make_default_scorers`
+    (3-pair Haiku/Sonnet/Opus wiring) + `make_fixture_scorers` for
+    deterministic tests.
+  - `agent/investment/config.py::run_cross_modal_bias_check` persists
+    `(BiasCheck, CrossModalEval)` pair under same id; low-confidence
+    prefix on disagreement above `DISAGREEMENT_WARNING_THRESHOLD`
+    (0.34 — any 1-of-3 minority trips it).
+- **Lane 4 — Cross-vertical entity propagation** (PR #20):
+  - `Entity` frozen schema in `agent/cross_vertical.py` with the same
+    default-PRIVATE invariant as `VerticalNote`; new `EntityKind`
+    literal (person / company / topic / mechanism / other).
+  - `upsert_entity` (append-only timeline), `share_entity`
+    (broadens visibility for ALL prior + future rows of the slug),
+    `read_entity` (returns latest visible), `list_entities`.
+  - `MechanismCardProposal` + `MechanismCard` carry
+    `entity_mentions: List[str]`. The `research review --cli` accept
+    prompt asks the user for entity slugs; each is upserted as a
+    research-private entity.
+  - Storage uses `row_kind: "entity"` discriminator to avoid clash
+    with `Entity.kind`; kept on existing
+    `~/.neuro_os/cross_vertical.jsonl` store.
+  - CLI: `research entity-list`, `research entity-read --slug <s>`.
+- **Lane 5 — Daily dashboard** (PR #19):
+  - `agent/research/dashboard.py`: pure-aggregation rollup over
+    `registry.jsonl` + `ingestion_runs.jsonl` + `proposals/*` +
+    `mechanism_cards/*`. Frozen `DashboardSummary`.
+  - Outputs: compound-curve trend (today / 7-day-avg / window-avg /
+    trend), drift-mode histogram, **`drift_modes_never_fired`**
+    (catalog candidates), CE stick-rate, ingestion totals, action
+    queue.
+  - CLI: `research dashboard [--window N] [--json]`. Text rendering
+    has ASCII histogram bars; JSON output round-trips through
+    `DashboardSummary.model_validate_json`.
+
+### Added — Paul-week feature bundle (PR #24)
+
+- `cross-vertical {share-note, query}` CLI subtree — thin surface
+  around the existing `share_note()` and `query()` functions.
+- `loop anchor --kind {faith, relational}` CLI + `agent/founder_loop/anchors.py`
+  module: typed daily log with `count_anchors_per_day()` for "5/7
+  days hit" rendering.
+- `Priority.time_window: Optional[str]` field with regex-validated
+  `HH:MM-HH:MM` pattern. Annotation only (no tick behavior change);
+  back-compat default `None`.
+
+### Added — docs
+
+- `docs/plans/{research-graphrag-sensor, gbrain-as-upstream-sensor,
+  40-day-trial-dashboard}.md` (design docs for the lanes; kept for
+  archeological value).
+- `docs/paul-week-may-11.md` — runbook with the exact CLI commands
+  per daily block of Paul's first real-user week (May 11–17, 2026).
+
+### Changed
+
+- `pyproject.toml`: added `pypdf>=4.0` runtime dep (pure-Python, MIT,
+  ~600 KB; no compiled deps).
+- `agent/cli.py`: `research ingest` extended with `--prefer`,
+  `--source-dir`, `--no-llm`; `loop urge` extended with `--override-of`,
+  `--override-vertical`; new top-level `cross-vertical` and `skillify`
+  subtrees; new `loop anchor` subcommand.
+- `docs/roadmap.md`: refactored to v0.7 SHIPPED list; deferred
+  follow-ups (parallel scorers / text-norm clustering / gbrain MCP
+  live wiring / anchors-in-NightlySummary) filed under LATER with
+  explicit "why deferred" reasons.
+
+### Boundary contract honored across all eight PRs
+
+- **Law 1**: every new schema (Entity, OverrideEvent, SkillProposal,
+  CrossModalEval, ScorerVerdict, Anchor, GbrainEntity, RawSource,
+  MechanismCardProposal, IngestionRun, DashboardSummary) is frozen
+  Pydantic with bounded fields; validation at every boundary.
+- **Law 5**: every public function returns frozen models or lists of
+  them; no dicts cross the public API.
+- **Law 7**: no auto-mutation of any catalog. All five new write
+  paths (`research ingest`, `skillify extract`, `upsert_entity`,
+  `loop urge --override-of`, `loop anchor`) require explicit user
+  CLI input. Skillify acceptance does NOT mutate the catalog.
+- **Cross-vertical privacy**: `mutable_paths=[]` invariant unchanged.
+  All new cross-vertical reads (`read_entity`, `list_entities`,
+  `cross-vertical query`) honor visibility allowlists.
+
 ## [0.4.0] — Belief OS as a primitive
 
 Reframes Belief OS from a standalone Streamlit demo into a **capability
