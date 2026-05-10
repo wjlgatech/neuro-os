@@ -63,6 +63,13 @@ from agent.founder_loop.state import (
     UrgeType,
 )
 from agent.founder_loop.sublimate import diagnose as diagnose_underlying_need
+from agent.founder_loop.anchors import (
+    Anchor,
+    AnchorKind,
+    count_anchors_per_day,
+    read_anchors,
+    write_anchor,
+)
 from agent.founder_loop.urge_log import (
     UrgeEvent,
     log_urge_event,
@@ -327,7 +334,13 @@ __all__ = [
     "TickResult",
     "UrgeEvent",
     "UrgeType",
+    # anchors (Paul's week PR-2)
+    "Anchor",
+    "AnchorKind",
     # functions
+    "write_anchor",
+    "read_anchors",
+    "count_anchors_per_day",
     "predict_next_hour",
     "diagnose_underlying_need",
     "compute_tank",

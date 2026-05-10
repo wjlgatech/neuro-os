@@ -208,7 +208,43 @@ def _cmd_loop_urge(args: argparse.Namespace) -> int:
         context=args.context or "",
         when=when,
     )
-    print(json.dumps(json.loads(event.model_dump_json()), indent=2))
+
+    # Lane 2 auto-emission: when --override-of is set, also write a
+    # skillify OverrideEvent so the catalog-evolution loop gets data.
+    # Without this flag, the user has to run two commands per override.
+    override_event = None
+    override_of = getattr(args, "override_of", None)
+    if override_of:
+        from agent.skillify import write_override_event
+        override_event = write_override_event(
+            vertical=getattr(args, "override_vertical", "founder_loop"),
+            drift_mode=override_of,
+            user_action=args.context or args.urge_type,
+            suggested_action=None,
+            notes=f"Auto-emitted from `loop urge {args.urge_type}`",
+            ts=when,
+        )
+
+    payload = json.loads(event.model_dump_json())
+    if override_event is not None:
+        payload["override_event"] = json.loads(override_event.model_dump_json())
+    print(json.dumps(payload, indent=2))
+    return 0
+
+
+def _cmd_loop_anchor(args: argparse.Namespace) -> int:
+    from datetime import datetime
+    from agent.founder_loop.anchors import write_anchor
+
+    home = Path(args.home).expanduser() if args.home else None
+    when = datetime.fromisoformat(args.at) if args.at else None
+    anchor = write_anchor(
+        kind=args.kind,
+        context=args.context,
+        home=home,
+        ts=when,
+    )
+    print(anchor.model_dump_json(indent=2))
     return 0
 
 
@@ -423,7 +459,48 @@ def build_parser() -> argparse.ArgumentParser:
     loop_urge.add_argument("--context", default="",
                            help="short free-text context (≤400 chars)")
     loop_urge.add_argument("--at", help="ISO timestamp (default: now)")
+    loop_urge.add_argument(
+        "--override-of", default=None,
+        help=(
+            "drift mode label this urge represents an override of (one "
+            "of the substrate's named modes for any vertical). When set, "
+            "in addition to logging the UrgeEvent, also emit a skillify "
+            "OverrideEvent so the catalog-evolution loop (Lane 2) gets "
+            "data automatically. Without this flag the user has to run "
+            "two commands per override; with it, one."
+        ),
+    )
+    loop_urge.add_argument(
+        "--override-vertical", default="founder_loop",
+        choices=["founder_loop", "research", "investment", "startup"],
+        help=(
+            "vertical the --override-of mode belongs to (default: founder_loop)."
+        ),
+    )
     loop_urge.set_defaults(func=_cmd_loop_urge)
+
+    # loop anchor (Paul's week PR-2 — faith / relational pillars)
+    loop_anchor = loop_sub.add_parser(
+        "anchor",
+        help="log a daily faith or relational anchor (typed, append-only)",
+    )
+    loop_anchor.add_argument(
+        "--kind", required=True, choices=["faith", "relational"],
+        help="anchor kind",
+    )
+    loop_anchor.add_argument(
+        "--context", required=True,
+        help="short free-text marker for what happened (≤400 chars)",
+    )
+    loop_anchor.add_argument(
+        "--at", default=None,
+        help="ISO timestamp (default: now)",
+    )
+    loop_anchor.add_argument(
+        "--home", default=None,
+        help="founder_loop home dir (default: ~/.founder_loop/)",
+    )
+    loop_anchor.set_defaults(func=_cmd_loop_anchor)
 
     loop_serve = loop_sub.add_parser(
         "serve",
@@ -614,6 +691,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     _add_skillify_subcommands(sub)
+    _add_cross_vertical_subcommands(sub)
 
     return p
 
@@ -1404,6 +1482,125 @@ def _skillify_review_handler(args: argparse.Namespace) -> int:
             continue
         print(f"  (unknown choice {choice!r}; skipping)")
     print("\n(end of queue)")
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# Cross-vertical CLI tree (Paul's week PR-2)
+# ---------------------------------------------------------------------------
+
+
+def _add_cross_vertical_subcommands(sub: "argparse._SubParsersAction") -> None:
+    """Top-level `cross-vertical` subcommand: share-note / query."""
+    top = sub.add_parser(
+        "cross-vertical",
+        help=(
+            "cross-vertical store ops (share notes across verticals, query "
+            "with visibility-aware reads)"
+        ),
+    )
+    top_sub = top.add_subparsers(dest="cross_vertical_command", required=True)
+
+    # share-note
+    sn = top_sub.add_parser(
+        "share-note",
+        help="broaden a note's visibility to one or more verticals",
+    )
+    sn.add_argument("--note-id", required=True, help="VerticalNote id to share")
+    sn.add_argument(
+        "--with", dest="with_verticals", required=True,
+        help=(
+            "comma-separated vertical names (founder_loop / research / "
+            "investment / startup) OR the special token __all__"
+        ),
+    )
+    sn.add_argument("--store", default=None,
+                    help="cross-vertical store path (default: ~/.neuro_os/cross_vertical.jsonl)")
+    sn.set_defaults(func=_cross_vertical_share_note_handler)
+
+    # query
+    q = top_sub.add_parser(
+        "query",
+        help="read notes a vertical is allowed to see",
+    )
+    q.add_argument(
+        "--reader", required=True,
+        choices=["founder_loop", "research", "investment", "startup"],
+        help="vertical issuing the read",
+    )
+    q.add_argument(
+        "--kind", default=None, action="append",
+        help="filter by note_kind (repeatable)",
+    )
+    q.add_argument(
+        "--source", default=None, action="append",
+        choices=["founder_loop", "research", "investment", "startup"],
+        help="filter by source vertical (repeatable)",
+    )
+    q.add_argument(
+        "--store", default=None,
+        help="cross-vertical store path",
+    )
+    q.set_defaults(func=_cross_vertical_query_handler)
+
+
+def _cross_vertical_share_note_handler(args: argparse.Namespace) -> int:
+    from agent.cross_vertical import query as cv_query, share_note
+
+    store = Path(args.store).expanduser() if args.store else None
+
+    add_visible = [v.strip() for v in args.with_verticals.split(",") if v.strip()]
+    if not add_visible:
+        print("error: --with must be a non-empty comma-separated list", file=sys.stderr)
+        return 2
+    valid = {"founder_loop", "research", "investment", "startup", "__all__"}
+    bad = [v for v in add_visible if v not in valid]
+    if bad:
+        print(
+            f"error: unknown vertical(s) in --with: {bad!r} "
+            f"(allowed: {sorted(valid)})",
+            file=sys.stderr,
+        )
+        return 2
+
+    # Verify the note exists by querying as the founder_loop reader
+    # (the source vertical is allowed to see its own; we use that to
+    # confirm existence in the store).
+    found_id = None
+    for source in ("founder_loop", "research", "investment", "startup"):
+        for n in cv_query(reader=source, store=store):
+            if n.id == args.note_id:
+                found_id = n.id
+                break
+        if found_id:
+            break
+    if found_id is None:
+        print(f"error: note id {args.note_id!r} not found in store", file=sys.stderr)
+        return 2
+
+    share_note(note_id=args.note_id, add_visible=add_visible, store=store)
+    print(json.dumps({
+        "shared": True,
+        "note_id": args.note_id,
+        "add_visible": add_visible,
+    }, indent=2))
+    return 0
+
+
+def _cross_vertical_query_handler(args: argparse.Namespace) -> int:
+    from agent.cross_vertical import query as cv_query
+
+    store = Path(args.store).expanduser() if args.store else None
+    notes = cv_query(
+        reader=args.reader,
+        kinds=args.kind,
+        sources=args.source,
+        store=store,
+    )
+    print(json.dumps(
+        [n.model_dump(mode="json") for n in notes],
+        indent=2, default=str,
+    ))
     return 0
 
 
