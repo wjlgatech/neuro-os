@@ -212,6 +212,18 @@ class Priority(BaseModel):
             "evidence_type."
         ),
     )
+    time_window: Optional[str] = Field(
+        default=None,
+        max_length=11,
+        pattern=r"^([01]\d|2[0-3]):[0-5]\d-([01]\d|2[0-3]):[0-5]\d$",
+        description=(
+            "Optional 24-hour time window during which this priority is "
+            "the focus. Format 'HH:MM-HH:MM' (e.g. '07:00-09:00'). "
+            "Annotation only — does not change tick behavior; nightly "
+            "summaries can group evidenced priorities by window when "
+            "the user types their daily plan in time-block form."
+        ),
+    )
 
 
 class AbuseTax(BaseModel):
