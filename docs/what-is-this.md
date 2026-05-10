@@ -190,6 +190,31 @@ It's a system to help you become more honest with yourself, in whichever life-do
 
 ---
 
+# Five things that make the system compound
+
+Same metaphor stack — but layered on top are five mechanisms that turn a daily ritual into something that **gets sharper as you use it**. Each is a small, opt-in lever; you don't need to use all five to get value from the daily ritual.
+
+| Mechanism | What it does for you |
+|---|---|
+| **Corpus ingestion** | Drop the papers / books / transcripts you're reading into a folder; the system extracts candidate "mechanism cards" for you to review. No more typing each card by hand. Two paths: `gbrain` ([garrytan/gbrain](https://github.com/garrytan/gbrain)) if you have it installed, OR a native Python extractor for `.txt` / `.md` / `.pdf` files (zero extra deps). The system auto-detects which is available. |
+| **Dashboard** | One-screen rollup of your last 7 / 40 days. Shows the **compound curve** (mechanism-cards/day trending), the drift histogram, the stick-rate of your accepted constructive expressions, and — critically — **drift modes that NEVER fired** so you can revise the catalog from data, not opinion. |
+| **Cross-vertical entity graph** | When you accept a mechanism card and tell it "this mentions NVIDIA," an `Entity` page is created in the cross-vertical store. Default-PRIVATE to research; explicit `share-note` opens it to investment. Over time, a typed knowledge graph forms across your verticals — without ever leaking what you didn't share. |
+| **Cross-modal Belief OS** | When a position thesis goes through bias-checking, it's run through K models in parallel (default 3 — Haiku + Sonnet + Opus). If they DISAGREE, the system surfaces a `low_confidence` warning that's a stronger signal than any single model's flag. Disagreement is the diagnostic — that's where human judgment matters most. |
+| **Skillify (catalog evolution)** | Every time you choose something OTHER than the constructive expression the system proposed and you log it (`loop urge ... --override-of <mode>`), it's evidence the catalog is wrong. After ≥5 same-mode overrides, the system proposes a new constructive expression for you to review. **Law 7 honored**: the catalog itself only changes via an explicit human commit. |
+
+These mechanisms are all in [`docs/how-it-works.md`](./how-it-works.md#the-five-compounding-mechanisms) if you want the deeper picture.
+
+## Faith and relational anchors
+
+Two non-business pillars that don't fit the four verticals' "drift mode" frame, and intentionally don't get one:
+
+- `loop anchor --kind faith --context "..."` — a typed daily marker for the faith pillar (5:50am prayer, walk, weekly worship, etc.).
+- `loop anchor --kind relational --context "..."` — same for the relational pillar (a meaningful Taylor / family / team interaction).
+
+Both ride the existing `UrgeEvent` mechanism — no new vertical, no drift modes, no contracts. The dashboard renders them as "faith: 5/7 days hit; relational: 4/7 days hit" so you see the streak without the system instrumenting your relationships.
+
+---
+
 ## What it doesn't do (yet)
 
 - **Phone**: it doesn't watch your phone — for now it's a desktop app.

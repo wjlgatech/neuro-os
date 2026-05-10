@@ -263,6 +263,99 @@ roadmap.
 
 ---
 
+## The five compounding mechanisms
+
+Layered on top of the four-vertical substrate are five mechanisms that turn a daily ritual into a system that **gets sharper as you use it**. Each is independently testable; each plugs into the same Pydantic schemas the four verticals share. They are not part of the five-box loop — they consume its outputs (registry rows, accepted cards, override events) and produce typed artifacts the user reviews.
+
+```
+                    ╔═══════════════════════════════════════════╗
+                    ║   THE FIVE-BOX LOOP (per vertical) above  ║
+                    ║   produces:                               ║
+                    ║     - registry.jsonl                      ║
+                    ║     - mechanism_cards/*.json              ║
+                    ║     - urge events / override evidence     ║
+                    ╚════════════════╤══════════════════════════╝
+                                     │
+        ┌─────────┬──────────────┬───┴────────────┬──────────────────┐
+        ▼         ▼              ▼                ▼                  ▼
+  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────────┐  ┌─────────────┐
+  │ Lane 1:  │  │ Lane 5:  │  │ Lane 4:  │  │   Lane 3:    │  │  Lane 2:    │
+  │ Corpus   │  │  Daily   │  │ Cross-   │  │ Cross-modal  │  │ Skillify    │
+  │ ingest   │  │  rollup  │  │ vertical │  │ Belief OS    │  │ (catalog    │
+  │          │  │          │  │ entity   │  │ (K-scorer    │  │ evolution)  │
+  │ files →  │  │ "what's  │  │ graph    │  │ disagree-    │  │             │
+  │ proposals│  │ trending"│  │          │  │ ment signal) │  │ overrides → │
+  │          │  │          │  │          │  │              │  │ SkillProp   │
+  └──────────┘  └──────────┘  └──────────┘  └──────────────┘  └─────────────┘
+       │             │              │              │                 │
+       │             │              │              │                 │
+       └─ each goes through a ──────┴── Law-7 human gate ─────────────┘
+          (accept / reject / share — never auto-applied)
+```
+
+### Lane 1 — Corpus ingestion
+
+Two extractors share one downstream queue. The router (`agent/research/ingest_router.py::detect_extraction_method`) picks per invocation based on `--prefer {auto,gbrain,local}`:
+
+- **Plan B** (`gbrain-mcp`) — `agent/research/gbrain_adapter.py`. Reads a `gbrain export` JSON file, validates each entity through a frozen `GbrainEntity`, translates to `MechanismCardProposal`. Conservative skip policy (non-claims, thin excerpts, no causal verb) keeps the queue clean. Zero LLM calls in v0; gbrain does the heavy lifting upstream.
+- **Plan A** (`llm-anthropic`) — `agent/research/ingest.py`. Walks `.txt`/`.md`/`.pdf` files, extracts text (PDFs via pure-Python `pypdf`), runs ONE Anthropic Haiku call per source with a structured-output Pydantic schema. Falls back to a regex heuristic when no API key is set (emits low-confidence proposals so the reviewer knows the LLM didn't run).
+
+Both write to `~/.neuro_os_research/proposals/pending/` — same `MechanismCardProposal` schema, same `research review --cli` REPL. The user accepts / rejects (Law 7); accepted proposals become `MechanismCard` rows.
+
+*Code: `agent/research/{ingest,gbrain_adapter,ingest_router,proposals}.py`. Tests: `tests/test_research_ingest_plan_a.py`, `tests/test_research_gbrain_adapter.py`, `tests/test_research_proposals.py`.*
+
+### Lane 2 — Skillify (catalog evolution from real overrides)
+
+Skillify watches for `OverrideEvent`s — typed records that say "the substrate proposed X, the user did Y instead." After ≥N (default 5) overrides on the same `(vertical, drift_mode)` bucket within a window (default 30 days), `skillify extract` proposes a new `ConstructiveExpression` candidate (`SkillProposal`).
+
+The `SkillProposal` lives in `~/.neuro_os_skillified/proposals/pending/` for human review via `skillify review --cli`. Acceptance moves the file to `accepted/` — **it does NOT auto-mutate the catalog**. The catalog change is a separate human-authored commit. Law 7 (human-in-loop truth control) holds.
+
+Override evidence collection: `loop urge --override-of <drift_mode>` writes both a `UrgeEvent` AND a skillify `OverrideEvent` in one CLI call. Without this flag, the override log stays empty and skillify never proposes anything — the auto-emission flag is the load-bearing piece.
+
+*Code: `agent/skillify/{events,proposals,extract}.py`. Tests: `tests/test_lane2_skillify.py`.*
+
+### Lane 3 — Cross-modal Belief OS (disagreement is the signal)
+
+The single-model bias check (`agent/belief_os.py::check_decision_text`) has one failure surface: that one model's blind spots. Lane 3 fans the same decision text through K independent scorers (default 3 — Haiku / Sonnet / Opus) and computes a `disagreement_score`.
+
+Disagreement above a threshold (`DISAGREEMENT_WARNING_THRESHOLD = 0.34`, i.e. any 1-of-3 minority) raises a `low_confidence_warning` that's a stronger "pause and look" signal than any single scorer's flag. When the panel agrees, the consensus verdict carries normal weight; when it disagrees, the `BiasCheck.reason` is prefixed with `[low_confidence: cross-modal disagreement]` so the nightly summary surfaces it.
+
+Scorer callables are injectable. The default 3-pair panel calls `check_decision_text` with three different `llm_model` hints; tests use `make_fixture_scorers` for deterministic K-scorer scenarios. Parallel execution is a follow-up (sequential is fine for K=3 today).
+
+*Code: `agent/cross_modal.py`, `agent/investment/config.py::run_cross_modal_bias_check`. Tests: `tests/test_lane3_cross_modal.py`.*
+
+### Lane 4 — Cross-vertical entity graph
+
+`Entity` is a typed page (`slug` / `kind` / `title` / `compiled_truth` / `mentioned_in_note_id`) that multiple verticals may reference. Same default-PRIVATE invariant as `VerticalNote`: an entity written by research is INVISIBLE to investment / startup / founder_loop unless explicitly shared.
+
+`MechanismCardProposal` and `MechanismCard` carry an `entity_mentions: List[str]` field. The `research review --cli` accept prompt asks the user for entity slugs; for each, `upsert_entity` writes a new `Entity` row (default-PRIVATE to research). `share_entity(slug, add_visible=[...])` broadens visibility for ALL prior + future rows of that slug; reads from other verticals start succeeding after the share event.
+
+Storage uses the existing `~/.neuro_os/cross_vertical.jsonl` store with a separate `row_kind: "entity"` discriminator (so it doesn't collide with `Entity.kind`). Append-only — multiple upserts of the same slug build a timeline; `read_entity` returns the latest visible snapshot.
+
+*Code: `agent/cross_vertical.py` (`Entity`, `EntityKind`, `upsert_entity`, `share_entity`, `read_entity`, `list_entities`). Tests: `tests/test_lane4_entity_propagation.py`.*
+
+### Lane 5 — Daily dashboard
+
+A pure-aggregation rollup over the artifacts the other lanes already write. NEVER writes; reading the dashboard is idempotent.
+
+Inputs (read-only):
+- `registry.jsonl` — drift events + `propose_constructive_expression` ops
+- `ingestion_runs.jsonl` — Lane 1 audit log
+- `proposals/{pending,accepted,rejected}/*.json` — current queue snapshot
+- `mechanism_cards/*.json` — accepted cards (the primary metric)
+
+Outputs (frozen `DashboardSummary`):
+- Compound curve: today / 7-day-avg / window-avg / trend (`up` / `flat` / `down` with 5% hysteresis)
+- Drift-mode counts + top-3 ASCII histogram
+- **`drift_modes_never_fired`** — modes the catalog claims exist but didn't fire in the window. Strong evidence the catalog is wrong.
+- Constructive-expression stick-rate: same drift_mode + same primary_action within 7 days = stuck; same drift_mode + DIFFERENT primary_action = override
+- Lane 1 ingestion totals (sources scanned, proposals emitted vs accepted vs rejected)
+- Action queue (pending count + oldest age in hours)
+
+*Code: `agent/research/dashboard.py`. Tests: `tests/test_research_dashboard.py`.*
+
+---
+
 ## Cross-vertical privacy boundary
 
 Each vertical writes to its own home dir

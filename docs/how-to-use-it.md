@@ -225,6 +225,16 @@ beats the predictor's guess), runs the same diagnosis, and proposes
 the same constructive expression in the next hourly tick or the next
 time you open the dashboard.
 
+**If your urge is an *override* of the system's last suggestion, say so**: add `--override-of <drift_mode>` and the urge log AND a skillify `OverrideEvent` get written in one command. Without this flag the catalog-evolution loop (Lane 2) never sees evidence of which constructive expressions don't work for you. With it, after ≥5 same-mode overrides, `skillify extract` proposes a new candidate `ConstructiveExpression` for `/catalog-review`.
+
+```bash
+# you wrote a 1-page brief instead of the proposed mechanism-card extraction:
+neuro-os loop urge novelty \
+    --context "wrote a 1-page brief instead" \
+    --override-of paper_collector \
+    --override-vertical research
+```
+
 ---
 
 ## Moment 4 — Look back
@@ -250,6 +260,40 @@ contract?"* — when you say yes, you're back at the morning ritual.
 
 > **Power-user CLI** equivalent (no chat, just the numbers):
 > `neuro-os loop nightly`. Same four metrics printed as JSON.
+
+---
+
+## Daily anchors — faith and relational pillars
+
+Two pillars in many people's days don't fit "drift modes": faith / spiritual practice, and the close relational ties (spouse, family, close friends). Neuro-OS doesn't try to instrument them — but it provides a tiny typed log so you can SEE the streak:
+
+```bash
+# Morning prayer / walk / weekly worship — whenever it happens:
+neuro-os loop anchor --kind faith \
+    --context "5:50am prayer + walk + plan done"
+
+# Meaningful relational moment:
+neuro-os loop anchor --kind relational \
+    --context "Taylor: cooked dinner together, talked about week"
+```
+
+Each call writes one row to `~/.founder_loop/anchors.jsonl` (append-only, frozen Pydantic). The dashboard renders these as `faith: 5/7 days hit; relational: 4/7 days hit` over the window — same-day multiple entries count as ONE day-hit. You don't have to use this; the rest of the system works without it. But if these pillars matter to you and you'd otherwise journal them by hand, this gives you a streak number and nothing more.
+
+---
+
+## Skillify — make the system learn what works for you
+
+When the system proposes a constructive expression for a drift mode and you do something else, `loop urge --override-of <mode>` (above) records that override. After enough overrides on the same drift mode, `skillify` proposes a new constructive expression candidate for catalog review:
+
+```bash
+# Aggregate overrides into SkillProposals (default ≥5 on the same drift mode within 30d):
+neuro-os skillify extract --vertical research --threshold 5 --window-days 30
+
+# Review pending proposals:
+neuro-os skillify review --cli
+```
+
+Accepting a `SkillProposal` moves the file from `pending/` to `accepted/` — **it does NOT auto-mutate the catalog** (Law 7 honored). The catalog change is a separate human-authored commit; the proposal file is just evidence saying "this pattern fired N times; you may want to fold it in."
 
 ---
 
@@ -290,6 +334,30 @@ per note. See [how it works](./how-it-works.md) for the privacy model.
 
 ## Research — for a researcher building a world model
 
+**Ingest** (Sunday night setup, ~5 min). Drop the week's reading into one folder, then:
+
+```bash
+# Native Python extractor — works without gbrain. Supports .txt/.md/.pdf.
+neuro-os research ingest --prefer local --source-dir ~/reading/
+
+# OR if you have garrytan/gbrain installed:
+gbrain export > ~/reading/export.json
+neuro-os research ingest --prefer gbrain --export-file ~/reading/export.json
+
+# Auto-detect (default): prefers gbrain when present, falls back to local.
+neuro-os research ingest --source-dir ~/reading/
+```
+
+Each source produces 0-5 `MechanismCardProposal`s. Then review them:
+
+```bash
+neuro-os research review --cli
+```
+
+A REPL: shows each pending proposal with its `mechanism / invariant / prediction / failure_mode` fields and the source excerpt. You type `a`/`r`/`s`/`q` to accept / reject / skip / quit. On accept it asks for **entity slugs** — comma-separated kebab tags like `nvda, moats, network-effects` — that get propagated into the cross-vertical entity graph.
+
+If you have no API key (`ANTHROPIC_API_KEY` unset) or want zero LLM cost, add `--no-llm`. The extractor falls back to a regex heuristic and emits low-confidence proposals.
+
 **Onboard** (every morning, ~2 min). Write today's priorities into a
 JSON file:
 
@@ -328,6 +396,33 @@ Substrate names the drift (one of: `paper_collector`, `topic_hopper`,
 `memorizer`, `authority_acceptor`, `overloaded`, `forgetting`),
 proposes a constructive expression (e.g. *"extract one MechanismCard
 now (20 min)"*), and credits the tank when you do it.
+
+**Dashboard** (every morning + every evening, ~10 sec):
+
+```bash
+neuro-os research dashboard --window 7      # default text rendering
+neuro-os research dashboard --window 7 --json   # machine-readable
+```
+
+Prints a one-screen rollup:
+- Compound curve: today's mechanism-cards/day, 7-day avg, window avg, trend (`up` / `flat` / `down`)
+- Drift-mode usage histogram (top 3, with ASCII bars)
+- **"X / Y fired 0 times — catalog candidates?"** — drift modes the catalog claims exist but never fired. The single most diagnostic line for whether the catalog is calibrated to your real day.
+- Constructive-expression stick-rate (offered / accepted / stuck %)
+- Lane 1 ingestion totals (sources scanned, proposals emitted vs accepted vs rejected)
+- Action queue (pending proposals, oldest age in hours)
+
+**Cross-vertical share** (when a mechanism card is relevant to your investment vertical):
+
+```bash
+# Find the cross-vertical note id for the accepted card:
+neuro-os cross-vertical query --reader research --kind mechanism_card
+
+# Share it with investment:
+neuro-os cross-vertical share-note --note-id <id> --with investment
+```
+
+The investment vertical can now read that mechanism card. Default is private to research; the share is explicit and audit-trailed.
 
 **Nightly** (~30 sec rollup):
 
