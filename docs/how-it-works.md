@@ -416,6 +416,17 @@ Today the **browser/chat surfaces ship for Founder Loop only**. The
 other three verticals are CLI-only in v0 (their browser surfaces are
 roadmapped). All four use the same Python engine.
 
+**Three UI surfaces ship for Founder Loop, plus a Streamlit lens on the engine itself:**
+
+| Surface | What it shows | Read more |
+|---|---|---|
+| **Browser extension** (Manifest V3) | Toolbar badge + popup + new-tab dashboard + sublimation overlay on 8 distraction hosts (YouTube, Twitter/X, Reddit, HN, Instagram, TikTok, Facebook, Discord). Polls `/tank` every 5 min; calls `/tick` when you visit a distraction host; mounts the Sublimation Card if the diagnosis fires. | [`ui/browser_extension/README.md`](../ui/browser_extension/README.md) |
+| **System tray app** | Cross-platform menu-bar gauge (Linux / macOS / Windows). Polls the daemon every 60s; renders tank %; click for tick / show contract / quit. | [`ui/tray_app/README.md`](../ui/tray_app/README.md) |
+| **Chat surfaces** | `/onboard` (morning ritual), `/review` (nightly), `/queues` (curate bookmarks/social/rubber-duck). Each is a chat page that talks back; falls back to a state-machine without an Anthropic key. | [`docs/how-to-use-it.md`](how-to-use-it.md#founder-loop--the-5-moments) (the "5 moments" walkthrough) |
+| **Streamlit app** (engine only) | Five tabs: Try It / Watch It Learn / Self-Repair / Readiness / About. NOT the daily-product surface; this is for understanding the engine itself in 60 seconds. | [`ui/README.md`](../ui/README.md) |
+
+The CLI surface (`neuro-os ...`) is the universal fallback — every operation a chat surface or browser extension does, the CLI does too. The three CLI-only verticals (Research / Investment / Startup) ship today with this surface only; their chat surfaces are roadmapped.
+
 ```
        Browser extension                  System tray app                  Chat surfaces
   ┌──────────────────────┐         ┌──────────────────────┐         ┌──────────────────────┐

@@ -152,6 +152,53 @@ in different places. Pick what's least intrusive for you.
  └────────────────────────────────────┘
 ```
 
+**Sketch (browser toolbar badge)**:
+
+```
+   ┌─────────────────────────────────────────────────┐
+   │  ✻  ★  ⚐  [ FL 60 ]  ☰  • Tab 1 │ Tab 2 │ ...  │
+   └─────────────────────────────────────────────────┘
+                       ▲
+                       │
+            tank% on the action icon's badge
+            color: amber (<90) / green (≥90, unspent ration) / red (ration burnt)
+```
+
+**Sketch (system tray gauge — macOS menu bar shown; same shape on Linux / Windows)**:
+
+```
+   ─────────────────────────────────────────────────────
+                                          🔋  📶  ☀️  ●60%  🔍  ⏰  Mon 3:42
+                                                  ▲
+                                                  │
+                                          tank gauge in the menu bar
+                                          (click for: tick now / show contract / quit)
+```
+
+**Sketch (browser new-tab dashboard — replaces Chrome's default new-tab)**:
+
+```
+ ╔══════════════════════════════════════════════════════════════════════╗
+ ║                                                                      ║
+ ║   morning, paul · monday may 11 · 9:14am                              ║
+ ║                                                                      ║
+ ║   ████████████░░░░░░░░░░░░░░░░  60%   below threshold                ║
+ ║   ration: 0 / 60 min · entertainment locked                          ║
+ ║                                                                      ║
+ ║   today's contract                                                   ║
+ ║   ● ship the report                          (pr_merged)             ║
+ ║   ○ call my sister                           (human_signoff)         ║
+ ║   ● wrote outline                            (commit_pushed) ✓       ║
+ ║                                                                      ║
+ ║   last 4 hours                                                       ║
+ ║   08:13 · tick · continue · honored=true                             ║
+ ║   09:14 · urge.entertainment · "checking twitter" · diagnosing…      ║
+ ║                                                                      ║
+ ╚══════════════════════════════════════════════════════════════════════╝
+```
+
+For the full Manifest V3 wiring (host permissions, badge polling cadence, content-script injection rules, sublimation-card mount) see [`ui/browser_extension/README.md`](../ui/browser_extension/README.md). For the cross-platform tray gauge, see [`ui/tray_app/README.md`](../ui/tray_app/README.md).
+
 ---
 
 ## Moment 3 — When you're tempted
@@ -404,13 +451,37 @@ neuro-os research dashboard --window 7      # default text rendering
 neuro-os research dashboard --window 7 --json   # machine-readable
 ```
 
-Prints a one-screen rollup:
-- Compound curve: today's mechanism-cards/day, 7-day avg, window avg, trend (`up` / `flat` / `down`)
-- Drift-mode usage histogram (top 3, with ASCII bars)
-- **"X / Y fired 0 times — catalog candidates?"** — drift modes the catalog claims exist but never fired. The single most diagnostic line for whether the catalog is calibrated to your real day.
-- Constructive-expression stick-rate (offered / accepted / stuck %)
-- Lane 1 ingestion totals (sources scanned, proposals emitted vs accepted vs rejected)
-- Action queue (pending proposals, oldest age in hours)
+Prints a one-screen rollup. Real output against the 40-day fixture:
+
+```
+research vertical — 40-day dashboard (generated 2026-05-09 18:59:54 UTC)
+======================================================================
+
+Compound curve
+  mechanism cards/day       today=0.0   7d-avg=0.00   40d-avg=0.00   trend=flat
+
+Drift-mode usage (top 3)
+  paper_collector        ████████████████████████  18
+  topic_hopper           ██████████  8
+  authority_acceptor     █████  4
+  (overloaded / forgetting fired 0 times — catalog candidates?)
+
+Constructive expressions
+  offered:  31   accepted:  31   stuck:  7   stick-rate=23%
+
+Lane 1 ingestion
+  sources scanned:    80     proposals emitted:  14
+  accepted:           0     rejected:           0     pending:  0
+
+Action queue
+  (no pending proposals)
+```
+
+The lines that matter most:
+- **Compound curve trend** — `up` / `flat` / `down` with 5% hysteresis. The headline question of the 40-day trial: are mechanism-cards-per-day trending up?
+- **`overloaded / forgetting fired 0 times — catalog candidates?`** — drift modes the catalog claims exist but never fired. The single most diagnostic line for whether the catalog is calibrated to your real day.
+- **`stick-rate=23%`** — of the constructive expressions the system proposed, what fraction "stuck" (no later same-mode-different-CE override). Low stick-rate means the catalog is wrong; the next move is `skillify extract`.
+- **Action queue** — pending proposals + oldest age in hours. If there's an unreviewed backlog, the dashboard nudges you to run `research review --cli`.
 
 **Cross-vertical share** (when a mechanism card is relevant to your investment vertical):
 
@@ -541,6 +612,98 @@ neuro-os startup nightly
 Prints: strategic continuity score (`1 - kill_count/40`), trust
 density (fraction of audience members who engaged twice or more),
 audience-signals captured, conversion quality.
+
+---
+
+## Easily confused steps
+
+The places real users get stuck. If you hit one of these, this is the disambiguation.
+
+### 1. `--prefer auto` vs `--prefer local` vs `--prefer gbrain` vs `--from-gbrain` (research ingest)
+
+| You want… | Use | Notes |
+|---|---|---|
+| Just ingest, you don't care how | (omit `--prefer`) — defaults to `auto` | Probes `gbrain --version` (1-sec timeout). Falls back to `local` if absent. |
+| Force the native Python extractor (`.txt`/`.md`/`.pdf`) | `--prefer local --source-dir <dir>` | Always works. No external runtime. Anthropic API key is optional (heuristic fallback). |
+| Force gbrain (you have it installed) | `--prefer gbrain --export-file <path>` OR `--from-gbrain --export-file <path>` (alias) | Requires `gbrain` on PATH AND a JSON export. Live MCP wiring is roadmapped. |
+| You're on Paul's no-gbrain machine | `--prefer local` | The whole point of PR-1. |
+
+The flag pair you almost always want: `--prefer local --source-dir ~/reading/`. Everything else is opt-in.
+
+### 2. `--override-of` ALWAYS pairs with `--override-vertical`
+
+```bash
+# WRONG — defaults to founder_loop, but the drift mode is from research:
+neuro-os loop urge novelty --override-of paper_collector
+#  → emits OverrideEvent(vertical="founder_loop", drift_mode="paper_collector")
+#  → wrong vertical; skillify clusters it under founder_loop
+
+# RIGHT:
+neuro-os loop urge novelty --override-of paper_collector --override-vertical research
+#  → emits OverrideEvent(vertical="research", drift_mode="paper_collector")
+```
+
+If you're overriding a research/invest/startup drift mode, ALWAYS pass `--override-vertical`. The flag defaults to `founder_loop` for founder-loop overrides only.
+
+### 3. Where each vertical's home dir lives
+
+| Vertical | Home dir | What's in it |
+|---|---|---|
+| Founder Loop | `~/.founder_loop/` | `registry.jsonl`, `contracts.jsonl`, `founder_events.jsonl`, `anchors.jsonl` (faith/relational), `data/queues/*` |
+| Research | `~/.neuro_os_research/` | `registry.jsonl`, `mechanism_cards/*.json`, `proposals/{pending,accepted,rejected}/*.json`, `ingestion_runs.jsonl` |
+| Investment | `~/.neuro_os_invest/` | `registry.jsonl`, `position_theses/*.json`, `bias_checks/*.json`, `cross_modal_evals/*.json` |
+| Startup | `~/.neuro_os_startup/` | `registry.jsonl`, `hypotheses/*.json`, `audience_signals/*.json`, etc. |
+| Cross-vertical store | `~/.neuro_os/cross_vertical.jsonl` | The shared append-only JSONL for `VerticalNote` + `Entity` rows |
+| Skillify | `~/.neuro_os_skillified/` | `events.jsonl` (override events), `proposals/{pending,accepted,rejected}/*.json` |
+
+**`loop anchor --home <path>`** defaults to `~/.founder_loop/`, NOT `~/.neuro_os_research/`. Anchors are a founder-loop concept (the daily ritual happens there).
+
+### 4. Cross-vertical share is a TWO-step flow
+
+```bash
+# Step 1 — find the cross-vertical note id (NOT the MechanismCard id):
+neuro-os cross-vertical query --reader research --kind mechanism_card
+
+# Step 2 — share that note id with another vertical:
+neuro-os cross-vertical share-note --note-id <id-from-step-1> --with investment
+```
+
+The MechanismCard's local `id` (in `~/.neuro_os_research/mechanism_cards/<id>.json`) is NOT the same as the cross-vertical note `id` (in `~/.neuro_os/cross_vertical.jsonl`). Always go through `cross-vertical query` to look up the right one.
+
+### 5. Skillify won't propose anything until you have ≥5 same-mode overrides
+
+Default threshold is 5. With fewer overrides on the same `(vertical, drift_mode)` bucket, `skillify extract` returns `[]` — that's correct, not a bug. Lower the threshold for testing:
+
+```bash
+neuro-os skillify extract --vertical research --threshold 2
+```
+
+But `--threshold 2` is too noisy for production catalog evolution. Stick with the default 5 once you're past the demo phase.
+
+### 6. Already-proposed buckets are silently skipped on the second `extract`
+
+If you ran `skillify extract` on Monday and got 1 SkillProposal (still pending or accepted), running it again on Tuesday with the same evidence returns `[]`. That's correct — the bucket already has a proposal in flight; running extract again would create a duplicate. To force re-proposal:
+
+```bash
+neuro-os skillify extract --no-skip-existing
+```
+
+Rejected proposals do NOT block re-proposal — the assumption is that if you rejected the first candidate, the next batch of override evidence might surface a better one.
+
+### 7. The dashboard's `--window N` defaults to 40, not 7
+
+```bash
+# Today's view across the 40-day trial (default):
+neuro-os research dashboard
+
+# This week only:
+neuro-os research dashboard --window 7
+
+# Last day:
+neuro-os research dashboard --window 1
+```
+
+If counts look smaller than you expected, check the window flag.
 
 ---
 
