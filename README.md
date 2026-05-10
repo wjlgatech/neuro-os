@@ -88,9 +88,14 @@ For step-by-step setup with screenshots, see [**How to use it**](./docs/how-to-u
 
 ### Knowledge OS (the engine, in 60 seconds)
 
-The fastest visualisation is the Streamlit app:
+The fastest visualisation is the Streamlit app — five tabs, each a distinct lens on the system. Click any thumbnail to see the [full tour in `ui/README.md`](./ui/README.md).
 
-![Self-repair animation](ui/assets/self_repair.gif)
+| Tab | Screenshot |
+|---|---|
+| 🟢 Try It | [![Try It](ui/assets/01_try_it.png)](./ui/README.md#-try-it--paste-a-sentence-watch-it-classified) |
+| 🌱 Watch It Learn | [![Watch It Learn](ui/assets/03_watch_learn.png)](./ui/README.md#-watch-it-learn--feed-a-contradiction-see-the-ontology-shift) |
+| 🔧 Self-Repair (animated) | ![Self-repair animation](ui/assets/self_repair.gif) |
+| 📊 Readiness | [![Readiness](ui/assets/05_readiness.png)](./ui/README.md#-readiness--does-my-x-have-what-neuro-os-needs) |
 
 ```bash
 git clone https://github.com/wjlgatech/neuro-os.git
@@ -107,7 +112,12 @@ python examples/03_self_repair.py      # watch the system fix itself
 pytest                                  # 523 tests pass, 12 skipped
 ```
 
-Architecture deep-dive: [**How it works**](./docs/how-it-works.md). Streamlit tabs: [**ui/README.md**](./ui/README.md).
+**More UI surfaces:**
+- [Streamlit app tour](./ui/README.md) — 60-second intro with the 5 screenshots above
+- [Browser extension](./ui/browser_extension/README.md) — Manifest V3, sublimation card on 8 distraction hosts
+- [System tray app](./ui/tray_app/README.md) — cross-platform tank gauge (Linux / macOS / Windows)
+
+Architecture deep-dive: [**How it works**](./docs/how-it-works.md).
 
 ---
 
