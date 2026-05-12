@@ -39,7 +39,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, List, Optional
 
+from agent.research.framework import EMPTY_FRAMEWORK, Framework
 from agent.research.ontology import (
+    FrameworkAxisNote,
     IngestionRun,
     MechanismCardProposal,
     RawSource,
@@ -225,7 +227,8 @@ def load_sources(
 
 
 # System prompt for the LLM. Cached / static so prompt-caching can apply
-# in production. The user message is the source body (trimmed).
+# in production. The user message is the source body (trimmed) plus an
+# optional framework hint built per-call by _build_framework_directive.
 _SYSTEM_PROMPT = (
     "You extract MechanismCard proposals from one source document. A "
     "MechanismCard is a structured claim with FOUR required fields: "
@@ -242,10 +245,43 @@ _SYSTEM_PROMPT = (
     "the input; if a passage is descriptive but doesn't name a "
     "mechanism, SKIP it (description is not a mechanism); if a passage "
     "names a mechanism but no falsifiable prediction follows, mark "
-    "`confidence: low`. Respond as a JSON array of objects with keys: "
-    "mechanism, invariant, prediction, failure_mode, source_excerpt, "
-    "confidence ('low' | 'medium' | 'high'), reasoning."
+    "`confidence: low`.\n\n"
+    "OPTIONAL deeper fields (leave null when the text doesn't support them): "
+    "`first_principle` (≤ 400 chars) — the most general truth the mechanism "
+    "rests on, often unstated in the paper, transferable BEYOND the paper's "
+    "domain; `anti_pattern` (≤ 400 chars) — the way this mechanism is "
+    "commonly misunderstood or misapplied; `transferability_test` (≤ 400 "
+    "chars) — one concrete domain (in or out of the paper's field) where "
+    "this mechanism also applies (if you can't name one, leave null — the "
+    "mechanism may be a local optimization not a principle); `verdict` "
+    "(one of 'foundational' | 'useful' | 'misleading' | 'skip') — your "
+    "judgment of the paper's value; `one_sentence_compression` (≤ 280 "
+    "chars) — tweet-length distillation; `framework_alignment` — a list "
+    "of {axis_name, note} pairs ONLY for axes named in the user-supplied "
+    "framework (preceding the source text). If no framework is supplied, "
+    "omit framework_alignment.\n\n"
+    "Respond as a JSON array of objects with keys: mechanism, invariant, "
+    "prediction, failure_mode, source_excerpt, confidence ('low' | "
+    "'medium' | 'high'), reasoning, and optionally: first_principle, "
+    "anti_pattern, transferability_test, verdict, one_sentence_compression, "
+    "framework_alignment."
 )
+
+
+def _build_framework_directive(framework: Framework) -> str:
+    """Format the user's framework axes as a short directive prepended to
+    the source body. Empty framework → empty string (no directive)."""
+    if not framework.axes:
+        return ""
+    lines = [
+        "USER FRAMEWORK — when extracting `framework_alignment`, consider "
+        "ONLY these axes (skip ones the text doesn't support):"
+    ]
+    for axis in framework.axes:
+        desc = f" — {axis.description}" if axis.description else ""
+        lines.append(f"  - {axis.name}{desc}")
+    lines.append("")
+    return "\n".join(lines)
 
 
 # Heuristic-fallback regex: finds sentences that contain a causal verb
@@ -292,11 +328,50 @@ def _heuristic_extract(body: str) -> List[dict]:
     return out
 
 
+_VALID_VERDICTS = {"foundational", "useful", "misleading", "skip"}
+
+
+def _parse_framework_alignment(raw: object) -> List[FrameworkAxisNote]:
+    """LLM may return framework_alignment as a list of dicts; coerce
+    each into a FrameworkAxisNote, drop malformed entries silently."""
+    if not isinstance(raw, list):
+        return []
+    out: List[FrameworkAxisNote] = []
+    for item in raw[:10]:  # max_length on the field is 10
+        if not isinstance(item, dict):
+            continue
+        axis = item.get("axis_name") or item.get("axis")
+        note = item.get("note")
+        if not isinstance(axis, str) or not isinstance(note, str):
+            continue
+        try:
+            out.append(FrameworkAxisNote(axis_name=axis[:80], note=note[:400]))
+        except Exception:
+            continue
+    return out
+
+
+def _coerce_optional_str(raw: object, *, max_len: int) -> Optional[str]:
+    if raw is None:
+        return None
+    if not isinstance(raw, str):
+        return None
+    s = raw.strip()
+    return s[:max_len] if s else None
+
+
+def _coerce_verdict(raw: object) -> Optional[str]:
+    if isinstance(raw, str) and raw in _VALID_VERDICTS:
+        return raw
+    return None
+
+
 def extract_mechanisms(
     source: RawSource,
     *,
     llm_fn: Optional[LLMCallable] = None,
     now: Optional[datetime] = None,
+    framework: Optional[Framework] = None,
 ) -> List[MechanismCardProposal]:
     """One source → 0..K MechanismCardProposal candidates.
 
@@ -304,12 +379,19 @@ def extract_mechanisms(
     Otherwise calls the LLM, validates each row through
     ``MechanismCardProposal.model_validate`` (Pydantic at the boundary —
     malformed LLM output is dropped with a warning, not silently kept).
+
+    ``framework`` (optional) is the user's framework from
+    ``agent.research.framework.load_framework``. When supplied with
+    axes, a short axes directive is prepended to the user message so
+    the LLM can populate ``framework_alignment`` per proposal.
     """
     when = now or datetime.now(timezone.utc)
+    fw = framework or EMPTY_FRAMEWORK
     body = source.path.read_text(encoding="utf-8", errors="replace") \
         if source.path.suffix.lower() in (".txt", ".md") \
         else _extract_text(source.path)
     body_trimmed = body[:MAX_CHARS_PER_SOURCE]
+    user_message = _build_framework_directive(fw) + body_trimmed
 
     if llm_fn is None:
         raw_rows = _heuristic_extract(body_trimmed)
@@ -317,7 +399,7 @@ def extract_mechanisms(
         model = None
     else:
         try:
-            raw_rows = llm_fn(_SYSTEM_PROMPT, body_trimmed)
+            raw_rows = llm_fn(_SYSTEM_PROMPT, user_message)
         except Exception as e:
             logger.warning(
                 "ingest.extract_mechanisms: llm_fn failed for %s (%s); "
@@ -351,6 +433,13 @@ def extract_mechanisms(
                 extraction_model=model,
                 confidence=row.get("confidence", "low") if row.get("confidence") in ("low", "medium", "high") else "low",
                 reasoning=str(row.get("reasoning", ""))[:1000] or "No reasoning supplied.",
+                first_principle=_coerce_optional_str(row.get("first_principle"), max_len=400),
+                anti_pattern=_coerce_optional_str(row.get("anti_pattern"), max_len=400),
+                transferability_test=_coerce_optional_str(row.get("transferability_test"), max_len=400),
+                verdict=_coerce_verdict(row.get("verdict")),
+                one_sentence_compression=_coerce_optional_str(row.get("one_sentence_compression"), max_len=280),
+                framework_alignment=_parse_framework_alignment(row.get("framework_alignment")),
+                source_tier=source.tier,
             )
             proposals.append(proposal)
         except Exception as e:
@@ -373,19 +462,30 @@ def ingest(
     llm_fn: Optional[LLMCallable] = None,
     home: Optional[Path] = None,
     now: Optional[datetime] = None,
+    framework: Optional[Framework] = None,
 ) -> IngestionRun:
     """End-to-end: load sources → extract per source → write proposals.
 
     Returns an ``IngestionRun`` summarizing the invocation. Does NOT
     auto-append to ``ingestion_runs.jsonl`` — the CLI does that so tests
     can inspect the return value without writing to ``home``.
+
+    ``framework`` defaults to ``load_framework(home)`` so a user-edited
+    ``~/.neuro_os_research/framework.json`` flows in automatically; pass
+    an explicit ``Framework`` to override (tests do this).
     """
     started = now or datetime.now(timezone.utc)
     sources, skipped = load_sources(source_dir, home=home)
 
+    if framework is None:
+        from agent.research.framework import load_framework
+        framework = load_framework(home=home)
+
     all_proposals: List[MechanismCardProposal] = []
     for src in sources:
-        all_proposals.extend(extract_mechanisms(src, llm_fn=llm_fn, now=started))
+        all_proposals.extend(extract_mechanisms(
+            src, llm_fn=llm_fn, now=started, framework=framework,
+        ))
 
     for prop in all_proposals:
         write_proposal(prop, home=home)

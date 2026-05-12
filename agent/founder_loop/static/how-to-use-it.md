@@ -495,6 +495,115 @@ neuro-os cross-vertical share-note --note-id <id> --with investment
 
 The investment vertical can now read that mechanism card. Default is private to research; the share is explicit and audit-trailed.
 
+**Three-Layer Research OS** (weekly, ~5 min):
+
+Layer 1 (extraction) is the per-paper ingest above. Two more layers
+turn accumulated cards into decision-grade output.
+
+*Optional one-time setup — your framework.* Tell the system what
+axes you read papers against. The substrate doesn't interpret these;
+it just preserves them across the pipeline. Hand-edit
+`~/.neuro_os_research/framework.json`:
+
+```json
+{
+  "name": "OEC",
+  "description": "Observation -> Evaluation -> Control -> Continual",
+  "axes": [
+    {"name": "Observation", "description": "What sensors / signals?"},
+    {"name": "Evaluation",  "description": "What delta is detected?"},
+    {"name": "Control",     "description": "What action is taken?"},
+    {"name": "Continual",   "description": "What is learned over time?"}
+  ]
+}
+```
+
+The framework is **fully generic** — a value investor uses
+{Moat, Distribution, Unit economics}; a founder uses
+{deep-work block, recovery ritual}; the substrate doesn't care. If
+the file is missing, framework-aware features are simply skipped.
+
+*Layer 2 — synthesize* (cluster cards by mechanism, not topic):
+
+```bash
+neuro-os research synthesize --window 30 --min-cluster-size 2
+```
+
+Reads accepted MechanismCards in the window, clusters them by their
+underlying causal mechanism (so the regularization paper in CL and
+the regularization paper in econ end up in the same cluster), and
+writes a `SynthesisRun` to `~/.neuro_os_research/synthesis/runs/`.
+With `ANTHROPIC_API_KEY` it uses an LLM clusterer; without, falls
+back to a heuristic Jaccard clusterer (less rich but works offline).
+
+> Implementation note: this v0 module mirrors the Plan A pattern in
+> `agent/research/ingest_router.py`. Future PR replaces it with a
+> graphify adapter — graphify (your separate project) is the right
+> long-term backend for graph-shaped synthesis.
+
+*Layer 3 — generate a decision-ready brief.* Author a `ProjectContext`
+JSON file naming the project + 1-5 current questions + optional
+collaborators + optional pending decisions, then:
+
+```bash
+neuro-os research brief --cluster-id <cluster_id> --context-file ./context.json
+```
+
+Output: a markdown brief printed to stdout + saved to
+`~/.neuro_os_research/briefs/<brief_id>.md`. Contains:
+- **What this means for the project** (2-5 implications)
+- **Next decisions** unlocked by the cluster
+- **Next experiments** that would falsify the cluster's applicability
+- **Questions for collaborators** — phrased to surface their
+  load-bearing assumption
+
+Sample `context.json`:
+
+```json
+{
+  "project_name": "myProject",
+  "current_questions": [
+    "How do we add capability without regressing prior behavior?"
+  ],
+  "collaborators": ["Alex", "Sam"],
+  "pending_decisions": ["ship feature X this week?"],
+  "framework_name": "OEC"
+}
+```
+
+**Stop-condition checkpoint** (after each Layer 3 brief, ~30 sec):
+
+```bash
+neuro-os research checkpoint --brief-produced yes --clearer yes --note "..."
+```
+
+Two binary signals: did the cycle produce a brief? did your mental
+model on the active thesis get clearer? Both YES → the system is
+working, keep adding inputs. Either NO twice in a row → dashboard
+prints `system_not_converting`. *Redesign before adding more inputs,
+not after.* This is the falsifiability gate the Research OS uses on
+itself.
+
+**Dashboard health flags** (read after the rollup):
+
+The dashboard's new "Three-Layer Research OS" section surfaces
+`system_health_flags`:
+
+- `chaser_mode` — ≥5 accepted, >70% frontier-tier, <10% seed-tier.
+  Reading only the recent edge; missing the foundational anchors.
+- `hoarder_mode` — oldest pending proposal > 14 days. The 2-week
+  inbox rule from the source pipeline; if a paper isn't worth
+  processing in 2 weeks, it wasn't worth saving.
+- `rubber_stamping` — ≥5 rated cards, zero `skip` + zero `misleading`.
+  Every paper rated foundational/useful is suspicious; the verdict
+  vocabulary exists so honest "skip" rates matter.
+- `no_synthesis` — ≥5 accepted, zero briefs in window. Have data,
+  not synthesizing.
+- `system_not_converging` — ≥2 consecutive non-converging checkpoints.
+
+Flags fire ONLY when evidence is unambiguous (sample-size guards
+make small-corpus days flag-free).
+
 **Nightly** (~30 sec rollup):
 
 ```bash

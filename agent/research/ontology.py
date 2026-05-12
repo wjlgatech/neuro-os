@@ -42,6 +42,41 @@ EVIDENCE_TYPE = Literal[
 ]
 
 
+# Verdict on a paper / proposal — used by Layer 2 synthesis to filter
+# clusters (e.g. only cluster `foundational` + `useful`; route `skip` to
+# the dashboard's "anti-survey-mode" counter). Optional — the extractor
+# leaves None when it can't tell; the user fills it at /research-review.
+VERDICT = Literal["foundational", "useful", "misleading", "skip"]
+
+
+# Source pipeline tier. Lifted from piece 2's three-tier source pipeline:
+# `seed` = foundational anchors (cite-of-cites); `frontier` = recent edge
+# (last 12-18mo); `lateral` = adjacent-field papers using the same
+# mechanism on a different problem. Optional on RawSource so users who
+# don't classify their corpus stay supported.
+SOURCE_TIER = Literal["seed", "frontier", "lateral"]
+
+
+class FrameworkAxisNote(BaseModel):
+    """One axis-aligned note on a mechanism. The user's framework axes
+    are user-supplied (see ``agent.research.framework``); a card may
+    speak to zero, one, or several of them. Generic — the substrate
+    does NOT know what an axis means; it just round-trips the (name,
+    note) pair so Layer 2 synthesis and Layer 3 briefs can preserve
+    framework alignment across the pipeline.
+
+    Examples (not hard-coded — user-supplied):
+      * axis_name="Observation",    note="provides on-device sensor stream..."
+      * axis_name="Moat",           note="data network effect via..."
+      * axis_name="founder ritual", note="protects deep-work blocks via..."
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    axis_name: str = Field(min_length=1, max_length=80)
+    note: str = Field(min_length=1, max_length=400)
+
+
 class MechanismCard(BaseModel):
     """One per paper. The 4-field card from the PRD's Transformation #1.
 
@@ -103,6 +138,55 @@ class MechanismCard(BaseModel):
                     "acceptance, each slug is upsert_entity'd into the "
                     "cross-vertical store (default-PRIVATE to research "
                     "until the user explicitly shares).",
+    )
+
+    # Layer-1 deepening (Three-Layer Research OS — extraction fields).
+    # All optional so existing accepted cards round-trip unchanged.
+    first_principle: Optional[str] = Field(
+        default=None,
+        max_length=400,
+        description="The deepest, most general truth the mechanism rests "
+                    "on. Often unstated in the paper itself; transferable "
+                    "BEYOND the paper's domain. Distinct from `mechanism` "
+                    "(causal story) and `invariant` (load-bearing relation).",
+    )
+    anti_pattern: Optional[str] = Field(
+        default=None,
+        max_length=400,
+        description="The way the mechanism is commonly misunderstood or "
+                    "misapplied. The version that looks right but isn't. "
+                    "Knowing this is often more valuable than knowing the "
+                    "mechanism itself.",
+    )
+    transferability_test: Optional[str] = Field(
+        default=None,
+        max_length=400,
+        description="One concrete domain (inside or outside the paper's "
+                    "field) where this mechanism would also apply. If "
+                    "blank, the mechanism may be a local optimization "
+                    "rather than a first principle.",
+    )
+    verdict: Optional[VERDICT] = Field(
+        default=None,
+        description="Reader's judgment: foundational (load-bearing idea), "
+                    "useful (toolbox entry), misleading (looks right, "
+                    "isn't), skip (not worth re-reading). Used by Layer-2 "
+                    "synthesis to filter and by the dashboard's "
+                    "anti-survey-mode counter.",
+    )
+    one_sentence_compression: Optional[str] = Field(
+        default=None,
+        max_length=280,
+        description="Tweet-length distillation. If the reader can't "
+                    "produce one, they probably don't understand the "
+                    "paper yet. Compression forces understanding.",
+    )
+    framework_alignment: List[FrameworkAxisNote] = Field(
+        default_factory=list,
+        max_length=10,
+        description="Per-axis notes against the user's framework "
+                    "(see agent.research.framework). The substrate does "
+                    "not interpret the axis names; it just preserves them.",
     )
 
 
@@ -262,6 +346,14 @@ class RawSource(BaseModel):
         description="Hex digest of the file body. Used to detect re-ingestion "
                     "of an unchanged source.",
     )
+    tier: Optional[SOURCE_TIER] = Field(
+        default=None,
+        description="Source-pipeline tier annotation. `seed` = foundational "
+                    "anchor; `frontier` = recent edge (last 12-18mo); "
+                    "`lateral` = adjacent-field paper using the same "
+                    "mechanism on a different problem. Optional; left None "
+                    "means the user hasn't classified the corpus.",
+    )
 
 
 class MechanismCardProposal(BaseModel):
@@ -319,6 +411,25 @@ class MechanismCardProposal(BaseModel):
                     "may bind to this proposal at /research-review accept "
                     "time. Empty in the v0 adapter (extractor is conservative "
                     "and lets the user name entities manually).",
+    )
+
+    # Layer-1 deepening — mirror of MechanismCard fields. All optional so
+    # the extractor can omit any field it isn't confident about; the user
+    # can fill them in at /research-review before acceptance.
+    first_principle: Optional[str] = Field(default=None, max_length=400)
+    anti_pattern: Optional[str] = Field(default=None, max_length=400)
+    transferability_test: Optional[str] = Field(default=None, max_length=400)
+    verdict: Optional[VERDICT] = None
+    one_sentence_compression: Optional[str] = Field(default=None, max_length=280)
+    framework_alignment: List[FrameworkAxisNote] = Field(
+        default_factory=list,
+        max_length=10,
+    )
+    source_tier: Optional[SOURCE_TIER] = Field(
+        default=None,
+        description="Tier carried over from the originating RawSource so "
+                    "the dashboard can show tier balance without re-reading "
+                    "the source pipeline. Optional; None means unclassified.",
     )
 
 
