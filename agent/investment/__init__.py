@@ -33,6 +33,17 @@ from agent.investment.config import (
     run_bias_check,
     run_cross_modal_bias_check,
 )
+from agent.investment.cost_of_living import (
+    CostOfLivingTarget,
+    make_cost_of_living_target,
+    read_cost_of_living_target,
+    write_cost_of_living_target,
+)
+from agent.investment.dashboard import (
+    InvestDashboardSummary,
+    build_invest_dashboard,
+)
+from agent.investment.dashboard import render_text as render_invest_dashboard
 from agent.investment.ontology import (
     BiasCheck,
     CalibrationRecord,
@@ -40,6 +51,14 @@ from agent.investment.ontology import (
     InvestmentContract,
     InvestmentPriority,
     PositionThesis,
+    Sleeve,
+)
+from agent.investment.trade import (
+    TradeLog,
+    TradeStrategy,
+    iter_trade_logs,
+    make_trade_log,
+    write_trade_log,
 )
 
 
@@ -55,4 +74,17 @@ __all__ = [
     "InvestmentContract",
     "InvestmentPriority",
     "PositionThesis",
+    "Sleeve",
+    "CostOfLivingTarget",
+    "make_cost_of_living_target",
+    "read_cost_of_living_target",
+    "write_cost_of_living_target",
+    "TradeLog",
+    "TradeStrategy",
+    "iter_trade_logs",
+    "make_trade_log",
+    "write_trade_log",
+    "InvestDashboardSummary",
+    "build_invest_dashboard",
+    "render_invest_dashboard",
 ]

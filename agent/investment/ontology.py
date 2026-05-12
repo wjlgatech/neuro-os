@@ -41,6 +41,12 @@ EVIDENCE_TYPE = Literal[
 PositionSide = Literal["read_only", "long_simulated", "short_simulated"]
 
 
+# Mega-trend allocation buckets. Optional tag on PositionThesis +
+# TradeLog so the dashboard can roll up exposure by sleeve. Untagged
+# rows bucket under "untagged" in the dashboard view.
+Sleeve = Literal["ai", "energy", "biotech", "macro", "crypto", "other"]
+
+
 class PositionThesis(BaseModel):
     """One per position. Required at every position edit.
 
@@ -92,6 +98,11 @@ class PositionThesis(BaseModel):
         default=None,
         max_length=64,
         description="When this thesis replaces/refines an earlier one.",
+    )
+    sleeve: Optional[Sleeve] = Field(
+        default=None,
+        description="Mega-trend allocation bucket. Optional; untagged "
+                    "theses bucket under 'untagged' in the dashboard.",
     )
 
 

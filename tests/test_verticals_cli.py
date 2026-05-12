@@ -223,3 +223,186 @@ def test_invest_tick_rejects_research_drift(home):
         "--dry-run",
     )
     assert rc != 0
+
+
+# ---------------------------------------------------------------------------
+# Phase-1 invest workflow: cost-of-living, trade, dashboard
+# ---------------------------------------------------------------------------
+
+
+def test_invest_cost_of_living_set_writes_target(home):
+    rc, out, err = _run(
+        "invest", "cost-of-living", "set",
+        "--monthly-target", "14000",
+        "--region", "Bay Area",
+        "--home", str(home),
+    )
+    assert rc == 0, err
+    body = json.loads(out)
+    assert body["ok"] is True
+    assert body["target"]["monthly_target"] == 14000.0
+    assert body["target"]["region"] == "Bay Area"
+
+
+def test_invest_cost_of_living_show_after_set(home):
+    _run(
+        "invest", "cost-of-living", "set",
+        "--monthly-target", "10000", "--region", "Austin",
+        "--home", str(home),
+    )
+    rc, out, err = _run(
+        "invest", "cost-of-living", "show", "--home", str(home),
+    )
+    assert rc == 0, err
+    body = json.loads(out)
+    assert body["monthly_target"] == 10000.0
+    assert body["region"] == "Austin"
+
+
+def test_invest_cost_of_living_show_returns_empty_when_unset(home):
+    rc, out, err = _run(
+        "invest", "cost-of-living", "show", "--home", str(home),
+    )
+    assert rc == 0, err
+    assert json.loads(out) == {}
+
+
+def test_invest_cost_of_living_rejects_zero_target(home):
+    rc, out, err = _run(
+        "invest", "cost-of-living", "set",
+        "--monthly-target", "0",
+        "--region", "X",
+        "--home", str(home),
+    )
+    assert rc != 0
+    assert "error" in err.lower()
+
+
+def test_invest_trade_log_round_trip(home):
+    rc, out, err = _run(
+        "invest", "trade", "log",
+        "--strategy", "cash_secured_put",
+        "--ticker", "NVDA",
+        "--underlying-price", "920",
+        "--expiry", "2026-06-19",
+        "--strikes", "880",
+        "--premium", "1200",
+        "--max-loss", "88000",
+        "--win-prob", "0.80",
+        "--assignment-prob", "0.20",
+        "--sleeve", "ai",
+        "--home", str(home),
+    )
+    assert rc == 0, err
+    body = json.loads(out)
+    assert body["ok"] is True
+    assert body["advisory_only"] is True
+    assert body["trade"]["strategy"] == "cash_secured_put"
+    assert body["trade"]["ticker"] == "NVDA"
+    assert body["trade"]["strikes"] == [880.0]
+    assert body["trade"]["sleeve"] == "ai"
+
+    # And `trade list` finds it
+    rc2, out2, _err = _run("invest", "trade", "list", "--home", str(home))
+    assert rc2 == 0
+    listed = json.loads(out2)
+    assert len(listed) == 1
+    assert listed[0]["id"] == body["trade"]["id"]
+
+
+def test_invest_trade_log_rejects_out_of_range_win_prob(home):
+    rc, out, err = _run(
+        "invest", "trade", "log",
+        "--strategy", "cash_secured_put",
+        "--ticker", "NVDA", "--underlying-price", "920",
+        "--expiry", "2026-06-19", "--strikes", "880",
+        "--premium", "1200", "--max-loss", "88000",
+        "--win-prob", "1.5", "--assignment-prob", "0.2",
+        "--home", str(home),
+    )
+    assert rc != 0
+    assert "error" in err.lower()
+
+
+def test_invest_trade_log_rejects_bad_expiry(home):
+    rc, out, err = _run(
+        "invest", "trade", "log",
+        "--strategy", "cash_secured_put",
+        "--ticker", "NVDA", "--underlying-price", "920",
+        "--expiry", "next-friday", "--strikes", "880",
+        "--premium", "1200", "--max-loss", "88000",
+        "--win-prob", "0.80", "--assignment-prob", "0.20",
+        "--home", str(home),
+    )
+    assert rc != 0
+    assert "expiry" in err.lower() or "iso" in err.lower()
+
+
+def test_invest_trade_log_rejects_bad_strikes(home):
+    rc, out, err = _run(
+        "invest", "trade", "log",
+        "--strategy", "cash_secured_put",
+        "--ticker", "NVDA", "--underlying-price", "920",
+        "--expiry", "2026-06-19", "--strikes", "abc",
+        "--premium", "1200", "--max-loss", "88000",
+        "--win-prob", "0.80", "--assignment-prob", "0.20",
+        "--home", str(home),
+    )
+    assert rc != 0
+    assert "strikes" in err.lower() or "float" in err.lower()
+
+
+def test_invest_dashboard_end_to_end_user_snippet(home):
+    """The exact 4-step workflow from the user's snippet must run clean."""
+    rc1, _o, e1 = _run(
+        "invest", "cost-of-living", "set",
+        "--monthly-target", "14000", "--region", "Bay Area",
+        "--home", str(home),
+    )
+    assert rc1 == 0, e1
+    rc2, _o, e2 = _run(
+        "invest", "trade", "log",
+        "--strategy", "cash_secured_put",
+        "--ticker", "NVDA", "--underlying-price", "920",
+        "--expiry", "2026-06-19", "--strikes", "880",
+        "--premium", "1200", "--max-loss", "88000",
+        "--win-prob", "0.80", "--assignment-prob", "0.20",
+        "--home", str(home),
+    )
+    assert rc2 == 0, e2
+    rc3, out, e3 = _run(
+        "invest", "dashboard", "--window", "30", "--home", str(home),
+    )
+    assert rc3 == 0, e3
+    assert "investment vertical" in out
+    assert "Bay Area" in out
+    assert "$14,000" in out
+    assert "$1,200" in out
+    assert "advisory-only" in out
+
+
+def test_invest_dashboard_json_flag(home):
+    rc, out, err = _run(
+        "invest", "dashboard", "--window", "30",
+        "--json", "--home", str(home),
+    )
+    assert rc == 0, err
+    body = json.loads(out)
+    assert body["vertical"] == "investment"
+    assert body["window_days"] == 30
+
+
+def test_invest_dashboard_rejects_zero_window(home):
+    rc, out, err = _run(
+        "invest", "dashboard", "--window", "0", "--home", str(home),
+    )
+    assert rc != 0
+    assert "window" in err.lower()
+
+
+def test_invest_dashboard_rejects_oversize_window(home):
+    rc, out, err = _run(
+        "invest", "dashboard", "--window", "500", "--home", str(home),
+    )
+    assert rc != 0
+    assert "window" in err.lower()

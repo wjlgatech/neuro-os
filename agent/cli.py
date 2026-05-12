@@ -802,6 +802,8 @@ def _add_vertical_subcommands(
     # research-only: ingestion + review (Lane 1).
     if vertical_name == "research":
         _add_research_ingest_subcommands(top_sub)
+    elif vertical_name == "invest":
+        _add_invest_workflow_subcommands(top_sub)
 
     # onboard
     onb = top_sub.add_parser(
@@ -1592,6 +1594,229 @@ def _make_anthropic_brief_fn():
         return parsed
 
     return llm_fn
+
+
+# ---------------------------------------------------------------------------
+# Investment-vertical workflow subcommands (Phase-1):
+#   cost-of-living, trade, dashboard.
+# Mirrors _add_research_ingest_subcommands for the research side.
+# Anti-goal preserved throughout: ADVISORY-ONLY — no broker routing.
+# ---------------------------------------------------------------------------
+
+
+def _add_invest_workflow_subcommands(
+    top_sub: "argparse._SubParsersAction",
+) -> None:
+    """Add `invest cost-of-living {set,show} / trade {log,list} / dashboard`."""
+    from agent.investment import TradeStrategy
+    from agent.investment.ontology import Sleeve
+
+    strategy_choices = list(TradeStrategy.__args__)  # type: ignore[attr-defined]
+    sleeve_choices = list(Sleeve.__args__)  # type: ignore[attr-defined]
+
+    # cost-of-living
+    col = top_sub.add_parser(
+        "cost-of-living",
+        help="manage the headline monthly cost-of-living target",
+    )
+    col_sub = col.add_subparsers(dest="cost_of_living_command", required=True)
+
+    col_set = col_sub.add_parser(
+        "set",
+        help="overwrite the current cost-of-living target",
+    )
+    col_set.add_argument("--monthly-target", type=float, required=True,
+                         help="monthly cash target in USD (must be > 0)")
+    col_set.add_argument("--region", required=True,
+                         help="region label, e.g. 'Bay Area'")
+    col_set.add_argument("--notes", default=None)
+    col_set.add_argument("--home", default=None,
+                         help="vertical home dir (default: ~/.neuro_os_investment/)")
+    col_set.set_defaults(func=_invest_cost_of_living_set_handler)
+
+    col_show = col_sub.add_parser(
+        "show",
+        help="print the current cost-of-living target as JSON (or empty)",
+    )
+    col_show.add_argument("--home", default=None)
+    col_show.set_defaults(func=_invest_cost_of_living_show_handler)
+
+    # trade
+    tr = top_sub.add_parser(
+        "trade",
+        help="log + list trades (advisory-only journal — no broker routing)",
+    )
+    tr_sub = tr.add_subparsers(dest="trade_command", required=True)
+
+    tr_log = tr_sub.add_parser(
+        "log",
+        help="log a trade decision (post-decision journal)",
+    )
+    tr_log.add_argument("--strategy", choices=strategy_choices, required=True)
+    tr_log.add_argument("--ticker", required=True)
+    tr_log.add_argument("--underlying-price", type=float, required=True)
+    tr_log.add_argument(
+        "--expiry", required=True,
+        help="ISO date, YYYY-MM-DD (e.g. 2026-06-19)",
+    )
+    tr_log.add_argument(
+        "--strikes", required=True,
+        help="comma-separated strikes (1 for CSP/CC; 2 for verticals; 4 for "
+             "iron condors). Example: '880' or '850,880'.",
+    )
+    tr_log.add_argument("--premium", type=float, required=True,
+                        help="net credit received in USD (must be > 0 in v0)")
+    tr_log.add_argument("--max-loss", type=float, required=True,
+                        help="max dollar loss to worst breakeven (must be > 0)")
+    tr_log.add_argument("--win-prob", type=float, required=True,
+                        help="pre-trade probability of profit (0..1)")
+    tr_log.add_argument("--assignment-prob", type=float, required=True,
+                        help="pre-trade probability of assignment (0..1)")
+    tr_log.add_argument("--thesis-id", default=None,
+                        help="link to a PositionThesis id (optional)")
+    tr_log.add_argument("--sleeve", choices=sleeve_choices, default=None,
+                        help="mega-trend sleeve tag (optional)")
+    tr_log.add_argument("--notes", default=None)
+    tr_log.add_argument("--home", default=None)
+    tr_log.set_defaults(func=_invest_trade_log_handler)
+
+    tr_list = tr_sub.add_parser(
+        "list",
+        help="list trades in the window as JSON (default: all)",
+    )
+    tr_list.add_argument("--window", type=int, default=None,
+                         help="restrict to last N days (default: all)")
+    tr_list.add_argument("--home", default=None)
+    tr_list.set_defaults(func=_invest_trade_list_handler)
+
+    # dashboard
+    dash = top_sub.add_parser(
+        "dashboard",
+        help="weekly rollup: cost-of-living coverage, trades, sleeves, calibration",
+    )
+    dash.add_argument("--window", type=int, default=30,
+                      help="window in days (default 30; valid 1..365)")
+    dash.add_argument("--json", action="store_true",
+                      help="emit InvestDashboardSummary as JSON")
+    dash.add_argument("--home", default=None)
+    dash.set_defaults(func=_invest_dashboard_handler)
+
+
+def _invest_cost_of_living_set_handler(args: argparse.Namespace) -> int:
+    from agent.investment import (
+        make_cost_of_living_target,
+        write_cost_of_living_target,
+    )
+
+    home = Path(args.home).expanduser() if args.home else None
+    try:
+        target = make_cost_of_living_target(
+            monthly_target=args.monthly_target,
+            region=args.region,
+            notes=args.notes,
+        )
+    except Exception as exc:
+        print(f"error: invalid cost-of-living target: {exc}", file=sys.stderr)
+        return 2
+    path = write_cost_of_living_target(target, home=home)
+    print(json.dumps({
+        "ok": True,
+        "path": str(path),
+        "target": target.model_dump(mode="json"),
+    }, indent=2))
+    return 0
+
+
+def _invest_cost_of_living_show_handler(args: argparse.Namespace) -> int:
+    from agent.investment import read_cost_of_living_target
+
+    home = Path(args.home).expanduser() if args.home else None
+    target = read_cost_of_living_target(home=home)
+    if target is None:
+        print("{}")
+        return 0
+    print(target.model_dump_json(indent=2))
+    return 0
+
+
+def _invest_trade_log_handler(args: argparse.Namespace) -> int:
+    from datetime import date as _date
+
+    from agent.investment import make_trade_log, write_trade_log
+
+    home = Path(args.home).expanduser() if args.home else None
+    try:
+        expiry = _date.fromisoformat(args.expiry)
+    except ValueError:
+        print(
+            f"error: --expiry must be ISO YYYY-MM-DD (got {args.expiry!r})",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        strikes = [float(s.strip()) for s in args.strikes.split(",") if s.strip()]
+    except ValueError:
+        print(
+            f"error: --strikes must be comma-separated floats (got "
+            f"{args.strikes!r})",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        trade = make_trade_log(
+            strategy=args.strategy,
+            ticker=args.ticker,
+            underlying_price=args.underlying_price,
+            expiry=expiry,
+            strikes=strikes,
+            premium=args.premium,
+            max_loss=args.max_loss,
+            win_prob=args.win_prob,
+            assignment_prob=args.assignment_prob,
+            thesis_id=args.thesis_id,
+            sleeve=args.sleeve,
+            notes=args.notes,
+        )
+    except Exception as exc:
+        print(f"error: invalid trade: {exc}", file=sys.stderr)
+        return 2
+    path = write_trade_log(trade, home=home)
+    print(json.dumps({
+        "ok": True,
+        "path": str(path),
+        "advisory_only": True,
+        "trade": trade.model_dump(mode="json"),
+    }, indent=2, default=str))
+    return 0
+
+
+def _invest_trade_list_handler(args: argparse.Namespace) -> int:
+    from agent.investment import iter_trade_logs
+
+    home = Path(args.home).expanduser() if args.home else None
+    trades = list(iter_trade_logs(home=home, window_days=args.window))
+    out = [t.model_dump(mode="json") for t in trades]
+    print(json.dumps(out, indent=2, default=str))
+    return 0
+
+
+def _invest_dashboard_handler(args: argparse.Namespace) -> int:
+    from agent.investment import build_invest_dashboard, render_invest_dashboard
+
+    if args.window < 1 or args.window > 365:
+        print(
+            f"error: --window must be between 1 and 365 (got {args.window})",
+            file=sys.stderr,
+        )
+        return 2
+
+    home = Path(args.home).expanduser() if args.home else None
+    summary = build_invest_dashboard(home=home, window_days=args.window)
+    if args.json:
+        print(summary.model_dump_json(indent=2))
+    else:
+        print(render_invest_dashboard(summary))
+    return 0
 
 
 # ---------------------------------------------------------------------------
