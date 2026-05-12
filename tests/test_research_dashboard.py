@@ -381,19 +381,22 @@ def test_cli_research_dashboard_prints_text(tmp_path):
 def test_cli_research_dashboard_json(tmp_path):
     home = tmp_path / "research"
     _seed_home(home)
-    # Use --window 41 to give a safe buffer against the fixture's
-    # day-39 boundary event drifting out of the window as wall-clock
-    # advances past the fixture-creation date. The unit-test version
-    # of this assertion (test_build_dashboard_summary_against_fixture)
-    # uses an injected `now=NOW` so it's exact at 18.
+    # The fixture's events span ~40 days from a fixed creation date.
+    # As wall-clock advances past that date, boundary events drift out
+    # of any window equal-to-or-smaller than the fixture's age. Use a
+    # generous --window so the test stays green as time advances; the
+    # unit-test version (test_build_dashboard_summary_against_fixture)
+    # uses an injected `now=NOW` to assert the exact count at 18.
     rc, out, err = _run(
         "research", "dashboard", "--home", str(home),
-        "--window", "41", "--json",
+        "--window", "365", "--json",
     )
     assert rc == 0, err
     parsed = DashboardSummary.model_validate_json(out)
     assert parsed.vertical == "research"
-    assert parsed.window_days == 41
+    assert parsed.window_days == 365
+    # All 18 fixture events fall within a 365-day window regardless of
+    # how far the wall-clock has drifted from fixture creation.
     assert parsed.drift_mode_counts["paper_collector"] == 18
 
 

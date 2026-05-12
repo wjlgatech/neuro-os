@@ -992,6 +992,81 @@ def _add_research_ingest_subcommands(top_sub: "argparse._SubParsersAction") -> N
     )
     eread.set_defaults(func=_research_entity_read_handler)
 
+    # synthesize (Layer 2): cluster accepted MechanismCards by mechanism.
+    syn = top_sub.add_parser(
+        "synthesize",
+        help="Layer-2: cluster accepted MechanismCards by mechanism (not topic)",
+    )
+    syn.add_argument(
+        "--window", type=int, default=30,
+        help="window in days over which to gather accepted cards (default 30)",
+    )
+    syn.add_argument(
+        "--min-cluster-size", type=int, default=2,
+        help="minimum members per emitted cluster (default 2)",
+    )
+    syn.add_argument(
+        "--no-llm", action="store_true",
+        help="force the heuristic Jaccard clusterer; skip LLM call",
+    )
+    syn.add_argument(
+        "--json", action="store_true",
+        help="emit the SynthesisRun as JSON (machine-readable)",
+    )
+    syn.add_argument(
+        "--home", default=None,
+        help="vertical home dir (default: ~/.neuro_os_research/)",
+    )
+    syn.set_defaults(func=_research_synthesize_handler)
+
+    # brief (Layer 3): decision-ready brief grounded in a ProjectContext.
+    brf = top_sub.add_parser(
+        "brief",
+        help="Layer-3: generate a decision-ready brief for one cluster",
+    )
+    brf.add_argument(
+        "--cluster-id", required=True,
+        help="cluster_id from a prior `research synthesize` run",
+    )
+    brf.add_argument(
+        "--context-file", required=True,
+        help="path to a ProjectContext JSON file (project_name, "
+             "current_questions, collaborators, pending_decisions)",
+    )
+    brf.add_argument(
+        "--no-llm", action="store_true",
+        help="force the templated brief; skip LLM call",
+    )
+    brf.add_argument(
+        "--json", action="store_true",
+        help="emit DecisionBrief as JSON (default: markdown to stdout)",
+    )
+    brf.add_argument(
+        "--home", default=None,
+        help="vertical home dir (default: ~/.neuro_os_research/)",
+    )
+    brf.set_defaults(func=_research_brief_handler)
+
+    # checkpoint: stop-condition gate (did the system actually converge?)
+    chk = top_sub.add_parser(
+        "checkpoint",
+        help="Log a stop-condition checkpoint (brief produced? mental model clearer?)",
+    )
+    chk.add_argument(
+        "--brief-produced", choices=["yes", "no"], required=True,
+        help="did the last synthesis cycle produce a brief that you used?",
+    )
+    chk.add_argument(
+        "--clearer", choices=["yes", "no"], required=True,
+        help="did your mental model on the active thesis get clearer?",
+    )
+    chk.add_argument("--note", default=None, help="freeform note (≤ 600 chars)")
+    chk.add_argument(
+        "--home", default=None,
+        help="vertical home dir (default: ~/.neuro_os_research/)",
+    )
+    chk.set_defaults(func=_research_checkpoint_handler)
+
 
 def _research_ingest_handler(args: argparse.Namespace) -> int:
     from agent.research.ingest_router import (
@@ -1199,7 +1274,11 @@ def _research_review_handler(args: argparse.Namespace) -> int:
                 if m.strip()
             ] if mentions_raw else []
 
-            # Build a frozen MechanismCard from the proposal.
+            # Build a frozen MechanismCard from the proposal — inheriting
+            # the optional Layer-1 deepening fields (first_principle /
+            # anti_pattern / transferability_test / verdict /
+            # one_sentence_compression / framework_alignment) so Layer 2
+            # synthesis and Layer 3 briefs can read them post-accept.
             card = MechanismCard(
                 id=prop.proposal_id,
                 ts=datetime.now(timezone.utc),
@@ -1211,6 +1290,12 @@ def _research_review_handler(args: argparse.Namespace) -> int:
                 failure_mode=prop.failure_mode,
                 thesis_id=prop.thesis_id,
                 entity_mentions=mentions,
+                first_principle=prop.first_principle,
+                anti_pattern=prop.anti_pattern,
+                transferability_test=prop.transferability_test,
+                verdict=prop.verdict,
+                one_sentence_compression=prop.one_sentence_compression,
+                framework_alignment=list(prop.framework_alignment),
             )
             write_mechanism_card(card=card, home=home)
             transition_proposal(
@@ -1287,6 +1372,226 @@ def _research_dashboard_handler(args: argparse.Namespace) -> int:
     else:
         print(render_text(summary))
     return 0
+
+
+def _research_synthesize_handler(args: argparse.Namespace) -> int:
+    from agent.research.synthesis import run_synthesis
+
+    home = Path(args.home).expanduser() if args.home else None
+    if args.window < 1 or args.window > 365:
+        print(
+            f"error: --window must be between 1 and 365 (got {args.window})",
+            file=sys.stderr,
+        )
+        return 2
+    if args.min_cluster_size < 1 or args.min_cluster_size > 20:
+        print(
+            f"error: --min-cluster-size must be between 1 and 20 (got "
+            f"{args.min_cluster_size})",
+            file=sys.stderr,
+        )
+        return 2
+
+    llm_fn = None
+    if not args.no_llm:
+        llm_fn = _make_anthropic_cluster_fn()
+
+    run = run_synthesis(
+        home=home,
+        window_days=args.window,
+        min_cluster_size=args.min_cluster_size,
+        llm_fn=llm_fn,
+    )
+    if args.json:
+        print(run.model_dump_json(indent=2))
+        return 0
+    # Human-readable summary.
+    print(f"synthesis run: {run.run_id}")
+    print(f"  method:   {run.method}")
+    print(f"  window:   {run.window_days}d   cards in window: {run.input_card_count}")
+    print(f"  clusters: {len(run.clusters)}")
+    for cluster in run.clusters:
+        print(f"\n  • {cluster.label} ({len(cluster.member_card_ids)} cards)")
+        print(f"    summary: {cluster.mechanism_summary[:200]}")
+        if cluster.shared_first_principle:
+            print(f"    first principle: {cluster.shared_first_principle[:200]}")
+        if cluster.recurring_anti_pattern:
+            print(f"    anti-pattern:    {cluster.recurring_anti_pattern[:200]}")
+        if cluster.frontier_position:
+            print(f"    frontier:        {cluster.frontier_position}")
+        if cluster.framework_axes_touched:
+            print(f"    axes touched:    {', '.join(cluster.framework_axes_touched)}")
+    if run.unclustered_card_ids:
+        print(f"\n  unclustered: {len(run.unclustered_card_ids)} cards")
+    if run.note:
+        print(f"\n  note: {run.note}")
+    return 0
+
+
+def _research_brief_handler(args: argparse.Namespace) -> int:
+    from agent.research.briefs import (
+        ProjectContext,
+        generate_brief,
+        write_brief,
+    )
+    from agent.research.synthesis import list_synthesis_runs
+
+    home = Path(args.home).expanduser() if args.home else None
+
+    ctx_path = Path(args.context_file).expanduser()
+    if not ctx_path.exists():
+        print(f"error: context file not found: {ctx_path}", file=sys.stderr)
+        return 2
+    try:
+        ctx = ProjectContext.model_validate_json(ctx_path.read_text(encoding="utf-8"))
+    except Exception as e:
+        print(f"error: invalid ProjectContext in {ctx_path}: {e}", file=sys.stderr)
+        return 2
+
+    # Find the cluster across all recent synthesis runs.
+    target_cluster = None
+    target_run = None
+    for run in list_synthesis_runs(home=home, limit=20):
+        for c in run.clusters:
+            if c.cluster_id == args.cluster_id:
+                target_cluster = c
+                target_run = run
+                break
+        if target_cluster is not None:
+            break
+    if target_cluster is None:
+        print(
+            f"error: cluster_id {args.cluster_id!r} not found in the 20 "
+            f"most recent synthesis runs. Run `research synthesize` first.",
+            file=sys.stderr,
+        )
+        return 2
+
+    llm_fn = None
+    if not args.no_llm:
+        llm_fn = _make_anthropic_brief_fn()
+
+    brief = generate_brief(
+        cluster=target_cluster,
+        context=ctx,
+        synthesis_run_id=target_run.run_id,
+        llm_fn=llm_fn,
+    )
+    write_brief(brief, home=home)
+    if args.json:
+        print(brief.model_dump_json(indent=2))
+    else:
+        from agent.research.briefs import render_markdown
+        print(render_markdown(brief, cluster=target_cluster))
+    return 0
+
+
+def _research_checkpoint_handler(args: argparse.Namespace) -> int:
+    import uuid
+    from datetime import datetime, timezone
+
+    from agent.research.checkpoints import (
+        ResearchCheckpoint,
+        recent_no_streak,
+        write_checkpoint,
+    )
+
+    home = Path(args.home).expanduser() if args.home else None
+    note = (args.note or "").strip()[:600] or None
+    checkpoint = ResearchCheckpoint(
+        checkpoint_id=f"chk-{uuid.uuid4().hex[:10]}",
+        ts=datetime.now(timezone.utc),
+        brief_produced=(args.brief_produced == "yes"),
+        mental_model_clearer=(args.clearer == "yes"),
+        note=note,
+    )
+    write_checkpoint(checkpoint, home=home)
+    print(f"checkpoint logged: {checkpoint.checkpoint_id}")
+    streak = recent_no_streak(home=home, k=5)
+    if streak >= 2:
+        print(
+            f"WARNING: {streak} consecutive non-converging checkpoint(s). "
+            f"System not converting; redesign before adding more inputs."
+        )
+    return 0
+
+
+def _make_anthropic_cluster_fn():
+    """LLM callable for synthesis. Same shape + key check as ingest's
+    Haiku callable; returns None if no key."""
+    import os
+
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        return None
+    try:
+        import anthropic  # type: ignore
+    except ImportError:
+        return None
+    client = anthropic.Anthropic()
+
+    def llm_fn(system_prompt: str, user_text: str) -> List[dict]:
+        resp = client.messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=4000,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_text}],
+        )
+        body = "".join(
+            getattr(b, "text", "") for b in resp.content
+            if getattr(b, "type", None) == "text"
+        )
+        start = body.find("[")
+        end = body.rfind("]")
+        if start == -1 or end == -1 or end <= start:
+            return []
+        try:
+            parsed = json.loads(body[start:end + 1])
+        except json.JSONDecodeError:
+            return []
+        if not isinstance(parsed, list):
+            return []
+        return [r for r in parsed if isinstance(r, dict)]
+
+    return llm_fn
+
+
+def _make_anthropic_brief_fn():
+    """LLM callable for brief generation. Same shape as cluster_fn but
+    expects a single JSON object response (not an array)."""
+    import os
+
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        return None
+    try:
+        import anthropic  # type: ignore
+    except ImportError:
+        return None
+    client = anthropic.Anthropic()
+
+    def llm_fn(system_prompt: str, user_text: str) -> Optional[dict]:
+        resp = client.messages.create(
+            model="claude-haiku-4-5",
+            max_tokens=4000,
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_text}],
+        )
+        body = "".join(
+            getattr(b, "text", "") for b in resp.content
+            if getattr(b, "type", None) == "text"
+        )
+        start = body.find("{")
+        end = body.rfind("}")
+        if start == -1 or end == -1 or end <= start:
+            return None
+        try:
+            parsed = json.loads(body[start:end + 1])
+        except json.JSONDecodeError:
+            return None
+        if not isinstance(parsed, dict):
+            return None
+        return parsed
+
+    return llm_fn
 
 
 # ---------------------------------------------------------------------------

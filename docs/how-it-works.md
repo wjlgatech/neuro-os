@@ -343,6 +343,9 @@ Inputs (read-only):
 - `ingestion_runs.jsonl` — Lane 1 audit log
 - `proposals/{pending,accepted,rejected}/*.json` — current queue snapshot
 - `mechanism_cards/*.json` — accepted cards (the primary metric)
+- `synthesis/runs/*.json` — Layer 2 synthesis runs (cluster counts)
+- `briefs/*.json` — Layer 3 decision briefs (Meaning Density)
+- `checkpoints.jsonl` — stop-condition convergence events
 
 Outputs (frozen `DashboardSummary`):
 - Compound curve: today / 7-day-avg / window-avg / trend (`up` / `flat` / `down` with 5% hysteresis)
@@ -351,8 +354,24 @@ Outputs (frozen `DashboardSummary`):
 - Constructive-expression stick-rate: same drift_mode + same primary_action within 7 days = stuck; same drift_mode + DIFFERENT primary_action = override
 - Lane 1 ingestion totals (sources scanned, proposals emitted vs accepted vs rejected)
 - Action queue (pending count + oldest age in hours)
+- **Three-Layer Research OS signals** (research vertical only): `tier_balance` (seed / frontier / lateral / unknown), `verdict_histogram` (foundational / useful / misleading / skip / unrated), `synthesis_run_count`, `briefs_produced_in_window`, `latest_checkpoint_converging`, `checkpoint_no_streak`, and `system_health_flags`
+- **`system_health_flags`** — `chaser_mode` / `hoarder_mode` / `rubber_stamping` / `no_synthesis` / `system_not_converging`. Each fires only on unambiguous evidence (sample-size guards prevent small-corpus noise).
 
-*Code: `agent/research/dashboard.py`. Tests: `tests/test_research_dashboard.py`.*
+*Code: `agent/research/dashboard.py`. Tests: `tests/test_research_dashboard.py`, `tests/test_research_three_layer.py`.*
+
+### Layer 1 / 2 / 3 — Three-Layer Research OS (research vertical)
+
+Lane 1 (above) is the per-paper extraction. The Three-Layer extension turns accumulated cards into decision-grade output:
+
+- **Layer 1 deepening.** `MechanismCardProposal` and `MechanismCard` gained five optional fields beyond the original 4-tuple (`mechanism / invariant / prediction / failure_mode`): `first_principle`, `anti_pattern`, `transferability_test`, `verdict ∈ {foundational, useful, misleading, skip}`, `one_sentence_compression`. Plus a generic `framework_alignment: list[FrameworkAxisNote]` where the user's framework axes — supplied by hand in `~/.neuro_os_research/framework.json` — flow through unchanged. **The substrate refuses to hard-code a framework**; a Physical-AI reader uses {Observation, Evaluation, Control, Continual}; a value investor uses {Moat, Distribution, Unit economics}; the schema is the same.
+
+- **Layer 2 — `agent/research/synthesis.py`.** Clusters accepted MechanismCards by their underlying causal **mechanism, not by topic**. Heuristic Jaccard clusterer + LLM clusterer (Anthropic Haiku, structured output). Frozen `MechanismCluster` + `SynthesisRun` schemas; runs persist at `synthesis/runs/<run_id>.json`. *This module is a Plan-A-style placeholder — the long-term backend is graphify (the separate graph-knowledge project); the follow-up PR is an adapter that delegates to graphify and falls back to the in-tree heuristic / LLM modes.*
+
+- **Layer 3 — `agent/research/briefs.py`.** Given one `MechanismCluster` + a user-supplied `ProjectContext` (project_name, current_questions, collaborators, pending_decisions), generates a `DecisionBrief` (project_implications / next_decisions / next_experiments / questions_for_collaborators). LLM mode + heuristic templated mode. Persists at `briefs/<brief_id>.{json,md}`.
+
+- **Checkpoint — `agent/research/checkpoints.py`.** After each synthesis cycle, two binary signals: `brief_produced` AND `mental_model_clearer`. Either-NO twice in a row → dashboard prints `system_not_converging`. This is the falsifiability gate the Research OS uses on itself; without it, the system can become a beautiful trap.
+
+*Code: `agent/research/{framework,synthesis,briefs,checkpoints}.py`. Tests: `tests/test_research_three_layer.py`.*
 
 ---
 

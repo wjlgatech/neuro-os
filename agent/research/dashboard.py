@@ -93,6 +93,32 @@ class DashboardSummary(BaseModel):
     pending_proposals_count: int = Field(ge=0)
     pending_proposals_oldest_age_hours: Optional[float] = None
 
+    # Three-Layer Research OS signals — anti-survey-mode counters.
+    tier_balance: Dict[str, int] = Field(
+        default_factory=dict,
+        description="Counts of accepted MechanismCards by RawSource.tier "
+                    "(seed / frontier / lateral / unknown). A heavy "
+                    "frontier-only ratio flags 'chaser_mode'.",
+    )
+    verdict_histogram: Dict[str, int] = Field(
+        default_factory=dict,
+        description="Counts of accepted MechanismCards by `verdict` "
+                    "(foundational / useful / misleading / skip / "
+                    "unrated). Zero skips + zero misleading on a "
+                    "large-enough sample flags 'rubber_stamping'.",
+    )
+
+    # Layer-2 / Layer-3 / checkpoint progress.
+    synthesis_run_count: int = Field(ge=0, default=0)
+    synthesis_latest_cluster_count: Optional[int] = None
+    briefs_produced_in_window: int = Field(ge=0, default=0)
+    latest_checkpoint_converging: Optional[bool] = None
+    checkpoint_no_streak: int = Field(ge=0, default=0)
+
+    # Aggregated health verdict. Each flag is "fired" iff its observable
+    # evidence is unambiguous; never fires on small samples.
+    system_health_flags: List[str] = Field(default_factory=list)
+
 
 # ---------------------------------------------------------------------------
 # Disk helpers
@@ -316,6 +342,191 @@ def _compute_primary_metric(
     return (today, avg_7d, avg_window, trend)
 
 
+# ---------------------------------------------------------------------------
+# Layer-1 deepening signals: tier balance + verdict histogram
+# ---------------------------------------------------------------------------
+
+
+def _iter_cards_in_window(
+    home: Optional[Path],
+    *,
+    now: datetime,
+    window_days: int,
+) -> List[dict]:
+    """Read mechanism_cards/*.json and return those whose ts is within
+    the window. Plain dicts (not models) to keep this read-only and
+    decoupled from MechanismCard's domain dependencies."""
+    cards_dir = _research_home(home) / "mechanism_cards"
+    if not cards_dir.exists():
+        return []
+    cutoff = now - timedelta(days=window_days)
+    out: List[dict] = []
+    for p in cards_dir.glob("*.json"):
+        try:
+            body = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        ts = _parse_ts(body.get("ts"))
+        if ts is None or ts < cutoff:
+            continue
+        out.append(body)
+    return out
+
+
+def _aggregate_tier_balance(
+    home: Optional[Path],
+    *,
+    now: datetime,
+    window_days: int,
+) -> Dict[str, int]:
+    """Bucket accepted proposals (and any tier-tagged MechanismCard) by
+    source_tier. Cards without a tier accumulate under 'unknown'."""
+    # Proposals carry source_tier (mirrored from the originating
+    # RawSource). MechanismCards do not — we only have the RAW source
+    # tier on the proposal side. Read the accepted proposals dir.
+    counts: Dict[str, int] = {}
+    proposals_dir = _research_home(home) / "proposals" / "accepted"
+    if proposals_dir.exists():
+        cutoff = now - timedelta(days=window_days)
+        for p in proposals_dir.glob("*.json"):
+            try:
+                body = json.loads(p.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            ts = _parse_ts(body.get("proposed_at"))
+            if ts is None or ts < cutoff:
+                continue
+            tier = body.get("source_tier") or "unknown"
+            if not isinstance(tier, str):
+                tier = "unknown"
+            counts[tier] = counts.get(tier, 0) + 1
+    return counts
+
+
+def _aggregate_verdict_histogram(
+    cards: List[dict],
+) -> Dict[str, int]:
+    """Bucket accepted MechanismCards by verdict. Cards without a verdict
+    field bucket under 'unrated'."""
+    counts: Dict[str, int] = {}
+    for c in cards:
+        v = c.get("verdict") or "unrated"
+        if not isinstance(v, str):
+            v = "unrated"
+        counts[v] = counts.get(v, 0) + 1
+    return counts
+
+
+def _count_synthesis_runs(
+    home: Optional[Path],
+    *,
+    now: datetime,
+    window_days: int,
+) -> Tuple[int, Optional[int]]:
+    """Return (run_count_in_window, latest_cluster_count_in_window).
+    Latest is None when no runs in window."""
+    runs_dir = _research_home(home) / "synthesis" / "runs"
+    if not runs_dir.exists():
+        return (0, None)
+    cutoff = now - timedelta(days=window_days)
+    runs: List[Tuple[datetime, int]] = []
+    for p in runs_dir.glob("*.json"):
+        try:
+            body = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        ts = _parse_ts(body.get("generated_at"))
+        if ts is None or ts < cutoff:
+            continue
+        clusters = body.get("clusters")
+        cluster_count = len(clusters) if isinstance(clusters, list) else 0
+        runs.append((ts, cluster_count))
+    if not runs:
+        return (0, None)
+    runs.sort(key=lambda r: r[0])
+    return (len(runs), runs[-1][1])
+
+
+def _count_briefs_in_window(
+    home: Optional[Path],
+    *,
+    now: datetime,
+    window_days: int,
+) -> int:
+    briefs_dir = _research_home(home) / "briefs"
+    if not briefs_dir.exists():
+        return 0
+    cutoff = now - timedelta(days=window_days)
+    n = 0
+    for p in briefs_dir.glob("*.json"):
+        try:
+            body = json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            continue
+        ts = _parse_ts(body.get("generated_at"))
+        if ts is None or ts < cutoff:
+            continue
+        n += 1
+    return n
+
+
+def _compute_health_flags(
+    *,
+    tier_balance: Dict[str, int],
+    verdict_histogram: Dict[str, int],
+    proposals_accepted: int,
+    oldest_pending_age_hours: Optional[float],
+    briefs_produced: int,
+    checkpoint_no_streak: int,
+) -> List[str]:
+    """Compute the dashboard's health flags. Each flag fires ONLY when
+    the evidence is unambiguous; sample-size guards make small-corpus
+    days flag-free.
+
+    Flags:
+      * chaser_mode      — ≥5 accepted, >70% frontier, <10% seed
+      * hoarder_mode     — oldest pending age > 14 days (the inbox rule)
+      * rubber_stamping  — ≥5 rated, zero skip + zero misleading
+      * no_synthesis     — ≥5 accepted but zero briefs in window
+      * system_not_converging — ≥2 consecutive non-converging checkpoints
+    """
+    flags: List[str] = []
+    tier_total = sum(tier_balance.values())
+    if tier_total >= 5:
+        frontier = tier_balance.get("frontier", 0)
+        seed = tier_balance.get("seed", 0)
+        if frontier / tier_total > 0.70 and seed / tier_total < 0.10:
+            flags.append("chaser_mode")
+
+    if (
+        oldest_pending_age_hours is not None
+        and oldest_pending_age_hours > 14 * 24
+    ):
+        flags.append("hoarder_mode")
+
+    rated = sum(
+        v for k, v in verdict_histogram.items()
+        if k in ("foundational", "useful", "misleading", "skip")
+    )
+    if rated >= 5:
+        skip_or_misleading = (
+            verdict_histogram.get("skip", 0)
+            + verdict_histogram.get("misleading", 0)
+        )
+        if skip_or_misleading == 0:
+            flags.append("rubber_stamping")
+
+    if proposals_accepted >= 5 and briefs_produced == 0:
+        flags.append("no_synthesis")
+
+    # 2 consecutive non-converging checkpoints — uses CONVERGENCE_WARNING_THRESHOLD.
+    from agent.research.checkpoints import CONVERGENCE_WARNING_THRESHOLD
+    if checkpoint_no_streak >= CONVERGENCE_WARNING_THRESHOLD:
+        flags.append("system_not_converging")
+
+    return flags
+
+
 def _compute_oldest_pending_age_hours(
     home: Optional[Path],
     *,
@@ -372,6 +583,32 @@ def build_dashboard_summary(
     )
     oldest_age = _compute_oldest_pending_age_hours(home, now=when)
 
+    # Three-Layer Research OS signals.
+    cards_in_window = _iter_cards_in_window(home, now=when, window_days=window_days)
+    tier_balance = _aggregate_tier_balance(home, now=when, window_days=window_days)
+    verdict_hist = _aggregate_verdict_histogram(cards_in_window)
+    synthesis_count, synthesis_latest_clusters = _count_synthesis_runs(
+        home, now=when, window_days=window_days,
+    )
+    briefs_n = _count_briefs_in_window(home, now=when, window_days=window_days)
+
+    # Checkpoints: read latest streak + most-recent converging flag.
+    from agent.research.checkpoints import latest_checkpoint, recent_no_streak
+    no_streak = recent_no_streak(home=home, k=10)
+    latest = latest_checkpoint(home=home)
+    latest_converging: Optional[bool] = None
+    if latest is not None:
+        latest_converging = bool(latest.brief_produced and latest.mental_model_clearer)
+
+    flags = _compute_health_flags(
+        tier_balance=tier_balance,
+        verdict_histogram=verdict_hist,
+        proposals_accepted=accepted_files,
+        oldest_pending_age_hours=oldest_age,
+        briefs_produced=briefs_n,
+        checkpoint_no_streak=no_streak,
+    )
+
     return DashboardSummary(
         vertical="research",
         window_days=window_days,
@@ -392,6 +629,14 @@ def build_dashboard_summary(
         drift_modes_never_fired=never_fired,
         pending_proposals_count=pending,
         pending_proposals_oldest_age_hours=oldest_age,
+        tier_balance=tier_balance,
+        verdict_histogram=verdict_hist,
+        synthesis_run_count=synthesis_count,
+        synthesis_latest_cluster_count=synthesis_latest_clusters,
+        briefs_produced_in_window=briefs_n,
+        latest_checkpoint_converging=latest_converging,
+        checkpoint_no_streak=no_streak,
+        system_health_flags=flags,
     )
 
 
@@ -472,6 +717,46 @@ def render_text(summary: DashboardSummary) -> str:
             f"  {summary.pending_proposals_count} pending proposal{plural}"
             f" — oldest {age_str}.  Run `research review --cli`."
         )
+    lines.append("")
+
+    # Three-Layer Research OS signals.
+    lines.append("Three-Layer Research OS")
+    tier_total = sum(summary.tier_balance.values())
+    if tier_total:
+        parts = [f"{k}={v}" for k, v in sorted(summary.tier_balance.items())]
+        lines.append(f"  tier balance:        {'  '.join(parts)}")
+    else:
+        lines.append("  tier balance:        (no accepted proposals in window)")
+    verdict_total = sum(summary.verdict_histogram.values())
+    if verdict_total:
+        parts = [
+            f"{k}={v}"
+            for k, v in sorted(summary.verdict_histogram.items(), key=lambda kv: -kv[1])
+        ]
+        lines.append(f"  verdicts:            {'  '.join(parts)}")
+    else:
+        lines.append("  verdicts:            (no accepted MechanismCards in window)")
+    lines.append(
+        f"  synthesis runs:      {summary.synthesis_run_count}"
+        + (
+            f"   latest cluster count: {summary.synthesis_latest_cluster_count}"
+            if summary.synthesis_latest_cluster_count is not None
+            else ""
+        )
+    )
+    lines.append(f"  briefs in window:    {summary.briefs_produced_in_window}")
+    if summary.latest_checkpoint_converging is not None:
+        verdict = "converging" if summary.latest_checkpoint_converging else "NOT converging"
+        lines.append(
+            f"  latest checkpoint:   {verdict}"
+            f"   trailing non-converging streak: {summary.checkpoint_no_streak}"
+        )
+    else:
+        lines.append("  latest checkpoint:   (none — run `research checkpoint`)")
+    if summary.system_health_flags:
+        lines.append(f"  health flags:        {', '.join(summary.system_health_flags)}")
+    else:
+        lines.append("  health flags:        (none)")
     lines.append("")
 
     return "\n".join(lines)

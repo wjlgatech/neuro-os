@@ -24,21 +24,47 @@ sharpenings:
 """
 from __future__ import annotations
 
+from agent.research.briefs import (
+    DecisionBrief,
+    ProjectContext,
+    QuestionForCollaborator,
+    generate_brief,
+    render_markdown as render_brief_markdown,
+)
 from agent.research.catalog import RESEARCH_CATALOG
+from agent.research.checkpoints import (
+    CONVERGENCE_WARNING_THRESHOLD,
+    ResearchCheckpoint,
+    is_converging,
+    latest_checkpoint,
+    read_checkpoints,
+    recent_no_streak,
+    write_checkpoint,
+)
+from agent.research.framework import (
+    EMPTY_FRAMEWORK,
+    Framework,
+    FrameworkAxis,
+    load_framework,
+    save_framework,
+)
 from agent.research.ontology import (
-    MechanismCard,
-    PredictionLog,
+    SOURCE_TIER,
+    VERDICT,
     AssumptionMap,
-    ResearchThesis,
-    ResearchPriority,
-    ResearchContract,
     EVIDENCE_TYPE,
     EXTRACTION_METHOD,
-    RawSource,
-    MechanismCardProposal,
-    IngestionRun,
+    FrameworkAxisNote,
     GbrainEntity,
     GbrainQuerySpec,
+    IngestionRun,
+    MechanismCard,
+    MechanismCardProposal,
+    PredictionLog,
+    RawSource,
+    ResearchContract,
+    ResearchPriority,
+    ResearchThesis,
 )
 from agent.research.config import ResearchConfig, make_research_app
 from agent.research.ingest import (
@@ -47,6 +73,16 @@ from agent.research.ingest import (
     extract_mechanisms,
     ingest as local_ingest,
     load_sources,
+)
+from agent.research.synthesis import (
+    DEFAULT_JACCARD_THRESHOLD,
+    FRONTIER_POSITION,
+    MechanismCluster,
+    SynthesisRun,
+    cluster_proposals,
+    list_synthesis_runs,
+    read_synthesis_run,
+    run_synthesis,
 )
 
 
@@ -60,6 +96,9 @@ __all__ = [
     "ResearchContract",
     "EVIDENCE_TYPE",
     "EXTRACTION_METHOD",
+    "VERDICT",
+    "SOURCE_TIER",
+    "FrameworkAxisNote",
     "RawSource",
     "MechanismCardProposal",
     "IngestionRun",
@@ -67,10 +106,39 @@ __all__ = [
     "GbrainQuerySpec",
     "ResearchConfig",
     "make_research_app",
-    # Plan A — native LLM extractor (PR-1 of Paul's week)
+    # Plan A — native LLM extractor
     "SUPPORTED_EXTS",
     "UnsupportedSourceFormat",
     "extract_mechanisms",
     "local_ingest",
     "load_sources",
+    # Framework
+    "Framework",
+    "FrameworkAxis",
+    "EMPTY_FRAMEWORK",
+    "load_framework",
+    "save_framework",
+    # Layer-2 synthesis
+    "MechanismCluster",
+    "SynthesisRun",
+    "FRONTIER_POSITION",
+    "DEFAULT_JACCARD_THRESHOLD",
+    "cluster_proposals",
+    "run_synthesis",
+    "list_synthesis_runs",
+    "read_synthesis_run",
+    # Layer-3 briefs
+    "ProjectContext",
+    "DecisionBrief",
+    "QuestionForCollaborator",
+    "generate_brief",
+    "render_brief_markdown",
+    # Checkpoints
+    "ResearchCheckpoint",
+    "CONVERGENCE_WARNING_THRESHOLD",
+    "write_checkpoint",
+    "read_checkpoints",
+    "is_converging",
+    "recent_no_streak",
+    "latest_checkpoint",
 ]
