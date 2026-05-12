@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json.schemastore.org/mcp-1.0.json",
+  "description": "neuro-os MCP server — exposes the Three-Layer Research OS + founder-loop + cross-vertical tool surface to MCP-compatible AI agents (Claude Code, Cursor, mcp-cli, anything that speaks MCP stdio). The 9 tools mirror the high-leverage `neuro-os ...` CLI subcommands. All persistence flows through the same on-disk queues the CLI uses, so MCP-driven writes are visible to subsequent CLI runs and vice versa.",
+  "mcpServers": {
+    "neuro-os": {
+      "command": "neuro-os-mcp",
+      "args": [],
+      "env": {}
+    }
+  }
+}

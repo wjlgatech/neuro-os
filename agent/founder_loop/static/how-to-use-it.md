@@ -617,6 +617,55 @@ Prints the 4-metric summary as JSON:
 - prediction-log entries
 - assumption-map updates
 
+## MCP server — drive neuro-os from any AI agent
+
+The same surfaces above are also exposed as **Model Context Protocol
+(MCP) tools** so any MCP-compatible AI agent (Claude Code, Cursor,
+`mcp-cli`, anything that speaks MCP stdio) can call them directly.
+
+**Install** (optional extra):
+
+```bash
+pip install -e ".[mcp]"      # from a checkout
+# OR
+pip install "neuro-os[mcp]"  # once published
+```
+
+Adds the `mcp` SDK and exposes a `neuro-os-mcp` console-script. The
+server speaks stdio (no new network surface; the agent runs it as a
+subprocess).
+
+**Wire it into Claude Code** (project-level): the repo ships a
+`.mcp.json` at the root with the right config. After `pip install -e
+".[mcp]"`, Claude Code picks it up automatically when started from the
+repo root.
+
+**Wire it manually** (other MCP clients): point the client at the
+`neuro-os-mcp` command. Example for `mcp-cli`:
+
+```bash
+mcp-cli connect --command neuro-os-mcp
+```
+
+**Tool surface** — mirrors the high-leverage CLI subcommands; all
+persistence flows through the same on-disk queues the CLI uses, so
+MCP-driven writes are visible to subsequent CLI runs and vice versa:
+
+| Tool | What it does |
+|---|---|
+| `research_ingest` | Lane 1 corpus ingestion against a directory of `.txt`/`.md`/`.pdf` |
+| `research_synthesize` | Layer 2 — cluster accepted MechanismCards by mechanism |
+| `research_brief` | Layer 3 — decision-ready brief grounded in a `ProjectContext` |
+| `research_checkpoint` | Stop-condition gate (`brief_produced + clearer`) |
+| `research_dashboard` | Rollup + health flags |
+| `loop_anchor` | Faith / relational anchor log |
+| `loop_urge` | UrgeEvent + optional skillify auto-emission |
+| `cross_vertical_share_note` | Broaden a note's visibility |
+| `cross_vertical_query` | List notes visible to a given vertical |
+
+All tools return JSON; the wrapped functions are the same ones the CLI
+calls. No business logic in the MCP layer.
+
 ## Investment — for the epistemically calibrated investor
 
 ⚠️ **Advisory-only.** No broker integration. No trade execution. The

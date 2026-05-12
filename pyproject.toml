@@ -52,9 +52,13 @@ tray = [
 llm = [
     "anthropic>=0.40",
 ]
+mcp = [
+    "mcp>=1.0",
+]
 
 [project.scripts]
 neuro-os = "agent.cli:main"
+neuro-os-mcp = "agent.mcp_server:main"
 
 [project.urls]
 Homepage = "https://github.com/wjlgatech/neuro-os"

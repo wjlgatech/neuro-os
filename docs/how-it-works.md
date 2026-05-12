@@ -375,6 +375,23 @@ Lane 1 (above) is the per-paper extraction. The Three-Layer extension turns accu
 
 ---
 
+## MCP server (drive neuro-os from any AI agent)
+
+`agent/mcp_server.py` exposes the high-leverage CLI surface as **Model Context Protocol** tools so any MCP-compatible AI agent — Claude Code, Cursor, `mcp-cli`, anything that speaks MCP stdio — can call neuro-os directly. The repo's `.mcp.json` at the root wires Claude Code automatically when started from a checkout that has `pip install -e ".[mcp]"`.
+
+Tool list (9 tools, mirrors the load-bearing CLI subcommands): `research_ingest` / `research_synthesize` / `research_brief` / `research_checkpoint` / `research_dashboard` / `loop_anchor` / `loop_urge` / `cross_vertical_share_note` / `cross_vertical_query`.
+
+Design choices:
+
+- **Stdio transport.** No new network surface; the agent runs `neuro-os-mcp` as a subprocess and speaks MCP over stdin/stdout. The existing HTTP daemon at 127.0.0.1:8765 is unchanged.
+- **Thin wrappers.** Each tool calls an existing `agent.*` function and returns the result as JSON. The MCP layer carries no business logic; the substrate is the single source of truth.
+- **Optional dependency.** The `mcp` SDK is in `pyproject.toml` extras (`pip install -e ".[mcp]"`); the core install stays small.
+- **No telemetry.** If a tool would call Anthropic (e.g. `research_synthesize` LLM mode), the call originates from the wrapped function, not the MCP layer.
+
+*Code: `agent/mcp_server.py`. Config: `.mcp.json` at repo root. Tests: `tests/test_mcp_server.py`.*
+
+---
+
 ## Cross-vertical privacy boundary
 
 Each vertical writes to its own home dir
