@@ -41,6 +41,24 @@ EVIDENCE_TYPE = Literal[
 PositionSide = Literal["read_only", "long_simulated", "short_simulated"]
 
 
+# Mega-trend sleeves — the 7 categorical buckets a thesis-driven
+# basket should balance against. Optional on PositionThesis (back-compat
+# for existing rows). Generic-by-design: the substrate doesn't enforce
+# percent-allocation rules; the dashboard surfaces concentration so the
+# user adjusts. The seventh slot is "energy_storage" by default; users
+# whose thesis space rounds out differently can swap by editing the
+# Literal (a follow-up PR; not v0 churn).
+MegaTrendSleeve = Literal[
+    "ai",
+    "crypto",
+    "quantum",
+    "synthbio",
+    "space",
+    "robotics",
+    "energy_storage",
+]
+
+
 class PositionThesis(BaseModel):
     """One per position. Required at every position edit.
 
@@ -92,6 +110,15 @@ class PositionThesis(BaseModel):
         default=None,
         max_length=64,
         description="When this thesis replaces/refines an earlier one.",
+    )
+    sleeve: Optional[MegaTrendSleeve] = Field(
+        default=None,
+        description="Mega-trend sleeve this thesis sits in. Optional — "
+                    "theses outside the 7-trend basket leave it None and "
+                    "are bucketed as 'other' in the dashboard. The "
+                    "sleeve discipline is what surfaces concentration "
+                    "risk; thesis_correct_rate by sleeve is what "
+                    "surfaces which trends are real for this user.",
     )
 
 

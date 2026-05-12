@@ -281,6 +281,30 @@ def write_position_thesis(
     )
 
 
+def read_position_theses(
+    *,
+    home: Optional[Path] = None,
+) -> List[PositionThesis]:
+    """Read all persisted PositionThesis rows. Sorted by ``ts`` ascending.
+    Returns ``[]`` when no theses have been filed yet.
+    """
+    base = home or (Path.home() / ".neuro_os_investment")
+    theses_dir = base / "position_theses"
+    if not theses_dir.exists():
+        return []
+    out: List[PositionThesis] = []
+    for p in theses_dir.glob("*.json"):
+        try:
+            out.append(
+                PositionThesis.model_validate_json(p.read_text(encoding="utf-8"))
+            )
+        except Exception:
+            # Malformed file — skip rather than crash the dashboard.
+            continue
+    out.sort(key=lambda t: t.ts)
+    return out
+
+
 def run_bias_check(
     *,
     thesis: PositionThesis,
