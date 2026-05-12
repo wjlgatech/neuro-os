@@ -56,12 +56,19 @@ except ImportError as e:  # pragma: no cover - import guard
 
 _SERVER_NAME = "neuro-os"
 _SERVER_INSTRUCTIONS = (
-    "neuro-os exposes Three-Layer Research OS, founder-loop, and "
-    "cross-vertical primitives as MCP tools. The tool surface mirrors "
-    "the CLI subcommands. All persistence goes through the same on-disk "
-    "queues the CLI uses (~/.neuro_os_research/, ~/.founder_loop/, "
+    "neuro-os exposes Three-Layer Research OS, founder-loop, "
+    "investment-vertical (Phase 1 options income + Phase 2 mega-trend "
+    "sleeve + cost-of-living gap), and cross-vertical primitives as "
+    "MCP tools. The tool surface mirrors the CLI subcommands. All "
+    "persistence goes through the same on-disk queues the CLI uses "
+    "(~/.neuro_os_research/, ~/.neuro_os_investment/, ~/.founder_loop/, "
     "~/.neuro_os/cross_vertical.jsonl), so anything written here is "
-    "visible to subsequent `neuro-os ...` CLI runs and vice versa."
+    "visible to subsequent `neuro-os ...` CLI runs and vice versa. "
+    "Each tool call surfaces a permission prompt in the host client "
+    "(Claude Code, Cursor, mcp-cli) — this is the human-in-the-loop "
+    "(HITL) gate for transaction-shaped operations. Tools that propose "
+    "orders never execute on a real broker; the broker MCP for "
+    "execution is a separate, future server."
 )
 
 
@@ -72,6 +79,7 @@ def build_server() -> FastMCP:
     _register_research_tools(mcp)
     _register_founder_loop_tools(mcp)
     _register_cross_vertical_tools(mcp)
+    _register_investment_tools(mcp)
     return mcp
 
 
@@ -479,6 +487,524 @@ def _register_cross_vertical_tools(mcp: FastMCP) -> None:
             store=_expanded_path(store),
         )
         return _ok([json.loads(n.model_dump_json()) for n in notes])
+
+
+# ---------------------------------------------------------------------------
+# Investment-vertical tools
+#
+# 6 thin wrappers around existing CLI surfaces + 2 reasoning tools
+# (propose_order / next_action) that close the talk-to-your-portfolio
+# loop. Per the eval in docs/plans/voice-pilot-and-broker-mcp.md, these
+# tools do NOT execute on a real broker; they propose, record, and
+# rollup. Execution belongs to a separate broker MCP (Alpaca / IBKR /
+# Schwab) — out of scope here.
+# ---------------------------------------------------------------------------
+
+
+def _register_investment_tools(mcp: FastMCP) -> None:
+    @mcp.tool()
+    def invest_dashboard(
+        window_days: int = 30,
+        home: Optional[str] = None,
+    ) -> str:
+        """Read-only rollup of the investment vertical (Phase 1 options
+        income + Phase 1↔life income gap + Phase 2 mega-trend sleeve +
+        5 sample-size-guarded health flags).
+
+        Args:
+            window_days: lookback (1-365). Default 30.
+            home: override the default ~/.neuro_os_investment/.
+
+        Returns: InvestmentDashboardSummary as JSON.
+        """
+        from agent.investment.config import read_position_theses
+        from agent.investment.dashboard import build_dashboard_summary
+
+        if not 1 <= window_days <= 365:
+            return _err("window_days must be 1..365")
+        home_path = _expanded_path(home)
+        try:
+            theses = [
+                t for t in read_position_theses(home=home_path)
+                if t.status == "active"
+            ]
+        except Exception:
+            theses = []
+        summary = build_dashboard_summary(
+            theses=theses, home=home_path, window_days=window_days,
+        )
+        return _ok(json.loads(summary.model_dump_json()))
+
+    @mcp.tool()
+    def invest_cost_of_living_set(
+        monthly_target: float,
+        region: Optional[str] = None,
+        breakdown: Optional[str] = None,
+        home: Optional[str] = None,
+    ) -> str:
+        """Set the monthly cost-of-living target — the Phase-1 headline
+        metric the dashboard measures income against.
+
+        Args:
+            monthly_target: dollar amount per month (e.g. 14000 for Bay
+                            Area realistic).
+            region: optional region label.
+            breakdown: optional human-readable breakdown.
+            home: override ~/.neuro_os_investment/.
+
+        Returns: the saved CostOfLivingProfile as JSON.
+        """
+        from datetime import datetime, timezone
+
+        from agent.investment.cost_of_living import (
+            CostOfLivingProfile, save_profile,
+        )
+
+        if monthly_target <= 0.0:
+            return _err("monthly_target must be > 0")
+        profile = CostOfLivingProfile(
+            monthly_target=monthly_target,
+            region=region,
+            breakdown=breakdown,
+            source="direct",
+            written_at=datetime.now(timezone.utc),
+        )
+        save_profile(profile, home=_expanded_path(home))
+        return _ok(json.loads(profile.model_dump_json()))
+
+    @mcp.tool()
+    def invest_cost_of_living_read(
+        money_os_profile_path: Optional[str] = None,
+        home: Optional[str] = None,
+    ) -> str:
+        """Read the current cost-of-living target, optionally importing
+        from money-os's ``profile/financial-identity.md`` via best-effort
+        regex parse.
+
+        Args:
+            money_os_profile_path: optional path to money-os's
+                                   profile/financial-identity.md to
+                                   import from. If absent, reads the
+                                   current saved profile.
+            home: override ~/.neuro_os_investment/.
+
+        Returns: CostOfLivingProfile JSON, or `{}` if nothing's set.
+        """
+        from agent.investment.cost_of_living import (
+            load_profile, read_from_money_os_profile, save_profile,
+        )
+
+        home_path = _expanded_path(home)
+        if money_os_profile_path:
+            src = _expanded_path(money_os_profile_path)
+            if src is None or not src.exists():
+                return _err(f"money-os profile not found: {money_os_profile_path}")
+            imported = read_from_money_os_profile(src)
+            if imported is None:
+                return _err(
+                    "could not parse a monthly cost number from the "
+                    "money-os profile — use invest_cost_of_living_set."
+                )
+            save_profile(imported, home=home_path)
+            return _ok(json.loads(imported.model_dump_json()))
+        current = load_profile(home=home_path)
+        if current is None:
+            return _ok({})
+        return _ok(json.loads(current.model_dump_json()))
+
+    @mcp.tool()
+    def invest_trade_log(
+        strategy: str,
+        ticker: str,
+        underlying_price: float,
+        expiry: str,
+        strikes: List[float],
+        premium: float,
+        max_loss: float,
+        win_probability: float,
+        contracts: int = 1,
+        assignment_probability: Optional[float] = None,
+        notes: Optional[str] = None,
+        home: Optional[str] = None,
+    ) -> str:
+        """Log a new option trade. Computes expected_value from
+        (win_probability, premium, max_loss) at log time so the EV is
+        visible BEFORE you act — the discipline gate against the
+        "high win-rate but losing money" failure mode.
+
+        Args:
+            strategy: one of cash_secured_put / covered_call / wheel /
+                      credit_spread / iron_condor / naked / other.
+            ticker: e.g. "NVDA".
+            underlying_price: stock price at open.
+            expiry: ISO date YYYY-MM-DD.
+            strikes: list of strike prices (one for CSP/CC; two for
+                     spreads; four for iron condor).
+            premium: net premium received (per contract × contracts).
+            max_loss: REQUIRED worst-case capital at risk.
+            win_probability: 0.0..1.0; used to compute EV.
+            contracts: default 1.
+            assignment_probability: optional 0.0..1.0.
+            notes: optional free-text.
+            home: override ~/.neuro_os_investment/.
+
+        Returns: the recorded OptionTrade as JSON (with computed EV).
+        """
+        from datetime import datetime, timezone
+
+        from agent.investment.options_income import (
+            OptionTrade, compute_expected_value, new_trade_id, write_trade,
+        )
+
+        if not 0.0 <= win_probability <= 1.0:
+            return _err("win_probability must be in [0, 1]")
+        if not strikes:
+            return _err("strikes must contain ≥1 value")
+        valid_strategies = {
+            "cash_secured_put", "covered_call", "wheel",
+            "credit_spread", "iron_condor", "naked", "other",
+        }
+        if strategy not in valid_strategies:
+            return _err(f"strategy must be one of {sorted(valid_strategies)}")
+        try:
+            ev = compute_expected_value(
+                win_probability=win_probability,
+                premium_received=premium,
+                max_loss=max_loss,
+            )
+            trade = OptionTrade(
+                trade_id=new_trade_id(),
+                opened_at=datetime.now(timezone.utc),
+                strategy=strategy,
+                ticker=ticker.upper(),
+                underlying_price_at_open=underlying_price,
+                expiry=expiry,
+                strikes=strikes,
+                contracts=contracts,
+                premium_received=premium,
+                max_loss=max_loss,
+                expected_value=ev,
+                assignment_probability=assignment_probability,
+                notes=notes,
+            )
+        except Exception as e:
+            return _err(f"OptionTrade validation failed: {e}")
+        write_trade(trade, home=_expanded_path(home))
+        return _ok(json.loads(trade.model_dump_json()))
+
+    @mcp.tool()
+    def invest_trade_close(
+        trade_id: str,
+        realized_pnl: float,
+        outcome: str,
+        notes: Optional[str] = None,
+        home: Optional[str] = None,
+    ) -> str:
+        """Record the close of an open trade. Writes a NEW row pointing
+        at the original via parent_trade_id (original stays frozen —
+        immutable audit trail).
+
+        Args:
+            trade_id: trade_id of the open row to close.
+            realized_pnl: signed dollar amount (negative = loss).
+            outcome: 'won' / 'lost' / 'assigned' / 'rolled'.
+            notes: optional free-text.
+            home: override ~/.neuro_os_investment/.
+
+        Returns: the close row as JSON.
+        """
+        from datetime import datetime, timezone
+
+        from agent.investment.options_income import (
+            OptionTrade, list_open_trades, new_trade_id, write_trade,
+        )
+
+        valid_outcomes = {"won", "lost", "assigned", "rolled"}
+        if outcome not in valid_outcomes:
+            return _err(f"outcome must be one of {sorted(valid_outcomes)}")
+        home_path = _expanded_path(home)
+        open_trades = list_open_trades(home=home_path)
+        parent = next((t for t in open_trades if t.trade_id == trade_id), None)
+        if parent is None:
+            return _err(
+                f"trade {trade_id!r} not found in open trades. Use "
+                f"invest_trade_list with open_only=true to see what's open."
+            )
+        close_row = OptionTrade(
+            trade_id=new_trade_id(),
+            opened_at=parent.opened_at,
+            strategy=parent.strategy,
+            ticker=parent.ticker,
+            underlying_price_at_open=parent.underlying_price_at_open,
+            expiry=parent.expiry,
+            strikes=parent.strikes,
+            contracts=parent.contracts,
+            premium_received=parent.premium_received,
+            max_loss=parent.max_loss,
+            expected_value=parent.expected_value,
+            assignment_probability=parent.assignment_probability,
+            outcome=outcome,
+            closed_at=datetime.now(timezone.utc),
+            realized_pnl=realized_pnl,
+            parent_trade_id=parent.trade_id,
+            notes=notes,
+        )
+        write_trade(close_row, home=home_path)
+        return _ok(json.loads(close_row.model_dump_json()))
+
+    @mcp.tool()
+    def invest_sleeve_balance(
+        home: Optional[str] = None,
+    ) -> str:
+        """Show mega-trend sleeve allocation across active PositionTheses.
+        Surfaces concentration warnings when any sleeve > 40% of capital.
+
+        Args:
+            home: override ~/.neuro_os_investment/.
+
+        Returns: SleeveBalance as JSON.
+        """
+        from agent.investment.config import read_position_theses
+        from agent.investment.megatrend import compute_sleeve_balance
+
+        home_path = _expanded_path(home)
+        try:
+            theses = [
+                t for t in read_position_theses(home=home_path)
+                if t.status == "active"
+            ]
+        except Exception:
+            theses = []
+        balance = compute_sleeve_balance(theses)
+        return _ok(json.loads(balance.model_dump_json()))
+
+    @mcp.tool()
+    def invest_propose_order(
+        strategy: str,
+        ticker: str,
+        underlying_price: float,
+        expiry: str,
+        strikes: List[float],
+        premium: float,
+        max_loss: float,
+        win_probability: float,
+        contracts: int = 1,
+        rationale: Optional[str] = None,
+    ) -> str:
+        """Propose an order WITHOUT executing or recording it. Returns a
+        rich proposal (EV math + risk math + recommendation banner) so a
+        voice / chat loop can read it back and the user explicitly
+        authorizes. This is the HITL surface for transaction-shaped
+        actions.
+
+        After the user authorizes, the agent calls ``invest_trade_log``
+        to RECORD the trade (assumes the user executes on their broker
+        manually OR via a future broker MCP). The propose step never
+        writes to disk.
+
+        Args:
+            strategy / ticker / underlying_price / expiry / strikes /
+            premium / max_loss / win_probability / contracts: same shape
+            as invest_trade_log.
+            rationale: optional one-sentence thesis explaining WHY this
+                       order is proposed (e.g. "AAPL CSP at 0.20 delta
+                       to harvest premium against my cash sleeve").
+
+        Returns: proposal JSON with computed expected_value, risk
+        banner, and a recommendation field.
+        """
+        from agent.investment.options_income import compute_expected_value
+
+        if not 0.0 <= win_probability <= 1.0:
+            return _err("win_probability must be in [0, 1]")
+        if not strikes:
+            return _err("strikes must contain ≥1 value")
+        try:
+            ev = compute_expected_value(
+                win_probability=win_probability,
+                premium_received=premium,
+                max_loss=max_loss,
+            )
+        except Exception as e:
+            return _err(f"compute_expected_value failed: {e}")
+
+        # Classify the proposal's risk profile for the user-facing banner.
+        if ev < 0:
+            risk_banner = "NEGATIVE_EV — math says don't take this trade as parameterized."
+            recommendation = "reject"
+        elif premium / max(max_loss, 1.0) < 0.01:
+            risk_banner = "POOR_RATIO — premium is < 1% of max-loss; small EV per unit of risk."
+            recommendation = "review"
+        elif win_probability >= 0.85 and max_loss / max(premium, 1.0) > 30:
+            risk_banner = "DEEP_OTM — high win-rate but max-loss is >30x premium; high tail risk."
+            recommendation = "review"
+        else:
+            risk_banner = "OK — EV positive; premium-to-risk ratio reasonable."
+            recommendation = "authorize_then_log"
+        return _ok({
+            "kind": "order_proposal",
+            "strategy": strategy,
+            "ticker": ticker.upper(),
+            "underlying_price": underlying_price,
+            "expiry": expiry,
+            "strikes": strikes,
+            "contracts": contracts,
+            "premium_received": premium,
+            "max_loss": max_loss,
+            "win_probability": win_probability,
+            "expected_value": ev,
+            "risk_banner": risk_banner,
+            "recommendation": recommendation,
+            "rationale": rationale,
+            "next_step": (
+                "If you authorize, call invest_trade_log with these "
+                "exact parameters to record the trade after executing on "
+                "your broker. Execution itself is NOT performed by this "
+                "tool — there is no broker connection."
+            ),
+        })
+
+    @mcp.tool()
+    def invest_next_action(
+        window_days: int = 30,
+        home: Optional[str] = None,
+    ) -> str:
+        """Given the current dashboard state, return the single
+        highest-leverage next action. Used by a voice / chat loop to
+        answer "what should I do next?" without the user reading the
+        full dashboard.
+
+        Args:
+            window_days: lookback for the dashboard read (1-365).
+            home: override ~/.neuro_os_investment/.
+
+        Returns: JSON with `action`, `reason`, `cli_hint`,
+        `priority` ∈ {high, medium, low}.
+        """
+        from agent.investment.config import read_position_theses
+        from agent.investment.dashboard import build_dashboard_summary
+
+        if not 1 <= window_days <= 365:
+            return _err("window_days must be 1..365")
+        home_path = _expanded_path(home)
+        try:
+            theses = [
+                t for t in read_position_theses(home=home_path)
+                if t.status == "active"
+            ]
+        except Exception:
+            theses = []
+        summary = build_dashboard_summary(
+            theses=theses, home=home_path, window_days=window_days,
+        )
+
+        # Priority-ordered decision tree. The first matching condition
+        # wins; later conditions only fire if earlier ones don't apply.
+        # This is intentionally simple — voice loops want ONE answer,
+        # not a list.
+        flags = set(summary.system_health_flags)
+
+        if "no_cost_of_living_target" in flags:
+            return _ok({
+                "action": "Set your monthly cost-of-living target.",
+                "reason": (
+                    "Without a target, the Phase-1 income gap is "
+                    "undefined; you can't tell if you're winning or "
+                    "losing this month."
+                ),
+                "cli_hint": (
+                    "neuro-os invest cost-of-living set "
+                    "--monthly-target 14000 --region 'Bay Area'"
+                ),
+                "priority": "high",
+            })
+
+        if "options_loss_concentration" in flags:
+            return _ok({
+                "action": (
+                    "Stop opening new options positions; audit the "
+                    "strategy that's losing money."
+                ),
+                "reason": (
+                    "≥20 closed trades show negative realized PNL "
+                    "despite the win-rate. This is the 'high win-rate "
+                    "but losing money' failure mode. Adding more "
+                    "trades makes it worse."
+                ),
+                "cli_hint": "neuro-os invest trade list --outcome lost",
+                "priority": "high",
+            })
+
+        if "single_sleeve_concentration" in flags:
+            return _ok({
+                "action": (
+                    "Rebalance: trim the over-concentrated sleeve OR "
+                    "add to the under-represented ones."
+                ),
+                "reason": (
+                    f"At least one sleeve holds > 40% of capital: "
+                    f"{', '.join(summary.sleeve_balance.sleeves_concentrated)}. "
+                    f"You're betting on one trend, not a basket."
+                ),
+                "cli_hint": "neuro-os invest sleeve-balance",
+                "priority": "high",
+            })
+
+        if "no_thesis_invalidation" in flags:
+            return _ok({
+                "action": (
+                    "Audit your active theses; mark the ones whose "
+                    "invalidation_condition has actually fired."
+                ),
+                "reason": (
+                    "≥10 active theses with zero invalidations means "
+                    "either perfect foresight (unlikely) or no "
+                    "discipline. The whole point of "
+                    "invalidation_condition is that you act on it."
+                ),
+                "cli_hint": "neuro-os invest sleeve-balance",
+                "priority": "medium",
+            })
+
+        if "phase1_income_gap_unmet" in flags:
+            gap = summary.income_gap
+            return _ok({
+                "action": (
+                    "Open one new income-generating trade this week "
+                    "(cash-secured put or covered call at 0.20-0.30 "
+                    "delta, 30-45 DTE)."
+                ),
+                "reason": (
+                    f"Last month's net options income covers "
+                    f"{int((1 - gap.gap_pct) * 100) if gap else 0}% "
+                    f"of your "
+                    f"${int(summary.cost_of_living_target or 0):,}/mo "
+                    f"target. You're "
+                    f"${int(gap.gap_dollars) if gap else 0:,} short."
+                ),
+                "cli_hint": (
+                    "neuro-os invest trade log --strategy "
+                    "cash_secured_put --ticker AAPL ..."
+                ),
+                "priority": "high",
+            })
+
+        # No flags fired — recommend the maintenance action.
+        return _ok({
+            "action": (
+                "Tag any new PositionThesis with its mega-trend "
+                "`sleeve` field and file an invalidation_condition you "
+                "can falsify."
+            ),
+            "reason": (
+                "No health flags are firing — the substrate is healthy. "
+                "The maintenance discipline is to keep filing theses "
+                "WITH invalidation conditions so the dashboard stays "
+                "honest as you scale."
+            ),
+            "cli_hint": "neuro-os invest dashboard --window 30",
+            "priority": "low",
+        })
 
 
 # ---------------------------------------------------------------------------
