@@ -647,10 +647,12 @@ repo root.
 mcp-cli connect --command neuro-os-mcp
 ```
 
-**Tool surface** — mirrors the high-leverage CLI subcommands; all
-persistence flows through the same on-disk queues the CLI uses, so
-MCP-driven writes are visible to subsequent CLI runs and vice versa:
+**Tool surface — 17 tools** mirroring the high-leverage CLI
+subcommands. All persistence flows through the same on-disk queues the
+CLI uses, so MCP-driven writes are visible to subsequent CLI runs and
+vice versa:
 
+**Research (5):**
 | Tool | What it does |
 |---|---|
 | `research_ingest` | Lane 1 corpus ingestion against a directory of `.txt`/`.md`/`.pdf` |
@@ -658,13 +660,58 @@ MCP-driven writes are visible to subsequent CLI runs and vice versa:
 | `research_brief` | Layer 3 — decision-ready brief grounded in a `ProjectContext` |
 | `research_checkpoint` | Stop-condition gate (`brief_produced + clearer`) |
 | `research_dashboard` | Rollup + health flags |
+
+**Founder-loop (2):**
+| Tool | What it does |
+|---|---|
 | `loop_anchor` | Faith / relational anchor log |
 | `loop_urge` | UrgeEvent + optional skillify auto-emission |
+
+**Cross-vertical (2):**
+| Tool | What it does |
+|---|---|
 | `cross_vertical_share_note` | Broaden a note's visibility |
 | `cross_vertical_query` | List notes visible to a given vertical |
 
+**Investment — talk-to-your-portfolio surface (8):**
+| Tool | What it does |
+|---|---|
+| `invest_dashboard` | Read-only rollup (Phase 1 + Phase 2 + health flags) |
+| `invest_cost_of_living_set` | Set the monthly cost-of-living target |
+| `invest_cost_of_living_read` | Read it (optionally import from money-os profile) |
+| `invest_trade_log` | Record a new options trade (EV computed at log time) |
+| `invest_trade_close` | Record a close (new row, parent stays frozen) |
+| `invest_sleeve_balance` | Mega-trend sleeve allocation across active theses |
+| `invest_propose_order` | **HITL surface** — return an order proposal with EV math + risk banner; never writes to disk; the talk-and-authorize gate |
+| `invest_next_action` | **Voice surface** — given dashboard state, return the SINGLE highest-leverage next action |
+
 All tools return JSON; the wrapped functions are the same ones the CLI
-calls. No business logic in the MCP layer.
+calls. **No business logic in the MCP layer.** Transaction-shaped
+operations surface HITL (human-in-the-loop) prompts at the host-client
+level (Claude Code's permission system); no MCP tool here executes on
+a real broker. See [`docs/plans/voice-pilot-and-broker-mcp.md`](plans/voice-pilot-and-broker-mcp.md)
+for the broker-MCP integration architecture (out of scope here).
+
+### Talk-to-your-portfolio voice loop
+
+The 17 MCP tools — combined with any speech-to-text feeding Claude
+Code as text input (macOS Dictation, Wispr Flow, ChatGPT Voice
+clipboard) — turn the investment vertical into a conversational
+pilot. Example exchange:
+
+| You say | Claude (silently) calls | Claude replies (TTS-friendly) |
+|---|---|---|
+| "What's my income gap?" | `invest_dashboard` | "Your target is $14k. Last month realized $0. Gap is $14k uncovered." |
+| "What should I do next?" | `invest_next_action` | "Open one income-generating trade this week — cash-secured put at 0.20-0.30 delta, 30-45 days out." |
+| "Propose a CSP on AAPL strike 220 expiry June 19, premium 300, max-loss 1000, win-prob 0.80." | `invest_propose_order` | "EV is +$40. Banner: OK. Recommendation: authorize-then-log. Want me to record it after you execute?" |
+| "Yes, log it." | `invest_trade_log` (with HITL prompt before the write) | "Logged. Trade ID opt-abc123." |
+| "Close opt-abc123 for +$280, outcome won." | `invest_trade_close` | "Recorded. Gap shrank by $280." |
+
+Every transaction-shaped step (`*_set`, `*_log`, `*_close`) prompts
+HITL at the host-client level. `invest_propose_order` is the explicit
+"read-back-and-authorize" gate before recording.
+
+## Investment — for the epistemically calibrated investor
 
 ## Investment — for the epistemically calibrated investor
 

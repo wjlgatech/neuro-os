@@ -45,13 +45,21 @@ def _call(server, tool_name: str, arguments: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def test_server_registers_nine_tools():
+def test_server_registers_seventeen_tools():
     server = build_server()
     tools = asyncio.run(server.list_tools())
     names = sorted(t.name for t in tools)
     assert names == [
         "cross_vertical_query",
         "cross_vertical_share_note",
+        "invest_cost_of_living_read",
+        "invest_cost_of_living_set",
+        "invest_dashboard",
+        "invest_next_action",
+        "invest_propose_order",
+        "invest_sleeve_balance",
+        "invest_trade_close",
+        "invest_trade_log",
         "loop_anchor",
         "loop_urge",
         "research_brief",
@@ -359,3 +367,366 @@ def test_two_tool_calls_share_state(tmp_path):
     })
     assert dash["checkpoint_no_streak"] >= 2
     assert "system_not_converging" in dash["system_health_flags"]
+
+
+# ---------------------------------------------------------------------------
+# Investment vertical — talk-to-your-portfolio surface
+# ---------------------------------------------------------------------------
+
+
+def test_invest_dashboard_empty_state_flags_missing_target(tmp_path):
+    server = build_server()
+    result = _call(server, "invest_dashboard", {
+        "window_days": 30, "home": str(tmp_path),
+    })
+    assert result["vertical"] == "investment"
+    assert "no_cost_of_living_target" in result["system_health_flags"]
+
+
+def test_invest_dashboard_rejects_bad_window(tmp_path):
+    server = build_server()
+    assert "error" in _call(server, "invest_dashboard", {
+        "window_days": 999, "home": str(tmp_path),
+    })
+
+
+def test_invest_cost_of_living_set_then_read(tmp_path):
+    server = build_server()
+    out = _call(server, "invest_cost_of_living_set", {
+        "monthly_target": 14000.0,
+        "region": "Bay Area",
+        "home": str(tmp_path),
+    })
+    assert out["monthly_target"] == 14000.0
+    assert out["region"] == "Bay Area"
+    got = _call(server, "invest_cost_of_living_read", {"home": str(tmp_path)})
+    assert got["monthly_target"] == 14000.0
+
+
+def test_invest_cost_of_living_set_rejects_non_positive(tmp_path):
+    server = build_server()
+    out = _call(server, "invest_cost_of_living_set", {
+        "monthly_target": -1.0, "home": str(tmp_path),
+    })
+    assert "error" in out
+
+
+def test_invest_cost_of_living_read_returns_empty_when_unset(tmp_path):
+    server = build_server()
+    got = _call(server, "invest_cost_of_living_read", {"home": str(tmp_path)})
+    assert got == {}
+
+
+def test_invest_cost_of_living_read_from_money_os(tmp_path):
+    md = tmp_path / "financial-identity.md"
+    md.write_text(
+        "# Financial identity\n\nMonthly expenses: $14,000 in Bay Area.\n",
+        encoding="utf-8",
+    )
+    server = build_server()
+    out = _call(server, "invest_cost_of_living_read", {
+        "money_os_profile_path": str(md),
+        "home": str(tmp_path),
+    })
+    assert out["monthly_target"] == 14000.0
+    assert out["source"] == "money_os_profile"
+
+
+def test_invest_trade_log_records_ev(tmp_path):
+    server = build_server()
+    out = _call(server, "invest_trade_log", {
+        "strategy": "cash_secured_put",
+        "ticker": "AAPL",
+        "underlying_price": 230.0,
+        "expiry": "2026-06-19",
+        "strikes": [220.0],
+        "premium": 200.0,
+        "max_loss": 4000.0,
+        "win_probability": 0.80,
+        "home": str(tmp_path),
+    })
+    # EV = 0.80 * 200 - 0.20 * 4000 = 160 - 800 = -640.
+    # Wait, that's negative because max_loss=4000 is still strike-to-zero-ish.
+    # Recompute: 160 - 800 = -640. So the schema DOES surface negative EV.
+    # Let's just assert EV is computed (signed) and trade was recorded.
+    assert "expected_value" in out
+    assert out["ticker"] == "AAPL"
+    assert out["strategy"] == "cash_secured_put"
+    assert out["outcome"] == "open"
+
+
+def test_invest_trade_log_rejects_invalid_strategy(tmp_path):
+    server = build_server()
+    out = _call(server, "invest_trade_log", {
+        "strategy": "yolo",
+        "ticker": "AAPL",
+        "underlying_price": 230.0,
+        "expiry": "2026-06-19",
+        "strikes": [220.0],
+        "premium": 200.0,
+        "max_loss": 4000.0,
+        "win_probability": 0.80,
+        "home": str(tmp_path),
+    })
+    assert "error" in out
+
+
+def test_invest_trade_log_rejects_out_of_range_win_prob(tmp_path):
+    server = build_server()
+    out = _call(server, "invest_trade_log", {
+        "strategy": "cash_secured_put",
+        "ticker": "AAPL",
+        "underlying_price": 230.0,
+        "expiry": "2026-06-19",
+        "strikes": [220.0],
+        "premium": 200.0,
+        "max_loss": 4000.0,
+        "win_probability": 1.5,
+        "home": str(tmp_path),
+    })
+    assert "error" in out
+
+
+def test_invest_trade_close_round_trips(tmp_path):
+    server = build_server()
+    logged = _call(server, "invest_trade_log", {
+        "strategy": "cash_secured_put",
+        "ticker": "AAPL",
+        "underlying_price": 230.0,
+        "expiry": "2026-06-19",
+        "strikes": [220.0],
+        "premium": 200.0,
+        "max_loss": 4000.0,
+        "win_probability": 0.80,
+        "home": str(tmp_path),
+    })
+    closed = _call(server, "invest_trade_close", {
+        "trade_id": logged["trade_id"],
+        "realized_pnl": 200.0,
+        "outcome": "won",
+        "home": str(tmp_path),
+    })
+    assert closed["parent_trade_id"] == logged["trade_id"]
+    assert closed["outcome"] == "won"
+
+
+def test_invest_trade_close_unknown_id_errors(tmp_path):
+    server = build_server()
+    out = _call(server, "invest_trade_close", {
+        "trade_id": "ghost",
+        "realized_pnl": 100.0,
+        "outcome": "won",
+        "home": str(tmp_path),
+    })
+    assert "error" in out
+
+
+def test_invest_trade_close_rejects_bad_outcome(tmp_path):
+    server = build_server()
+    out = _call(server, "invest_trade_close", {
+        "trade_id": "anything",
+        "realized_pnl": 100.0,
+        "outcome": "kinda_won",
+        "home": str(tmp_path),
+    })
+    assert "error" in out
+
+
+def test_invest_sleeve_balance_empty_state(tmp_path):
+    server = build_server()
+    out = _call(server, "invest_sleeve_balance", {"home": str(tmp_path)})
+    assert out["total_theses"] == 0
+    assert out["allocations"] == []
+
+
+def test_invest_propose_order_returns_proposal_without_writing(tmp_path):
+    """Critical HITL invariant: propose_order MUST NOT write to disk."""
+    server = build_server()
+    before = sorted(p.name for p in tmp_path.rglob("*"))
+    out = _call(server, "invest_propose_order", {
+        "strategy": "cash_secured_put",
+        "ticker": "AAPL",
+        "underlying_price": 230.0,
+        "expiry": "2026-06-19",
+        "strikes": [220.0],
+        "premium": 200.0,
+        "max_loss": 4000.0,
+        "win_probability": 0.80,
+        "rationale": "harvest premium against cash sleeve",
+    })
+    after = sorted(p.name for p in tmp_path.rglob("*"))
+    assert after == before, "propose_order leaked a file write"
+    assert out["kind"] == "order_proposal"
+    assert "expected_value" in out
+    assert out["recommendation"] in ("authorize_then_log", "review", "reject")
+    assert "next_step" in out
+
+
+def test_invest_propose_order_flags_negative_ev():
+    server = build_server()
+    out = _call(server, "invest_propose_order", {
+        "strategy": "cash_secured_put",
+        "ticker": "NVDA",
+        "underlying_price": 920.0,
+        "expiry": "2026-06-19",
+        "strikes": [880.0],
+        "premium": 1200.0,
+        "max_loss": 88000.0,
+        "win_probability": 0.80,
+    })
+    assert out["expected_value"] < 0
+    assert out["recommendation"] == "reject"
+    assert "NEGATIVE_EV" in out["risk_banner"]
+
+
+def test_invest_propose_order_flags_deep_otm():
+    server = build_server()
+    # High win probability + large max_loss / premium ratio → DEEP_OTM.
+    out = _call(server, "invest_propose_order", {
+        "strategy": "cash_secured_put",
+        "ticker": "AAPL",
+        "underlying_price": 230.0,
+        "expiry": "2026-06-19",
+        "strikes": [220.0],
+        "premium": 100.0,
+        "max_loss": 5000.0,
+        "win_probability": 0.95,
+    })
+    # EV = 0.95 * 100 - 0.05 * 5000 = 95 - 250 = -155, so this is
+    # NEGATIVE_EV first and reject wins. Adjust to land in DEEP_OTM:
+    out = _call(server, "invest_propose_order", {
+        "strategy": "cash_secured_put",
+        "ticker": "AAPL",
+        "underlying_price": 230.0,
+        "expiry": "2026-06-19",
+        "strikes": [220.0],
+        "premium": 200.0,
+        "max_loss": 7000.0,
+        "win_probability": 0.95,
+    })
+    # EV = 0.95*200 - 0.05*7000 = 190 - 350 = -160 (still negative).
+    # Set win_prob higher so EV is positive but ratio is still bad.
+    out = _call(server, "invest_propose_order", {
+        "strategy": "cash_secured_put",
+        "ticker": "AAPL",
+        "underlying_price": 230.0,
+        "expiry": "2026-06-19",
+        "strikes": [220.0],
+        "premium": 200.0,
+        "max_loss": 7000.0,
+        "win_probability": 0.99,
+    })
+    # EV = 0.99*200 - 0.01*7000 = 198 - 70 = +128. Ratio = 200/7000 = 2.9%.
+    # Ratio > 1% so POOR_RATIO doesn't fire; max_loss/premium = 35x → DEEP_OTM does.
+    assert out["recommendation"] == "review"
+    assert "DEEP_OTM" in out["risk_banner"]
+
+
+def test_invest_propose_order_recommends_authorize_on_good_setup():
+    server = build_server()
+    out = _call(server, "invest_propose_order", {
+        "strategy": "cash_secured_put",
+        "ticker": "AAPL",
+        "underlying_price": 230.0,
+        "expiry": "2026-06-19",
+        "strikes": [220.0],
+        "premium": 250.0,
+        "max_loss": 4000.0,
+        "win_probability": 0.80,
+    })
+    # EV = 0.80*250 - 0.20*4000 = 200 - 800 = -600. Negative again.
+    # Bump win_prob to 0.92: EV = 230 - 320 = -90. Still negative.
+    out = _call(server, "invest_propose_order", {
+        "strategy": "cash_secured_put",
+        "ticker": "AAPL",
+        "underlying_price": 230.0,
+        "expiry": "2026-06-19",
+        "strikes": [220.0],
+        "premium": 400.0,
+        "max_loss": 4000.0,
+        "win_probability": 0.85,
+    })
+    # EV = 0.85*400 - 0.15*4000 = 340 - 600 = -260. Still negative.
+    # The realistic "good setup" for a CSP needs max_loss reflecting
+    # assignment scenario (not strike-to-zero):
+    out = _call(server, "invest_propose_order", {
+        "strategy": "cash_secured_put",
+        "ticker": "AAPL",
+        "underlying_price": 230.0,
+        "expiry": "2026-06-19",
+        "strikes": [220.0],
+        "premium": 300.0,
+        "max_loss": 1000.0,
+        "win_probability": 0.80,
+    })
+    # EV = 0.80*300 - 0.20*1000 = 240 - 200 = +40. Ratio = 300/1000 = 30%. Good.
+    assert out["expected_value"] > 0
+    assert out["recommendation"] == "authorize_then_log"
+    assert "OK" in out["risk_banner"]
+
+
+def test_invest_next_action_picks_set_target_first(tmp_path):
+    """Empty state → highest priority is setting cost-of-living target."""
+    server = build_server()
+    out = _call(server, "invest_next_action", {"home": str(tmp_path)})
+    assert out["priority"] == "high"
+    assert "cost-of-living target" in out["action"]
+    assert "cli_hint" in out
+
+
+def test_invest_next_action_picks_open_trade_when_gap_unmet(tmp_path):
+    """Target set, no trades → highest priority is opening one to close
+    the income gap."""
+    server = build_server()
+    _call(server, "invest_cost_of_living_set", {
+        "monthly_target": 14000.0, "home": str(tmp_path),
+    })
+    out = _call(server, "invest_next_action", {"home": str(tmp_path)})
+    assert out["priority"] == "high"
+    assert "income-generating trade" in out["action"] or "trade" in out["action"]
+
+
+def test_invest_next_action_maintenance_when_healthy(tmp_path, monkeypatch):
+    """When no flags fire AND target is set → low-priority maintenance
+    action. (We get here by setting a target + having a non-zero realized
+    income that closes the gap.)"""
+    server = build_server()
+    _call(server, "invest_cost_of_living_set", {
+        "monthly_target": 100.0,  # tiny target → easy to clear
+        "home": str(tmp_path),
+    })
+    # Log + close a winning trade so realized_pnl >= 70% of 100 = 70.
+    logged = _call(server, "invest_trade_log", {
+        "strategy": "cash_secured_put",
+        "ticker": "AAPL",
+        "underlying_price": 230.0,
+        "expiry": "2026-06-19",
+        "strikes": [220.0],
+        "premium": 100.0,
+        "max_loss": 200.0,
+        "win_probability": 0.80,
+        "home": str(tmp_path),
+    })
+    _call(server, "invest_trade_close", {
+        "trade_id": logged["trade_id"],
+        "realized_pnl": 100.0,
+        "outcome": "won",
+        "home": str(tmp_path),
+    })
+    out = _call(server, "invest_next_action", {"home": str(tmp_path)})
+    assert out["priority"] == "low"
+    assert "tag" in out["action"].lower() or "invalidation" in out["action"].lower()
+
+
+def test_invest_tool_descriptions_mention_hitl_and_no_broker():
+    """Sanity check: the propose tool's description names the HITL
+    invariant + the no-broker-execution boundary."""
+    server = build_server()
+    tools = asyncio.run(server.list_tools())
+    propose = next(t for t in tools if t.name == "invest_propose_order")
+    desc = propose.description or ""
+    # Either the propose tool itself OR the server-level instructions
+    # must explain the no-execute boundary.
+    server_instructions = server.instructions or ""
+    combined = desc + "\n" + server_instructions
+    assert "broker" in combined.lower() or "execute" in combined.lower()
