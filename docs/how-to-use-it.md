@@ -724,6 +724,105 @@ Prints: calibration error (over time, how well stated confidence
 matches survival rate), thesis-survival rate, bias-detection rate,
 decision consistency.
 
+### Phase 1 — options-income tracking (replace your W-2)
+
+Money-os covers equities + ETFs + crypto + cash-flow but **does not
+handle options**. The investment vertical adds the options-income
+substrate that closes the gap. Design point: `expected_value` is a
+first-class field, win-rate is decorative (with a sample-size guard at
+20 closed trades). The most common retail-options failure mode is
+high win-rate + losing money; the schema makes you fill in EV so the
+math is visible.
+
+```bash
+# Log a cash-secured put at open:
+neuro-os invest trade log \
+    --strategy cash_secured_put \
+    --ticker NVDA --underlying-price 920 \
+    --expiry 2026-06-19 --strikes 880 \
+    --contracts 1 --premium 1200 --max-loss 88000 \
+    --win-prob 0.80 --assignment-prob 0.20 \
+    --notes "30-day, 0.20 delta, within sizing"
+
+# List what's still open:
+neuro-os invest trade list --open-only
+
+# Record a close (the original row stays frozen; a new row
+# referencing it via parent_trade_id is appended):
+neuro-os invest trade close \
+    --trade-id opt-abc123def456 \
+    --realized-pnl 1200 --outcome won
+```
+
+### Phase 1 ↔ life — cost-of-living gap
+
+Set your monthly target (Bay Area realistic, not aspirational frugal):
+
+```bash
+neuro-os invest cost-of-living set --monthly-target 14000 --region "Bay Area"
+```
+
+Or import from money-os's existing profile (best-effort regex parse;
+falls back cleanly if the format doesn't match):
+
+```bash
+neuro-os invest cost-of-living read \
+    --money-os-profile ~/money-os/profile/financial-identity.md
+```
+
+### Phase 2 — mega-trend sleeve discipline
+
+`PositionThesis.sleeve` now optionally tags each thesis with one of
+`{ai, crypto, quantum, synthbio, space, robotics, energy_storage}`.
+The dashboard surfaces sleeve balance + concentration warnings (any
+sleeve > 40% of capital fires `single_sleeve_concentration`).
+
+```bash
+neuro-os invest sleeve-balance
+```
+
+### Investment dashboard
+
+One screen, all phases:
+
+```bash
+neuro-os invest dashboard --window 30
+```
+
+Sections:
+- **Phase 1 — options income** — monthly realized PNL, per-strategy
+  win-rate (with `< 20 trades → noise` guard), pnl per strategy.
+- **Phase 1 ↔ life** — cost-of-living target vs realized income; gap
+  in dollars + percent; runway months when there's a deficit.
+- **Phase 2** — sleeve allocations + thesis-correct-rate over the
+  window.
+- **Health flags** — fire only on unambiguous evidence (sample-size
+  guards):
+  - `no_cost_of_living_target` — flying without the Phase-1 headline.
+  - `phase1_income_gap_unmet` — last month's net income < 70% of target.
+  - `single_sleeve_concentration` — any sleeve > 40% of capital.
+  - `no_thesis_invalidation` — ≥10 theses in window, zero invalidations
+    (perfect-foresight failure mode).
+  - `options_loss_concentration` — ≥20 closed trades AND realized PNL
+    negative (the "high win-rate but losing money" failure mode).
+
+### How this fits with money-os
+
+[`Projects/money-os`](https://github.com/wjlgatech/money-os) is a
+separate Claude plugin you already run. It owns portfolio state
+(`profile/holdings.md`), cash-flow / leak-scan tooling, and 21 slash
+commands. The neuro-os investment vertical does NOT duplicate any of
+that. It **augments** money-os in the three places money-os doesn't
+cover:
+
+| money-os has | neuro-os adds |
+|---|---|
+| `profile/holdings.md` — portfolio state | `PositionThesis` discipline + invalidation_condition + `sleeve` tag |
+| `/cash-flow`, `/leak-scan` — cost-of-living tracking | `CostOfLivingProfile` + Phase-1 income-gap metric (`invest cost-of-living read --money-os-profile`) |
+| Equity / ETF / crypto coverage | **Options-income tracking** (cash-secured puts, wheel, covered calls) — the load-bearing Phase-1 piece |
+
+See [`docs/plans/money-os-integration-and-realistic-investment-goals.md`](plans/money-os-integration-and-realistic-investment-goals.md) for the full architecture + the honest eval of the "double-every-3-months" trajectory.
+
 ## Startup — for a founder building a startup
 
 **Onboard** — you commit to ONE load-bearing hypothesis for 40 days.

@@ -803,6 +803,10 @@ def _add_vertical_subcommands(
     if vertical_name == "research":
         _add_research_ingest_subcommands(top_sub)
 
+    # invest-only: Phase-1 / Phase-2 substrate for the realistic-goals plan.
+    if vertical_name == "invest":
+        _add_invest_phase1_subcommands(top_sub)
+
     # onboard
     onb = top_sub.add_parser(
         "onboard",
@@ -1553,6 +1557,326 @@ def _make_anthropic_cluster_fn():
         return [r for r in parsed if isinstance(r, dict)]
 
     return llm_fn
+
+
+# ---------------------------------------------------------------------------
+# Investment Phase-1 / Phase-2 CLI tree
+# (options-income tracker + sleeve balance + cost-of-living gap +
+#  invest dashboard, supporting the goal of replacing W-2 income via
+#  options + mega-trend basket appreciation.)
+# ---------------------------------------------------------------------------
+
+
+def _add_invest_phase1_subcommands(top_sub: "argparse._SubParsersAction") -> None:
+    """Add invest trade / sleeve-balance / cost-of-living / dashboard."""
+    # trade — log a new options trade.
+    trade = top_sub.add_parser(
+        "trade",
+        help="log / list / close options trades (Phase 1 income substrate)",
+    )
+    trade_sub = trade.add_subparsers(dest="trade_action", required=True)
+
+    log = trade_sub.add_parser("log", help="log a new options trade")
+    log.add_argument("--strategy", required=True, choices=[
+        "cash_secured_put", "covered_call", "wheel", "credit_spread",
+        "iron_condor", "naked", "other",
+    ])
+    log.add_argument("--ticker", required=True)
+    log.add_argument("--underlying-price", type=float, required=True,
+                     help="underlying price at open")
+    log.add_argument("--expiry", required=True, help="ISO date YYYY-MM-DD")
+    log.add_argument("--strikes", required=True,
+                     help="comma-separated strikes (one for puts/calls, "
+                          "two for spreads, four for iron condors)")
+    log.add_argument("--contracts", type=int, default=1)
+    log.add_argument("--premium", type=float, required=True,
+                     help="net premium received (per contract × contracts)")
+    log.add_argument("--max-loss", type=float, required=True,
+                     help="worst-case capital at risk")
+    log.add_argument("--win-prob", type=float, required=True,
+                     help="probability of winning, 0..1; used to compute "
+                          "expected_value at open")
+    log.add_argument("--assignment-prob", type=float, default=None,
+                     help="probability of assignment, 0..1 (optional)")
+    log.add_argument("--notes", default=None)
+    log.add_argument("--home", default=None,
+                     help="default: ~/.neuro_os_investment/")
+    log.set_defaults(func=_invest_trade_log_handler)
+
+    list_p = trade_sub.add_parser("list", help="list trades (filterable)")
+    list_p.add_argument("--strategy", default=None)
+    list_p.add_argument("--ticker", default=None)
+    list_p.add_argument("--outcome", default=None,
+                        choices=["open", "won", "lost", "assigned", "rolled"])
+    list_p.add_argument("--open-only", action="store_true",
+                        help="only list trades still open (no close row yet)")
+    list_p.add_argument("--home", default=None)
+    list_p.set_defaults(func=_invest_trade_list_handler)
+
+    close = trade_sub.add_parser("close", help="record a trade close")
+    close.add_argument("--trade-id", required=True,
+                       help="the trade_id of the open row to close")
+    close.add_argument("--realized-pnl", type=float, required=True,
+                      help="signed dollar amount (negative = loss)")
+    close.add_argument("--outcome", required=True,
+                      choices=["won", "lost", "assigned", "rolled"])
+    close.add_argument("--notes", default=None)
+    close.add_argument("--home", default=None)
+    close.set_defaults(func=_invest_trade_close_handler)
+
+    # sleeve-balance — Phase 2 read.
+    sb = top_sub.add_parser(
+        "sleeve-balance",
+        help="show mega-trend sleeve allocation across active PositionTheses",
+    )
+    sb.add_argument("--home", default=None)
+    sb.add_argument("--json", action="store_true")
+    sb.set_defaults(func=_invest_sleeve_balance_handler)
+
+    # cost-of-living — set the Phase-1 target (or read from money-os).
+    col = top_sub.add_parser(
+        "cost-of-living",
+        help="set or read the monthly cost-of-living target",
+    )
+    col_sub = col.add_subparsers(dest="col_action", required=True)
+
+    col_set = col_sub.add_parser("set", help="set the monthly target")
+    col_set.add_argument("--monthly-target", type=float, required=True,
+                         help="monthly dollar target (Bay Area realistic, "
+                              "e.g. 14000)")
+    col_set.add_argument("--region", default=None)
+    col_set.add_argument("--breakdown", default=None,
+                         help="optional human-readable breakdown")
+    col_set.add_argument("--home", default=None)
+    col_set.set_defaults(func=_invest_cost_of_living_set_handler)
+
+    col_read = col_sub.add_parser(
+        "read",
+        help="read the current target (or import from money-os "
+             "profile/financial-identity.md)",
+    )
+    col_read.add_argument("--money-os-profile", default=None,
+                          help="path to money-os profile/financial-identity.md "
+                               "to import from (best-effort regex parse)")
+    col_read.add_argument("--home", default=None)
+    col_read.set_defaults(func=_invest_cost_of_living_read_handler)
+
+    # dashboard — the rollup.
+    dash = top_sub.add_parser(
+        "dashboard",
+        help="investment dashboard (Phase 1 income + Phase 2 sleeve balance + health flags)",
+    )
+    dash.add_argument("--window", type=int, default=30,
+                      help="window in days (default 30)")
+    dash.add_argument("--json", action="store_true")
+    dash.add_argument("--home", default=None)
+    dash.set_defaults(func=_invest_dashboard_handler)
+
+
+def _invest_trade_log_handler(args: argparse.Namespace) -> int:
+    from datetime import datetime, timezone
+    from agent.investment.options_income import (
+        OptionTrade, compute_expected_value, new_trade_id, write_trade,
+    )
+
+    home = Path(args.home).expanduser() if args.home else None
+    if not 0.0 <= args.win_prob <= 1.0:
+        print("error: --win-prob must be in [0, 1]", file=sys.stderr)
+        return 2
+    strikes = [float(s.strip()) for s in args.strikes.split(",") if s.strip()]
+    if not strikes:
+        print("error: --strikes must contain at least one strike", file=sys.stderr)
+        return 2
+    ev = compute_expected_value(
+        win_probability=args.win_prob,
+        premium_received=args.premium,
+        max_loss=args.max_loss,
+    )
+    trade = OptionTrade(
+        trade_id=new_trade_id(),
+        opened_at=datetime.now(timezone.utc),
+        strategy=args.strategy,
+        ticker=args.ticker.upper(),
+        underlying_price_at_open=args.underlying_price,
+        expiry=args.expiry,
+        strikes=strikes,
+        contracts=args.contracts,
+        premium_received=args.premium,
+        max_loss=args.max_loss,
+        expected_value=ev,
+        assignment_probability=args.assignment_prob,
+        notes=args.notes,
+    )
+    write_trade(trade, home=home)
+    print(trade.model_dump_json(indent=2))
+    return 0
+
+
+def _invest_trade_list_handler(args: argparse.Namespace) -> int:
+    from agent.investment.options_income import list_open_trades, read_trades
+
+    home = Path(args.home).expanduser() if args.home else None
+    if args.open_only:
+        trades = list_open_trades(home=home)
+    else:
+        trades = read_trades(
+            home=home,
+            strategy=args.strategy,
+            ticker=args.ticker.upper() if args.ticker else None,
+            outcome=args.outcome,
+        )
+    print(json.dumps(
+        [json.loads(t.model_dump_json()) for t in trades],
+        indent=2,
+        default=str,
+    ))
+    return 0
+
+
+def _invest_trade_close_handler(args: argparse.Namespace) -> int:
+    from datetime import datetime, timezone
+    from agent.investment.options_income import (
+        OptionTrade, list_open_trades, new_trade_id, write_trade,
+    )
+
+    home = Path(args.home).expanduser() if args.home else None
+    open_trades = list_open_trades(home=home)
+    parent = next((t for t in open_trades if t.trade_id == args.trade_id), None)
+    if parent is None:
+        print(
+            f"error: trade {args.trade_id!r} not found in open trades. "
+            f"Use `invest trade list --open-only` to see what's open.",
+            file=sys.stderr,
+        )
+        return 2
+    close_row = OptionTrade(
+        trade_id=new_trade_id(),
+        opened_at=parent.opened_at,
+        strategy=parent.strategy,
+        ticker=parent.ticker,
+        underlying_price_at_open=parent.underlying_price_at_open,
+        expiry=parent.expiry,
+        strikes=parent.strikes,
+        contracts=parent.contracts,
+        premium_received=parent.premium_received,
+        max_loss=parent.max_loss,
+        expected_value=parent.expected_value,
+        assignment_probability=parent.assignment_probability,
+        outcome=args.outcome,
+        closed_at=datetime.now(timezone.utc),
+        realized_pnl=args.realized_pnl,
+        parent_trade_id=parent.trade_id,
+        notes=args.notes,
+    )
+    write_trade(close_row, home=home)
+    print(close_row.model_dump_json(indent=2))
+    return 0
+
+
+def _invest_sleeve_balance_handler(args: argparse.Namespace) -> int:
+    from agent.investment.megatrend import compute_sleeve_balance
+
+    home = Path(args.home).expanduser() if args.home else None
+    theses = _load_active_position_theses(home)
+    balance = compute_sleeve_balance(theses)
+    if args.json:
+        print(balance.model_dump_json(indent=2))
+    else:
+        if not balance.allocations:
+            print("(no active PositionThesis rows)")
+            return 0
+        for a in balance.allocations:
+            warn = "  *over-concentrated*" if a.over_concentration_warning else ""
+            print(
+                f"  {a.sleeve:16s} theses={a.thesis_count:>3d}"
+                f"   capital={a.capital_fraction*100:>5.1f}%{warn}"
+            )
+        if balance.sleeves_concentrated:
+            print(
+                f"\nwarning: sleeves over the "
+                f"{int(__import__('agent.investment.megatrend', fromlist=['SLEEVE_CONCENTRATION_WARNING']).SLEEVE_CONCENTRATION_WARNING * 100)}% "
+                f"concentration threshold: {', '.join(balance.sleeves_concentrated)}"
+            )
+    return 0
+
+
+def _invest_cost_of_living_set_handler(args: argparse.Namespace) -> int:
+    from datetime import datetime, timezone
+    from agent.investment.cost_of_living import CostOfLivingProfile, save_profile
+
+    home = Path(args.home).expanduser() if args.home else None
+    profile = CostOfLivingProfile(
+        monthly_target=args.monthly_target,
+        region=args.region,
+        breakdown=args.breakdown,
+        source="direct",
+        written_at=datetime.now(timezone.utc),
+    )
+    save_profile(profile, home=home)
+    print(profile.model_dump_json(indent=2))
+    return 0
+
+
+def _invest_cost_of_living_read_handler(args: argparse.Namespace) -> int:
+    from agent.investment.cost_of_living import (
+        load_profile, read_from_money_os_profile, save_profile,
+    )
+
+    home = Path(args.home).expanduser() if args.home else None
+    if args.money_os_profile:
+        src = Path(args.money_os_profile).expanduser()
+        imported = read_from_money_os_profile(src)
+        if imported is None:
+            print(
+                f"error: could not parse a monthly cost number from {src}. "
+                f"Use `invest cost-of-living set --monthly-target N` instead.",
+                file=sys.stderr,
+            )
+            return 2
+        save_profile(imported, home=home)
+        print(imported.model_dump_json(indent=2))
+        return 0
+    current = load_profile(home=home)
+    if current is None:
+        print("(no cost-of-living target set; use `invest cost-of-living set`)")
+        return 0
+    print(current.model_dump_json(indent=2))
+    return 0
+
+
+def _invest_dashboard_handler(args: argparse.Namespace) -> int:
+    from agent.investment.dashboard import build_dashboard_summary, render_text
+
+    if not 1 <= args.window <= 365:
+        print(
+            f"error: --window must be between 1 and 365 (got {args.window})",
+            file=sys.stderr,
+        )
+        return 2
+    home = Path(args.home).expanduser() if args.home else None
+    theses = _load_active_position_theses(home)
+    summary = build_dashboard_summary(
+        theses=theses, home=home, window_days=args.window,
+    )
+    if args.json:
+        print(summary.model_dump_json(indent=2))
+    else:
+        print(render_text(summary))
+    return 0
+
+
+def _load_active_position_theses(home):
+    """Helper — best-effort load of all active PositionThesis rows from
+    the investment vertical's persistence. If nothing is on disk (the
+    user hasn't filed any), returns []."""
+    try:
+        from agent.investment.config import read_position_theses
+    except ImportError:
+        return []
+    try:
+        return [t for t in read_position_theses(home=home) if t.status == "active"]
+    except Exception:
+        return []
 
 
 def _make_anthropic_brief_fn():
