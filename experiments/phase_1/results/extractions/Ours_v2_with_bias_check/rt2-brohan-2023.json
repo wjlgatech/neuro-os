@@ -1,0 +1,26 @@
+{
+  "system": "Ours_v2_with_bias_check",
+  "paper_id": "rt2-brohan-2023",
+  "paper_title": "RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "Robot actions are discretized into integer tokens and inserted directly into the training corpus alongside natural-language and visual-question-answering examples. A pretrained vision-language model (VLM) is then co-fine-tuned on this mixed corpus, so the same transformer weights must predict both word tokens and action tokens. Because the token prediction objective is identical across modalities, the model's internal representations of web-scale semantics (object categories, spatial relations, commonsense reasoning) remain entangled with the action-prediction pathway, letting semantic priors ",
+  "invariant": "When the output space of a powerful pretrained model is re-expressed in the same discrete token format that the model already optimizes, fine-tuning on a small target domain inherits the model's broader generalization without architectural surgery. Format unification is the key leverage point, not domain-specific adapters.",
+  "prediction": "RT-2 should succeed on instructions that never appear in robot training data but whose semantics are covered by web pretraining (e.g., 'place object on the number 3'). Performance on such out-of-distribution semantic tasks should drop sharply if the VLM backbone is replaced with a model trained only on robot data, even with identical action tokenization.",
+  "failure_mode": "Co-fine-tuning on robot trajectory data causes catastrophic forgetting of the original VLM capabilities. The paper notes that naively weighting the robot data too heavily degrades performance on standard VQA benchmarks, meaning the shared weights that enable semantic transfer are gradually overwritten by the low-diversity robot corpus.",
+  "source_excerpt": "in order to fit both natural language responses and robotic actions into the same format, we express the actions as text tokens and incorporate them directly into the training set of the model in the same way as natural language tokens.",
+  "has_schema": true,
+  "pinned_provenance": true,
+  "review_gate_passed": true,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 2942,
+  "llm_tokens_out": 534,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-reviewed-bias-checked",
+  "bias_annotation": {
+    "authority_bias": 1,
+    "recency_bias": 1,
+    "novelty_bias": 2,
+    "confirmation_bias": 1,
+    "assumption_note": "Novelty framing overstates originality \u2014 discrete action tokenization and mixed-modality fine-tuning of LLMs have prior art (e.g., Gato, SayCan, decision transformers), which the card does not acknowl"
+  }
+}

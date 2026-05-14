@@ -1,0 +1,402 @@
+[
+  {
+    "decision_id": "d018_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "gem-lopez-paz-2017",
+    "citation_aspect": "prediction",
+    "week": 1,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d006_cross",
+    "vertical": "founder-loop",
+    "cited_paper_id": "helm-liang-2022",
+    "citation_aspect": "failure_mode",
+    "week": 5,
+    "is_cross_vertical": true
+  },
+  {
+    "decision_id": "d002_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "latent-replay-pellegrini-2019",
+    "citation_aspect": "mechanism",
+    "week": 6,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d022_native",
+    "vertical": "investment",
+    "cited_paper_id": "dreamer-v3-hafner-2023",
+    "citation_aspect": "invariant",
+    "week": 6,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d010_cross",
+    "vertical": "founder-loop",
+    "cited_paper_id": "iris-micheli-2023",
+    "citation_aspect": "invariant",
+    "week": 4,
+    "is_cross_vertical": true
+  },
+  {
+    "decision_id": "d030_native",
+    "vertical": "investment",
+    "cited_paper_id": "helm-liang-2022",
+    "citation_aspect": "prediction",
+    "week": 2,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d012_cross",
+    "vertical": "investment",
+    "cited_paper_id": "latent-replay-pellegrini-2019",
+    "citation_aspect": "mechanism",
+    "week": 6,
+    "is_cross_vertical": true
+  },
+  {
+    "decision_id": "d026_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "open-x-embodiment-2023",
+    "citation_aspect": "invariant",
+    "week": 6,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d024_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "latent-replay-pellegrini-2019",
+    "citation_aspect": "invariant",
+    "week": 2,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d010_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "progressive-networks-rusu-2016",
+    "citation_aspect": "invariant",
+    "week": 2,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d011_cross",
+    "vertical": "investment",
+    "cited_paper_id": "ewc-kirkpatrick-2017",
+    "citation_aspect": "prediction",
+    "week": 5,
+    "is_cross_vertical": true
+  },
+  {
+    "decision_id": "d008_cross",
+    "vertical": "founder-loop",
+    "cited_paper_id": "world-models-ha-schmidhuber-2018",
+    "citation_aspect": "prediction",
+    "week": 6,
+    "is_cross_vertical": true
+  },
+  {
+    "decision_id": "d007_cross",
+    "vertical": "investment",
+    "cited_paper_id": "progressive-networks-rusu-2016",
+    "citation_aspect": "mechanism",
+    "week": 6,
+    "is_cross_vertical": true
+  },
+  {
+    "decision_id": "d025_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "rt2-brohan-2023",
+    "citation_aspect": "failure_mode",
+    "week": 3,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d028_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "ewc-kirkpatrick-2017",
+    "citation_aspect": "prediction",
+    "week": 4,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d014_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "rt2-brohan-2023",
+    "citation_aspect": "mechanism",
+    "week": 4,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d011_native",
+    "vertical": "investment",
+    "cited_paper_id": "dreamer-v3-hafner-2023",
+    "citation_aspect": "mechanism",
+    "week": 1,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d012_native",
+    "vertical": "investment",
+    "cited_paper_id": "iris-micheli-2023",
+    "citation_aspect": "mechanism",
+    "week": 3,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d009_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "latent-replay-pellegrini-2019",
+    "citation_aspect": "failure_mode",
+    "week": 3,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d029_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "progressive-networks-rusu-2016",
+    "citation_aspect": "mechanism",
+    "week": 2,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d027_native",
+    "vertical": "investment",
+    "cited_paper_id": "dreamer-v3-hafner-2023",
+    "citation_aspect": "mechanism",
+    "week": 2,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d006_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "open-x-embodiment-2023",
+    "citation_aspect": "mechanism",
+    "week": 5,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d013_native",
+    "vertical": "investment",
+    "cited_paper_id": "dreamer-v3-hafner-2023",
+    "citation_aspect": "prediction",
+    "week": 1,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d005_cross",
+    "vertical": "founder-loop",
+    "cited_paper_id": "world-models-ha-schmidhuber-2018",
+    "citation_aspect": "failure_mode",
+    "week": 4,
+    "is_cross_vertical": true
+  },
+  {
+    "decision_id": "d016_native",
+    "vertical": "investment",
+    "cited_paper_id": "helm-liang-2022",
+    "citation_aspect": "prediction",
+    "week": 5,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d013_cross",
+    "vertical": "investment",
+    "cited_paper_id": "progressive-networks-rusu-2016",
+    "citation_aspect": "invariant",
+    "week": 2,
+    "is_cross_vertical": true
+  },
+  {
+    "decision_id": "d034_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "open-x-embodiment-2023",
+    "citation_aspect": "prediction",
+    "week": 6,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d017_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "gem-lopez-paz-2017",
+    "citation_aspect": "mechanism",
+    "week": 1,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d002_cross",
+    "vertical": "investment",
+    "cited_paper_id": "latent-replay-pellegrini-2019",
+    "citation_aspect": "failure_mode",
+    "week": 1,
+    "is_cross_vertical": true
+  },
+  {
+    "decision_id": "d021_native",
+    "vertical": "investment",
+    "cited_paper_id": "dreamer-v3-hafner-2023",
+    "citation_aspect": "invariant",
+    "week": 3,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d032_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "rt2-brohan-2023",
+    "citation_aspect": "invariant",
+    "week": 3,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d008_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "rt2-brohan-2023",
+    "citation_aspect": "prediction",
+    "week": 1,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d004_native",
+    "vertical": "investment",
+    "cited_paper_id": "iris-micheli-2023",
+    "citation_aspect": "mechanism",
+    "week": 1,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d009_cross",
+    "vertical": "founder-loop",
+    "cited_paper_id": "dreamer-v3-hafner-2023",
+    "citation_aspect": "mechanism",
+    "week": 3,
+    "is_cross_vertical": true
+  },
+  {
+    "decision_id": "d000_cross",
+    "vertical": "founder-loop",
+    "cited_paper_id": "helm-liang-2022",
+    "citation_aspect": "failure_mode",
+    "week": 5,
+    "is_cross_vertical": true
+  },
+  {
+    "decision_id": "d005_native",
+    "vertical": "investment",
+    "cited_paper_id": "world-models-ha-schmidhuber-2018",
+    "citation_aspect": "invariant",
+    "week": 2,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d001_cross",
+    "vertical": "founder-loop",
+    "cited_paper_id": "iris-micheli-2023",
+    "citation_aspect": "prediction",
+    "week": 2,
+    "is_cross_vertical": true
+  },
+  {
+    "decision_id": "d004_cross",
+    "vertical": "investment",
+    "cited_paper_id": "latent-replay-pellegrini-2019",
+    "citation_aspect": "failure_mode",
+    "week": 5,
+    "is_cross_vertical": true
+  },
+  {
+    "decision_id": "d003_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "open-x-embodiment-2023",
+    "citation_aspect": "mechanism",
+    "week": 5,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d015_native",
+    "vertical": "investment",
+    "cited_paper_id": "world-models-ha-schmidhuber-2018",
+    "citation_aspect": "prediction",
+    "week": 6,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d019_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "gem-lopez-paz-2017",
+    "citation_aspect": "mechanism",
+    "week": 4,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d023_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "progressive-networks-rusu-2016",
+    "citation_aspect": "mechanism",
+    "week": 5,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d007_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "gem-lopez-paz-2017",
+    "citation_aspect": "failure_mode",
+    "week": 2,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d001_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "progressive-networks-rusu-2016",
+    "citation_aspect": "invariant",
+    "week": 2,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d031_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "rt2-brohan-2023",
+    "citation_aspect": "failure_mode",
+    "week": 6,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d020_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "progressive-networks-rusu-2016",
+    "citation_aspect": "failure_mode",
+    "week": 6,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d003_cross",
+    "vertical": "investment",
+    "cited_paper_id": "ewc-kirkpatrick-2017",
+    "citation_aspect": "mechanism",
+    "week": 2,
+    "is_cross_vertical": true
+  },
+  {
+    "decision_id": "d000_native",
+    "vertical": "investment",
+    "cited_paper_id": "world-models-ha-schmidhuber-2018",
+    "citation_aspect": "mechanism",
+    "week": 6,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d033_native",
+    "vertical": "founder-loop",
+    "cited_paper_id": "latent-replay-pellegrini-2019",
+    "citation_aspect": "invariant",
+    "week": 6,
+    "is_cross_vertical": false
+  },
+  {
+    "decision_id": "d014_cross",
+    "vertical": "founder-loop",
+    "cited_paper_id": "dreamer-v3-hafner-2023",
+    "citation_aspect": "invariant",
+    "week": 5,
+    "is_cross_vertical": true
+  }
+]

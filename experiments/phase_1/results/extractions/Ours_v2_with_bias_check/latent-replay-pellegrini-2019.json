@@ -1,0 +1,26 @@
+{
+  "system": "Ours_v2_with_bias_check",
+  "paper_id": "latent-replay-pellegrini-2019",
+  "paper_title": "Latent Replay for Real-Time Continual Learning",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "Instead of replaying raw input images, activations at an intermediate layer are stored and replayed during training. The network is split: layers below the replay point are frozen or heavily slowed (low learning rate), stabilizing the feature representation so stored activations remain valid; layers above learn at full speed on both new data and replayed latent vectors. This decouples representation stability from classifier plasticity \u2014 old activations stay meaningful because the feature extractor barely moves, while the top layers adapt without forgetting.",
+  "invariant": "When a system has a hierarchical structure where lower levels extract general features and upper levels specialize, freezing lower levels allows upper-level replay to be both cheap and valid. The cost-accuracy tradeoff of replay is determined by where in the hierarchy replay occurs, not by replay per se.",
+  "prediction": "Accuracy with Latent Replay should be nearly identical to raw input replay while requiring significantly less compute and memory per replay step. Degrading the stability constraint (raising the learning rate of frozen layers) should cause stored activations to become stale and performance to drop, even if replay volume is held constant.",
+  "failure_mode": "If the frozen lower layers were pretrained on a distribution far from the deployment domain, their fixed representations will be inadequate for new classes, and the upper layers cannot compensate regardless of replay. Similarly, if the latent replay point is chosen too early (low abstraction), stored activations are large and compute savings vanish.",
+  "source_excerpt": "instead of storing a portion of past data in the input space, we store activations volumes at some intermediate layer. This can significantly reduce the computation and storage required by native rehearsal. To keep the representation stable and the stored activations valid we propose to slow-down learning at all the layers below the latent replay one, leaving the layers above free to learn at full pace.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": true,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 2809,
+  "llm_tokens_out": 528,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-reviewed-bias-checked",
+  "bias_annotation": {
+    "authority_bias": 0,
+    "recency_bias": 1,
+    "novelty_bias": 2,
+    "confirmation_bias": 2,
+    "assumption_note": "Card omits key limitations (frozen-layer distribution mismatch is noted but framed as edge case; no mention of the paper's own benchmarks showing conditions where latent replay underperforms, nor comp"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "system": "B5_reviewed_mechanism_card",
+  "paper_id": "helm-liang-2022",
+  "paper_title": "Holistic Evaluation of Language Models (HELM)",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "Sparse, accuracy-only benchmarking leaves model limitations invisible because evaluators never observe metrics they do not measure. HELM's causal structure: (1) taxonomize scenarios \u00d7 metrics into a cross-product space, (2) enforce dense, standardized measurement of 7 metrics across all 30 models and 16 core scenarios, (3) expose trade-offs that were structurally absent when models shared no common evaluation scenarios. Coverage breadth causally determines what failure modes the community can detect.",
+  "invariant": "Expanding evaluation from single-metric to multi-metric measurement across a standardized scenario set will surface trade-offs between accuracy and other desiderata (robustness, fairness, calibration, toxicity, efficiency) that single-metric benchmarks structurally cannot detect, regardless of the specific models or domain.",
+  "prediction": "Models ranked highest on accuracy-only benchmarks will show meaningfully different relative rankings when fairness, toxicity, or calibration metrics are included, with some top-accuracy models dropping significantly in holistic ranking\u2014falsifiable by computing rank-order correlations between accuracy-only and multi-metric composite rankings.",
+  "failure_mode": "If all 7 measured metrics are strongly positively correlated across models (i.e., high-accuracy models uniformly also score best on fairness, calibration, toxicity, etc.), the multi-metric structure adds no discriminative signal, and the mechanism's core claim\u2014that holistic coverage reveals hidden trade-offs\u2014fails empirically.",
+  "source_excerpt": "Prior to HELM, models on average were evaluated on just 17.9% of the core HELM scenarios, with some prominent models not sharing a single scenario in common. We improve this to 96.0%: now all 30 models have been densely benchmarked on a set of core scenarios and metrics under standardized conditions.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": true,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 2063,
+  "llm_tokens_out": 927,
+  "extraction_method": "llm-claude-sonnet-4-6-self-reviewed"
+}

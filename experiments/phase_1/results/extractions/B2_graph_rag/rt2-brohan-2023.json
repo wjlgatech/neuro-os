@@ -1,0 +1,23 @@
+{
+  "system": "B2_graph_rag",
+  "paper_id": "rt2-brohan-2023",
+  "paper_title": "RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control",
+  "free_text_output": "[intro/motivation community]: https://robotics-transformer2.github.io\n                                                                                                                                                                       2023-8-1\n\n\n\n                                         RT-2: Vision-Language-Action Models Transfer\n                                         Web Knowledge to Robotic Control\n                                         Anthony Brohan, Noah Brown, Justice Carbajal, Yevgen Chebotar, Xi Chen, Krzysztof Choromanski,\n                                         Tianli Ding, Danny Driess, Avinava Dubey, Ch\n\n[method/mechanism community]: In addition to evaluating the generalization capabilities of vision-language-action models, we also aim\nto evaluate the degree to which such models can enable new capabilities beyond those demonstrated\n\n\n                                                                                                              8\n\f                     RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control\n\n\n\n\n                                                                                    Model               Language-Table\n                                                             \n\n[results/discussion community]: Plan: Pick redbull\n     can\n\n\n\n\nFigure 10 | Additional examples of RT-2 with chain-of-thought reasoning\n\n\n\n\n                                                                                                          25\n\f                       RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control\n\n\n\n          Task Group           Tasks\n         Unseen Objects        pick banana, move banana near coke can, move orange can near banana,\n         (Easy)                pick oreo, move oreo near apple, move redbull can near oreo, pick pear,\n                               pick co",
+  "retrieved_chunks": [
+    "[intro/motivation community]: https://robotics-transformer2.github.io\n                                                                                                                                                                       2023-8-1\n\n\n\n                                         RT-2: Vision-Language-Action Models Transfer\n                                         Web Knowledge to Robotic Control\n                                         Anthony Brohan, Noah Brown, Justice Carbajal, Yevgen Chebotar, Xi Chen, Krzysztof Choromanski,\n                                         Tianli Ding, Danny Driess, Avinava Dubey, Ch",
+    "[method/mechanism community]: In addition to evaluating the generalization capabilities of vision-language-action models, we also aim\nto evaluate the degree to which such models can enable new capabilities beyond those demonstrated\n\n\n                                                                                                              8\n\f                     RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control\n\n\n\n\n                                                                                    Model               Language-Table\n                                                             ",
+    "[results/discussion community]: Plan: Pick redbull\n     can\n\n\n\n\nFigure 10 | Additional examples of RT-2 with chain-of-thought reasoning\n\n\n\n\n                                                                                                          25\n\f                       RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control\n\n\n\n          Task Group           Tasks\n         Unseen Objects        pick banana, move banana near coke can, move orange can near banana,\n         (Easy)                pick oreo, move oreo near apple, move redbull can near oreo, pick pear,\n                               pick co"
+  ],
+  "mechanism": "",
+  "invariant": "",
+  "prediction": "",
+  "failure_mode": "",
+  "source_excerpt": "",
+  "has_schema": false,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 0,
+  "llm_tokens_out": 0,
+  "extraction_method": "heuristic-positional-communities"
+}

@@ -1,0 +1,19 @@
+{
+  "system": "B4_single_shot_mechanism_card",
+  "paper_id": "dreamer-v3-hafner-2023",
+  "paper_title": "Mastering Diverse Domains through World Models (DreamerV3)",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "DreamerV3 learns a latent world model of the environment, then trains actor-critic behaviors entirely inside imagined rollouts from that model. Robustness is achieved through three coupled techniques: (1) symlog transformations to compress large-magnitude inputs/targets, (2) normalization of returns and losses to be scale-invariant across domains, and (3) balancing of representation-learning objectives so that no single signal dominates. Together these keep gradient magnitudes stable regardless of reward scale, episode length, or input modality, enabling a single fixed hyperparameter configura",
+  "invariant": "A single fixed set of hyperparameters is used across all tasks and domains. No domain-specific tuning, curricula, or human data is required; the same world-model architecture, loss weights, and optimization settings are applied uniformly.",
+  "prediction": "Removing any one of the three robustness mechanisms (symlog transformation, return/loss normalization, or objective balancing) should cause learning to become unstable or fail on at least a subset of domains, while the full system remains stable across all 150+ tasks.",
+  "failure_mode": "If the environment produces reward signals or observation magnitudes so extreme that symlog compression and normalization cannot bring them into a tractable range, or if the latent world model is insufficiently expressive to capture the environment's dynamics, the imagined rollouts will be misleading and behavior learned in imagination will not transfer to the real environment.",
+  "source_excerpt": "Robustness techniques based on normalization, balancing, and transformations enable stable learning across domains. Applied out of the box, Dreamer is the first algorithm to collect diamonds in Minecraft from scratch without human data or curricula.",
+  "has_schema": true,
+  "pinned_provenance": true,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 1595,
+  "llm_tokens_out": 403,
+  "extraction_method": "llm-claude-sonnet-4-6-single-shot"
+}

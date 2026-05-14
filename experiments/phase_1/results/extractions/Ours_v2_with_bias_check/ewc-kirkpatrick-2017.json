@@ -1,0 +1,26 @@
+{
+  "system": "Ours_v2_with_bias_check",
+  "paper_id": "ewc-kirkpatrick-2017",
+  "paper_title": "Overcoming catastrophic forgetting in neural networks",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "After training on task A, EWC computes the diagonal of the Fisher information matrix at the task-A parameters. This diagonal measures, for each weight, the curvature of the log-likelihood around the solution \u2014 i.e., how sensitively task-A performance depends on that weight. When training on task B, a quadratic penalty term is added to the loss: each weight is spring-pulled toward its task-A value, with spring stiffness equal to its Fisher diagonal entry. High-Fisher weights face strong resistance to change; low-Fisher weights remain nearly free. Forgetting is prevented by anchoring the high-cu",
+  "invariant": "In any overparameterized system, responsibility for learned behavior is distributed unevenly across parameters. Selectively constraining only the high-responsibility parameters \u2014 identified by sensitivity of the objective to perturbation, not by magnitude or recency \u2014 allows new learning to proceed while preserving prior competence.",
+  "prediction": "EWC-trained networks should retain task-A performance after extensive task-B training proportional to the Fisher diagonal's accuracy as an importance measure. Perturbations applied in the low-Fisher (null-space) directions should degrade task-A performance far less than equal-magnitude perturbations in high-Fisher directions \u2014 a directly falsifiable geometric prediction about the loss landscape.",
+  "failure_mode": "The Fisher diagonal is a point-estimate of curvature (Laplace approximation) and can be overconfident: if the true posterior over task-A parameters is broad, EWC freezes weights unnecessarily. Under large distribution shift between tasks, Fisher information for task A and task B occupies non-overlapping parameter subspaces, causing EWC to partition the network into disjoint sub-networks and eventu",
+  "source_excerpt": "This algorithm slows down learning on certain weights based on how important they are to previously seen tasks. We show how EWC can be used in supervised learning and reinforcement learning problems to train several tasks sequentially without forgetting older ones, in marked contrast to previous deep-learning techniques.",
+  "has_schema": true,
+  "pinned_provenance": true,
+  "review_gate_passed": true,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 2935,
+  "llm_tokens_out": 592,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-reviewed-bias-checked",
+  "bias_annotation": {
+    "authority_bias": 1,
+    "recency_bias": 0,
+    "novelty_bias": 2,
+    "confirmation_bias": 2,
+    "assumption_note": "Card frames EWC as highly original and omits key limitations: Fisher diagonal approximation weaknesses, scalability to many tasks, and that continual-learning methods predating EWC (e.g., progressive "
+  }
+}

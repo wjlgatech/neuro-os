@@ -1,0 +1,19 @@
+{
+  "system": "B5_reviewed_mechanism_card",
+  "paper_id": "latent-replay-pellegrini-2019",
+  "paper_title": "Latent Replay for Real-Time Continual Learning",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "Latent Replay combats catastrophic forgetting by storing intermediate-layer activation volumes (not raw inputs) in a replay buffer. During continual training, stored activations are replayed only through the upper network layers. Layers below the replay point are trained at a near-zero learning rate to keep the learned representation stable, ensuring stored activations remain valid surrogates for past data. This decoupling reduces forward/backward computation cost and memory, while upper layers adapt freely to new data.",
+  "invariant": "Slowing lower-layer learning stabilizes the latent representation so that stored intermediate activations remain valid proxies for past experiences, independent of specific architecture depth or dataset domain.",
+  "prediction": "If lower layers are updated at the same learning rate as upper layers during continual training, the stored latent activations will drift, causing Latent Replay to fail at preventing catastrophic forgetting and performing no better than naive fine-tuning.",
+  "failure_mode": "When the task distribution shift is so large that lower layers must substantially adapt to represent new data, constraining their learning rate causes underfitting on new classes, making the stability-plasticity trade-off irresolvable within this framework.",
+  "source_excerpt": "instead of storing a portion of past data in the input space, we store activations volumes at some intermediate layer. This can significantly reduce the computation and storage required by native rehearsal. To keep the representation stable and the stored activations valid we propose to slow-down learning at all the layers below the latent replay one, leaving the layers above free to learn at full pace.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": true,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 1784,
+  "llm_tokens_out": 888,
+  "extraction_method": "llm-claude-sonnet-4-6-self-reviewed"
+}

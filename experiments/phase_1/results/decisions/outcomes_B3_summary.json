@@ -1,0 +1,252 @@
+[
+  {
+    "decision_id": "d018_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d006_cross",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d002_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d022_native",
+    "success": true,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d010_cross",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d030_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d012_cross",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d026_native",
+    "success": true,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d024_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d010_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d011_cross",
+    "success": true,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d008_cross",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d007_cross",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d025_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d028_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d014_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d011_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d012_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d009_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d029_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d027_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d006_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d013_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d005_cross",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d016_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d013_cross",
+    "success": true,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d034_native",
+    "success": true,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d017_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d002_cross",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d021_native",
+    "success": true,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d032_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d008_native",
+    "success": true,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d004_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d009_cross",
+    "success": true,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d000_cross",
+    "success": true,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d005_native",
+    "success": true,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d001_cross",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d004_cross",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d003_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d015_native",
+    "success": true,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d019_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d023_native",
+    "success": true,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d007_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d001_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d031_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d020_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d003_cross",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d000_native",
+    "success": true,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d033_native",
+    "success": false,
+    "confidence_p": 0.3
+  },
+  {
+    "decision_id": "d014_cross",
+    "success": true,
+    "confidence_p": 0.3
+  }
+]

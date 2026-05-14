@@ -1,0 +1,26 @@
+{
+  "system": "Ours_v2_with_bias_check",
+  "paper_id": "iris-micheli-2023",
+  "paper_title": "Transformers are Sample-Efficient World Models (IRIS)",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "IRIS encodes each raw frame into a small set of discrete tokens via a VQ-VAE-style autoencoder (encoder E maps pixels \u2192 K discrete latent codes; decoder D inverts). An autoregressive Transformer G then takes the sequence of all past discrete tokens and actions and predicts the next frame's tokens plus reward and termination signals. The RL policy is trained entirely on imagined token sequences produced by G, never querying the real environment. Long-horizon accuracy is maintained because the Transformer's full-sequence attention preserves temporal context that RNN-based world models lose.",
+  "invariant": "Compressing observations into a discrete symbolic vocabulary before sequence modeling separates perceptual complexity from temporal reasoning. A sequence model operating on compact discrete tokens can maintain coherent long-horizon predictions at lower sample cost than one operating directly on high-dimensional continuous observations.",
+  "prediction": "Removing the discrete autoencoder bottleneck \u2014 replacing discrete tokens with continuous latent vectors fed to the same Transformer \u2014 should degrade long-horizon rollout fidelity and downstream policy performance on Atari 100k, because the Transformer loses the structured vocabulary that constrains next-token prediction.",
+  "failure_mode": "When the discrete tokenizer cannot faithfully reconstruct visually complex or rapidly changing frames (codebook collapse or insufficient code budget K), the Transformer inherits corrupted tokens; imagination diverges from reality regardless of Transformer capacity, and policy performance degrades proportionally to reconstruction error.",
+  "source_excerpt": "IRIS, a data-efficient agent that learns in a world model composed of a discrete autoencoder and an autoregressive Transformer. With the equivalent of only two hours of gameplay in the Atari 100k benchmark, IRIS achieves a mean human normalized score of 1.046, and outperforms humans on 10 out of 26 games, setting a new state of the art for methods without lookahead search.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": true,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 2930,
+  "llm_tokens_out": 535,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-reviewed-bias-checked",
+  "bias_annotation": {
+    "authority_bias": 0,
+    "recency_bias": 1,
+    "novelty_bias": 2,
+    "confirmation_bias": 2,
+    "assumption_note": "Card overstates originality (discrete tokenization + Transformer world models have prior art) and omits codebook collapse, limited game generalization, and benchmark-specific caveats acknowledged in t"
+  }
+}

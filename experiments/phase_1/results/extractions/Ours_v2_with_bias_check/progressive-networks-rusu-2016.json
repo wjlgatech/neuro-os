@@ -1,0 +1,26 @@
+{
+  "system": "Ours_v2_with_bias_check",
+  "paper_id": "progressive-networks-rusu-2016",
+  "paper_title": "Progressive Neural Networks",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "Each new task gets a freshly initialized neural network column whose weights are trained from scratch. Previous columns are frozen, eliminating any gradient-driven modification of prior task parameters. Each layer in the new column receives input from the corresponding layer of every prior frozen column via learned lateral connections (adapter weights U). The new column thus combines its own evolving representations with fixed, task-specific feature hierarchies from all predecessors, layer by layer, enabling reuse without overwrite.",
+  "invariant": "Catastrophic forgetting is structurally impossible when old parameters are never modified. Transfer and plasticity can coexist if you separate them architecturally: freeze what is learned, add fresh capacity for new learning, and connect the two via trainable bridges whose gradients cannot reach the frozen side.",
+  "prediction": "A progressive network trained on K tasks retains near-perfect performance on all prior tasks regardless of how many subsequent tasks are learned, whereas a finetuned network's performance on earlier tasks degrades monotonically with each additional task. Lateral connection ablation should measurably reduce convergence speed on new tasks.",
+  "failure_mode": "Model size grows linearly with the number of tasks (one column per task), making the approach infeasible for long task sequences. Additionally, lateral connections from all prior columns must be maintained and queried at inference, so compute and memory costs scale as O(K\u00b2) in layer activations, breaking down at large K.",
+  "source_excerpt": "Progressive networks retain a pool of pretrained models throughout training, and learn lateral connections from these to extract useful features for the new task. [...] the parameters \u0398(1) are \"frozen\" and a new column with parameters \u0398(2) is instantiated (with random initialization), where layer h(2)_i receives input from both h(2)_{i\u22121} and h(1)_{i\u22121} via lateral connections.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": true,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 2737,
+  "llm_tokens_out": 532,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-reviewed-bias-checked",
+  "bias_annotation": {
+    "authority_bias": 0,
+    "recency_bias": 0,
+    "novelty_bias": 1,
+    "confirmation_bias": 1,
+    "assumption_note": "Card acknowledges O(K\u00b2) scaling failure but omits other limitations noted in the paper, such as lack of task-boundary detection, fixed column architecture assumptions, and absence of comparison to con"
+  }
+}

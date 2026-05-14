@@ -1,0 +1,19 @@
+{
+  "id": "iris-micheli-2023",
+  "ts": "2026-05-12T00:00:00+00:00",
+  "paper_title": "Transformers are Sample-Efficient World Models (IRIS)",
+  "paper_source": "arXiv:2209.00588 ; Micheli, Alonso, Fleuret 2023, ICLR 2023",
+  "mechanism": "Two components: (1) Discrete autoencoder E, D — CNN encoder maps each frame to K tokens from a vocab of N via vector quantization (VQGAN-style); decoder reconstructs. (2) GPT-like Transformer G operates on interleaved sequence (z_0^1...z_0^K, a_0, z_1^1...z_1^K, a_1, ...). Models three distributions per step: next-frame tokens autoregressively (within-frame conditioning), reward, episode termination. Policy trained purely in imagination — Transformer rolls forward, decoder turns tokens back to images. Real environment used ONLY to collect new data for retraining the world model.",
+  "invariant": "When dynamics learning can be cast as sequence modeling over discrete tokens, Transformer scaling properties become exploitable. Discretization decouples vocabulary from continuous representation and unlocks autoregressive structure for free.",
+  "prediction": "IRIS achieves mean human-normalized score 1.046 on Atari 100k (~2 hours of gameplay), superhuman on 10 of 26 games — SOTA for methods without lookahead search. World model makes pixel-perfect predictions in games like Pong after 120 games of training.",
+  "failure_mode": "Quadratic Transformer context cost limits imagination horizon. Discrete tokenizer can fail to capture smooth continuous dynamics. Sample efficiency depends on early world-model accuracy — bad early models lead to bad early policies (chicken-and-egg). Per-game policy doesn't transfer across games without retraining.",
+  "first_principle": "When a problem can be cast as sequence modeling over discrete tokens, Transformer scaling unlocks for it. Discretization isn't always lossy — for dynamics learning it can be a feature (sharper predictions, decoupled vocabulary, autoregressive structure).",
+  "anti_pattern": "Treating IRIS as 'Transformers naturally fit world models.' Naive pixel-as-token doesn't scale (quadratic context cost). The contribution requires careful pretrained discrete autoencoder + interleaved sequence format + autoregressive within-frame prediction. Skip the autoencoder and the Transformer chokes on raw pixels.",
+  "transferability_test": "Code generation (programs ARE discrete sequences). Music generation (notes as discrete tokens). Molecular design (SMILES tokens). Any control problem where state space can be discretized without losing essential structure. Planning at any org where actions and states can be enumerated (supply chain, hospital workflows).",
+  "verdict": "foundational",
+  "one_sentence_compression": "Tokenize frames into a discrete vocabulary via a VQ autoencoder, then let an autoregressive Transformer model the interleaved frame-token + action-token sequence — turn world-modeling into sequence modeling and inherit Transformer scaling.",
+  "thesis_id": null,
+  "revision_of": null,
+  "entity_mentions": [],
+  "framework_alignment": []
+}

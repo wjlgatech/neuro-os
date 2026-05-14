@@ -1,0 +1,288 @@
+{
+  "Ours_v2_with_bias_check_FULL": {
+    "extraction_count": 10,
+    "extraction_source": "Ours_v2_with_bias_check",
+    "decisions_used": "all",
+    "n_decisions": 50,
+    "H1_survival": {
+      "survival_rate_cards": 1.0,
+      "survival_rate_citations": 0.74,
+      "surviving_cards": 10,
+      "total_cards": 10,
+      "successful_citations": 37,
+      "total_citations": 50
+    },
+    "H2_override_trajectory": {
+      "weeks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "override_rates": [
+        0.15811710013076663,
+        0.12376947414129973,
+        0.1164240942755714,
+        0.09646124735008924,
+        0.07191201917361467,
+        0.042610172047279765
+      ],
+      "slope_per_week": -0.021516281492742047,
+      "is_decreasing": true,
+      "mean_rate": 0.10154901785310357
+    },
+    "calibration_brier": {
+      "applicable": true,
+      "n": 50,
+      "expected_p": 0.77,
+      "observed_p": 0.74,
+      "abs_calibration_error": 0.030000000000000027,
+      "brier": 0.19329999999999997
+    },
+    "H3_transferability": {
+      "applicable": true,
+      "native_success_rate": 0.7142857142857143,
+      "cross_vertical_success_rate": 0.8,
+      "transferability_lift_ratio": 1.12,
+      "n_native": 35,
+      "n_cross": 15
+    },
+    "H4_provenance": {
+      "n_total": 10,
+      "n_with_excerpt_attempt": 10,
+      "n_verified_in_paper": 4,
+      "audit_pass_rate": 0.4,
+      "audit_strict_pass_rate": 0.4
+    }
+  },
+  "Ours_v2_minus_bias_check": {
+    "extraction_count": 10,
+    "extraction_source": "Ours_full_loop",
+    "decisions_used": "all",
+    "n_decisions": 50,
+    "H1_survival": {
+      "survival_rate_cards": 1.0,
+      "survival_rate_citations": 0.78,
+      "surviving_cards": 10,
+      "total_cards": 10,
+      "successful_citations": 39,
+      "total_citations": 50
+    },
+    "H2_override_trajectory": {
+      "weeks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "override_rates": [
+        0.16300390773452816,
+        0.18507035227213056,
+        0.1218451267052442,
+        0.10501791706401854,
+        0.06612239057943226,
+        0.09305431076325477
+      ],
+      "slope_per_week": -0.020669116559305357,
+      "is_decreasing": true,
+      "mean_rate": 0.12235233418643475
+    },
+    "calibration_brier": {
+      "applicable": true,
+      "n": 50,
+      "expected_p": 0.75,
+      "observed_p": 0.78,
+      "abs_calibration_error": 0.030000000000000027,
+      "brier": 0.1725
+    },
+    "H3_transferability": {
+      "applicable": true,
+      "native_success_rate": 0.8,
+      "cross_vertical_success_rate": 0.7333333333333333,
+      "transferability_lift_ratio": 0.9166666666666665,
+      "n_native": 35,
+      "n_cross": 15
+    },
+    "H4_provenance": {
+      "n_total": 10,
+      "n_with_excerpt_attempt": 10,
+      "n_verified_in_paper": 5,
+      "audit_pass_rate": 0.5,
+      "audit_strict_pass_rate": 0.5
+    }
+  },
+  "Ours_v2_minus_skillify": {
+    "extraction_count": 10,
+    "extraction_source": "B5_reviewed_mechanism_card",
+    "decisions_used": "all",
+    "n_decisions": 50,
+    "H1_survival": {
+      "survival_rate_cards": 1.0,
+      "survival_rate_citations": 0.7,
+      "surviving_cards": 10,
+      "total_cards": 10,
+      "successful_citations": 35,
+      "total_citations": 50
+    },
+    "H2_override_trajectory": {
+      "weeks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "override_rates": [
+        0.2737244174443185,
+        0.2572505359426141,
+        0.21749019713699816,
+        0.25056930652260784,
+        0.2596739256680012,
+        0.2128489942289889
+      ],
+      "slope_per_week": -0.007543652500425064,
+      "is_decreasing": true,
+      "mean_rate": 0.24525956282392145
+    },
+    "calibration_brier": {
+      "applicable": true,
+      "n": 50,
+      "expected_p": 0.6,
+      "observed_p": 0.7,
+      "abs_calibration_error": 0.09999999999999998,
+      "brier": 0.22
+    },
+    "H3_transferability": {
+      "applicable": true,
+      "native_success_rate": 0.6285714285714286,
+      "cross_vertical_success_rate": 0.8666666666666667,
+      "transferability_lift_ratio": 1.378787878787879,
+      "n_native": 35,
+      "n_cross": 15
+    },
+    "H4_provenance": {
+      "n_total": 10,
+      "n_with_excerpt_attempt": 10,
+      "n_verified_in_paper": 5,
+      "audit_pass_rate": 0.5,
+      "audit_strict_pass_rate": 0.5
+    }
+  },
+  "Ours_v2_minus_review": {
+    "extraction_count": 10,
+    "extraction_source": "Ours_minus_review",
+    "decisions_used": "all",
+    "n_decisions": 50,
+    "H1_survival": {
+      "survival_rate_cards": 1.0,
+      "survival_rate_citations": 0.74,
+      "surviving_cards": 10,
+      "total_cards": 10,
+      "successful_citations": 37,
+      "total_citations": 50
+    },
+    "H2_override_trajectory": {
+      "weeks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "override_rates": [
+        0.24619334209710358,
+        0.2170929055958986,
+        0.23461281249672172,
+        0.22910393671691417,
+        0.25428272313252087,
+        0.22322421265766024
+      ],
+      "slope_per_week": -0.00025100201049021444,
+      "is_decreasing": false,
+      "mean_rate": 0.23408498878280318
+    },
+    "calibration_brier": {
+      "applicable": true,
+      "n": 50,
+      "expected_p": 0.66,
+      "observed_p": 0.74,
+      "abs_calibration_error": 0.07999999999999996,
+      "brier": 0.19879999999999998
+    },
+    "H3_transferability": {
+      "applicable": true,
+      "native_success_rate": 0.6857142857142857,
+      "cross_vertical_success_rate": 0.8666666666666667,
+      "transferability_lift_ratio": 1.2638888888888888,
+      "n_native": 35,
+      "n_cross": 15
+    },
+    "H4_provenance": {
+      "n_total": 10,
+      "n_with_excerpt_attempt": 10,
+      "n_verified_in_paper": 1,
+      "audit_pass_rate": 0.1,
+      "audit_strict_pass_rate": 0.1
+    }
+  },
+  "Ours_v2_minus_cross_vertical": {
+    "extraction_count": 10,
+    "extraction_source": "Ours_v2_with_bias_check",
+    "decisions_used": "native_only",
+    "n_decisions": 35,
+    "H1_survival": {
+      "survival_rate_cards": 1.0,
+      "survival_rate_citations": 0.7142857142857143,
+      "surviving_cards": 10,
+      "total_cards": 10,
+      "successful_citations": 25,
+      "total_citations": 35
+    },
+    "H2_override_trajectory": {
+      "weeks": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6
+      ],
+      "override_rates": [
+        0.15811710013076663,
+        0.12376947414129973,
+        0.1164240942755714,
+        0.09646124735008924,
+        0.07191201917361467,
+        0.042610172047279765
+      ],
+      "slope_per_week": -0.021516281492742047,
+      "is_decreasing": true,
+      "mean_rate": 0.10154901785310357
+    },
+    "calibration_brier": {
+      "applicable": true,
+      "n": 35,
+      "expected_p": 0.77,
+      "observed_p": 0.7142857142857143,
+      "abs_calibration_error": 0.055714285714285716,
+      "brier": 0.20718571428571425
+    },
+    "H3_transferability": {
+      "applicable": false,
+      "reason": "native-only ablation skips H3"
+    },
+    "H4_provenance": {
+      "n_total": 10,
+      "n_with_excerpt_attempt": 10,
+      "n_verified_in_paper": 4,
+      "audit_pass_rate": 0.4,
+      "audit_strict_pass_rate": 0.4
+    }
+  }
+}

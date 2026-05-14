@@ -1,0 +1,19 @@
+{
+  "system": "B3_summary",
+  "paper_id": "dreamer-v3-hafner-2023",
+  "paper_title": "Mastering Diverse Domains through World Models (DreamerV3)",
+  "free_text_output": "Developing a general algorithm that learns to solve tasks across a wide range of",
+  "retrieved_chunks": [],
+  "mechanism": "",
+  "invariant": "",
+  "prediction": "",
+  "failure_mode": "",
+  "source_excerpt": "",
+  "has_schema": false,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 0,
+  "llm_tokens_out": 0,
+  "extraction_method": "heuristic-abstract-extraction"
+}

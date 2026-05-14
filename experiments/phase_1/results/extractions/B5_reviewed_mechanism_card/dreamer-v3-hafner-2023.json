@@ -1,0 +1,19 @@
+{
+  "system": "B5_reviewed_mechanism_card",
+  "paper_id": "dreamer-v3-hafner-2023",
+  "paper_title": "Mastering Diverse Domains through World Models (DreamerV3)",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "DreamerV3 trains a latent world model on real environment transitions, then optimizes an actor-critic policy entirely through imagined rollouts within that model. Three causal stabilizers prevent gradient pathologies across domains: (1) symlog transformations bound gradient magnitudes under extreme reward scales, (2) return normalization scales critic targets to observed return variance, and (3) representation balancing prevents the dynamics model from collapsing onto either prior or posterior. Together they keep learning stable without domain-specific tuning.",
+  "invariant": "A sufficiently accurate latent world model can replace real environment interaction for policy optimization: the mechanism binding imagined-rollout quality to policy quality holds regardless of observation modality, action space type, or reward density.",
+  "prediction": "Ablating any single robustness component (symlog, return normalization, or representation balancing) should cause disproportionate performance collapse on the domain class that stresses that component (e.g., sparse-reward tasks for return normalization), while other domain classes remain comparatively unaffected.",
+  "failure_mode": "When the environment is highly stochastic or partially observable such that the latent state is insufficient to predict transitions accurately, imagined rollouts diverge from real dynamics, and policies optimized in imagination fail to transfer to real environment performance.",
+  "source_excerpt": "Robustness techniques based on normalization, balancing, and transformations enable stable learning across domains.",
+  "has_schema": true,
+  "pinned_provenance": true,
+  "review_gate_passed": true,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 1709,
+  "llm_tokens_out": 870,
+  "extraction_method": "llm-claude-sonnet-4-6-self-reviewed"
+}

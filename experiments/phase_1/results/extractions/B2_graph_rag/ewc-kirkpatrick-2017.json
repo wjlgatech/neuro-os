@@ -1,0 +1,23 @@
+{
+  "system": "B2_graph_rag",
+  "paper_id": "ewc-kirkpatrick-2017",
+  "paper_title": "Overcoming catastrophic forgetting in neural networks",
+  "free_text_output": "[intro/motivation community]: Rusua , Kieran Milana , John Quana , Tiago Ramalhoa , Agnieszka Grabska-Barwinska a ,\n                                                   Demis Hassabisa , Claudia Clopathb , Dharshan Kumarana , and Raia Hadsella\n\n\n\n\narXiv:1612.00796v2 [cs.LG] 25 Jan 2017\n                                                                     a\n                                                                     DeepMind, London, N1C 4AG, United Kingdom\n                                             b\n                                                 Bioengineering department, Imperial College London, SW7 2AZ, London\n\n[method/mechanism community]: This idea is grounded in observations that post-synaptic potentials are\nhighly variable in amplitude (suggestive of sampling from the weight posterior during computation),\nand that those synapses which are more variable are more amenable to potentiation or depression\n(suggestive of updating the weight posterior).\n\n[results/discussion community]: Table 2: Hyperparameters for each of the MNIST figures\n\n\n\n\n                                                 12\n\f      140000          crazy_climber        12000             riverraid          400            jamesbond       300             breakout\n               EWC                                 EWC                                EWC                            EWC\n      120000   SGD                         10000   SGD                          350   SGD                     250    SGD\n               single game                         single game                  300   single game             ",
+  "retrieved_chunks": [
+    "[intro/motivation community]: Rusua , Kieran Milana , John Quana , Tiago Ramalhoa , Agnieszka Grabska-Barwinska a ,\n                                                   Demis Hassabisa , Claudia Clopathb , Dharshan Kumarana , and Raia Hadsella\n\n\n\n\narXiv:1612.00796v2 [cs.LG] 25 Jan 2017\n                                                                     a\n                                                                     DeepMind, London, N1C 4AG, United Kingdom\n                                             b\n                                                 Bioengineering department, Imperial College London, SW7 2AZ, London",
+    "[method/mechanism community]: This idea is grounded in observations that post-synaptic potentials are\nhighly variable in amplitude (suggestive of sampling from the weight posterior during computation),\nand that those synapses which are more variable are more amenable to potentiation or depression\n(suggestive of updating the weight posterior).",
+    "[results/discussion community]: Table 2: Hyperparameters for each of the MNIST figures\n\n\n\n\n                                                 12\n\f      140000          crazy_climber        12000             riverraid          400            jamesbond       300             breakout\n               EWC                                 EWC                                EWC                            EWC\n      120000   SGD                         10000   SGD                          350   SGD                     250    SGD\n               single game                         single game                  300   single game             "
+  ],
+  "mechanism": "",
+  "invariant": "",
+  "prediction": "",
+  "failure_mode": "",
+  "source_excerpt": "",
+  "has_schema": false,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 0,
+  "llm_tokens_out": 0,
+  "extraction_method": "heuristic-positional-communities"
+}

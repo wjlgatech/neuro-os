@@ -1,0 +1,23 @@
+{
+  "system": "B2_graph_rag",
+  "paper_id": "dreamer-v3-hafner-2023",
+  "paper_title": "Mastering Diverse Domains through World Models (DreamerV3)",
+  "free_text_output": "[intro/motivation community]: a        Atari                ProcGen                DMLab                  Minecraft\n                                          57 tasks, 200M steps     16 tasks, 50M steps   30 tasks, 100M steps     1 task, 100M steps\n                                         900                       70                    70                       9                      b          Minecraft Diamond\n                                         600   PPO                 50PPO                 50PPO                    6  PPO                     12\n                                               Rainbow               Ra\n\n[method/mechanism community]: As a high-performing algorithm that is based on a learned\nworld model, Dreamer paves the way for future research directions, including teaching agents world\nknowledge from internet videos and learning a single world model across domains to allow artificial\nagents to build up increasingly general knowledge and competency.\n\n[results/discussion community]: 24\n\f  Atari learning curves\n                     Alien               Amidar                   Assault                 Asterix                Asteroids               Atlantis\n         75K                                            45K                 900K                                             1.5M\n                                  4K                                                                 300K\nReturn\n         50K                                            30K                 600K                                               1M\n         25K                      2K                 ",
+  "retrieved_chunks": [
+    "[intro/motivation community]: a        Atari                ProcGen                DMLab                  Minecraft\n                                          57 tasks, 200M steps     16 tasks, 50M steps   30 tasks, 100M steps     1 task, 100M steps\n                                         900                       70                    70                       9                      b          Minecraft Diamond\n                                         600   PPO                 50PPO                 50PPO                    6  PPO                     12\n                                               Rainbow               Ra",
+    "[method/mechanism community]: As a high-performing algorithm that is based on a learned\nworld model, Dreamer paves the way for future research directions, including teaching agents world\nknowledge from internet videos and learning a single world model across domains to allow artificial\nagents to build up increasingly general knowledge and competency.",
+    "[results/discussion community]: 24\n\f  Atari learning curves\n                     Alien               Amidar                   Assault                 Asterix                Asteroids               Atlantis\n         75K                                            45K                 900K                                             1.5M\n                                  4K                                                                 300K\nReturn\n         50K                                            30K                 600K                                               1M\n         25K                      2K                 "
+  ],
+  "mechanism": "",
+  "invariant": "",
+  "prediction": "",
+  "failure_mode": "",
+  "source_excerpt": "",
+  "has_schema": false,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 0,
+  "llm_tokens_out": 0,
+  "extraction_method": "heuristic-positional-communities"
+}

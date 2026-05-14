@@ -1,0 +1,19 @@
+{
+  "system": "B4_single_shot_mechanism_card",
+  "paper_id": "iris-micheli-2023",
+  "paper_title": "Transformers are Sample-Efficient World Models (IRIS)",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "IRIS combines a discrete autoencoder (tokenizing visual frames into compact symbolic tokens) with an autoregressive Transformer that models the joint sequence of tokens, actions, rewards, and episode terminations. The Transformer's global attention over the entire context window captures long-range temporal dependencies across imagined trajectories, enabling accurate multi-step rollouts. A policy is trained purely inside this imagined world, avoiding costly real environment interactions, while the autoencoder keeps the state space tractable.",
+  "invariant": "The two-component structure\u2014discrete tokenization of observations followed by autoregressive Transformer sequence modeling\u2014remains fixed across all games and conditions. The policy is always trained exclusively in imagination, and the world model is always updated from real environment data collected at a fixed low sample budget (Atari 100k frames).",
+  "prediction": "Replacing the autoregressive Transformer with a recurrent architecture of comparable capacity (e.g., LSTM-based world model) while keeping the discrete autoencoder identical should degrade performance on the Atari 100k benchmark, particularly on games requiring long-horizon temporal reasoning, because the Transformer's long-range attention is the key driver of accurate extended rollouts.",
+  "failure_mode": "The mechanism breaks when the world model must remain accurate over very long imagined horizons in highly stochastic or visually aliased environments: compounding autoregressive prediction errors corrupt the imagined trajectories, causing the policy to overfit to model artifacts rather than true environment dynamics, undermining the sample-efficiency gains.",
+  "source_excerpt": "IRIS achieves a mean human normalized score of 1.046, and outperforms humans on 10 out of 26 games, setting a new state of the art for methods without lookahead search... we introduce IRIS, a data-efficient agent that learns in a world model composed of a discrete autoencoder and an autoregressive Transformer.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 1760,
+  "llm_tokens_out": 436,
+  "extraction_method": "llm-claude-sonnet-4-6-single-shot"
+}

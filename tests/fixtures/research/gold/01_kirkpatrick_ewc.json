@@ -1,0 +1,19 @@
+{
+  "id": "ewc-kirkpatrick-2017",
+  "ts": "2026-05-12T00:00:00+00:00",
+  "paper_title": "Overcoming catastrophic forgetting in neural networks",
+  "paper_source": "arXiv:1612.00796 ; Kirkpatrick et al. 2017, PNAS 114(13):3521-3526 ; DOI:10.1073/pnas.1611835114",
+  "mechanism": "Add a quadratic penalty to the loss for new task B, with each weight's penalty stiffness set by the diagonal of the Fisher information matrix computed at the task-A solution. Fisher diagonal estimates how sharply the loss curves around each weight — i.e., how much that weight matters for the old task. High-Fisher weights get strong springs back to their task-A values; low-Fisher weights remain free. Differential plasticity is driven by second-order information about the prior loss landscape, not by inspecting the weights themselves.",
+  "invariant": "Not all parameters in a learned system are equal: a small subset carry most of the load. Protecting those specifically — measured by how the system's behavior depends on each parameter, not by the parameter's magnitude or recency — enables continual change without collapse.",
+  "prediction": "Networks trained with EWC retain performance on prior tasks even after extensive training on new tasks, with retention proportional to how well Fisher captures parameter importance. Empirically, weight perturbations in the inverse-Fisher direction harm performance much less than uniform perturbations (paper Fig 3C).",
+  "failure_mode": "When Fisher underestimates parameter uncertainty (paper Fig 3C nullspace experiment — Laplace point-estimate is over-confident), EWC freezes too aggressively. The algorithm also degrades under adversarial distribution shift: Fisher overlap goes to zero and EWC devolves toward disjoint sub-networks.",
+  "first_principle": "Importance must be measured by how outcomes change when the thing is perturbed — not by how loud or visible the thing is. Differential plasticity (protect load-bearing components, leave the rest free) generalizes beyond neural weights to teams, codebases, products, and habits.",
+  "anti_pattern": "Reaching for uniform L2 regularization as a poor-man's EWC: penalize every weight equally to keep the network from drifting. Figure 1 shows why this fails — uniform penalty preserves task A but starves task B. The deeper trap: assuming you can identify weight importance by inspecting weight magnitudes or gradients, rather than loss curvature.",
+  "transferability_test": "LLM fine-tuning (LoRA/adapters freeze the base and learn deltas — spiritually EWC). Codebase refactoring (load-bearing tests and interfaces frozen; helper code churns freely). Habit change (protect the few daily routines that carry most of your discipline). Organizational reorgs (name institutional-knowledge holders before shuffling).",
+  "verdict": "foundational",
+  "one_sentence_compression": "Use Fisher information to figure out which weights actually carry the load for the old task, then constrain only those when learning the new — over-parameterized networks have enough slack to find the new solution in the manifold near the old one.",
+  "thesis_id": null,
+  "revision_of": null,
+  "entity_mentions": [],
+  "framework_alignment": []
+}

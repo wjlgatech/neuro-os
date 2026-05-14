@@ -1,0 +1,26 @@
+{
+  "system": "Ours_v2_with_bias_check",
+  "paper_id": "open-x-embodiment-2023",
+  "paper_title": "Open X-Embodiment: Robotic Learning Datasets and RT-X Models",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "A large transformer policy (RT-X) is pretrained on a heterogeneous mixture of robot demonstration datasets spanning 22 embodiments, then fine-tuned or evaluated on target robots. Cross-embodiment co-training exposes the model to diverse motor behaviors, object interactions, and visual contexts; the shared transformer backbone learns action-relevant features that transfer across morphologies. Improvement over single-robot baselines is driven by dataset diversity supplying gradient signal for generalizable sensorimotor representations, not by any single dataset's scale alone.",
+  "invariant": "A model trained on sufficiently diverse behavioral data generalizes better than one trained on homogeneous data at equal or even larger scale \u2014 diversity of context acts as an implicit regularizer that suppresses overfitting to embodiment-specific or task-specific spurious correlations.",
+  "prediction": "RT-X fine-tuned on a target robot outperforms a model trained only on that robot's own data, and ablating cross-embodiment data while holding total data volume constant degrades target-robot success rate \u2014 falsifiable by comparing the two training regimes on held-out real-robot tasks.",
+  "failure_mode": "When a target embodiment's action space or morphology is too dissimilar from all training embodiments, shared representations do not transfer; the cross-embodiment benefit vanishes and co-training may even hurt by diluting relevant gradient signal with irrelevant trajectories.",
+  "source_excerpt": "Large, high-capacity models trained on diverse datasets have",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": true,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 4122,
+  "llm_tokens_out": 456,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-reviewed-bias-checked",
+  "bias_annotation": {
+    "authority_bias": 1,
+    "recency_bias": 1,
+    "novelty_bias": 2,
+    "confirmation_bias": 2,
+    "assumption_note": "Card frames cross-embodiment diversity as a novel implicit regularizer without acknowledging prior multi-task/transfer learning literature, and omits the paper's own caveats about limited ablation dep"
+  }
+}

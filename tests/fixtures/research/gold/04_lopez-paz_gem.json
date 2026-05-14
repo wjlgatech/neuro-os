@@ -1,0 +1,19 @@
+{
+  "id": "gem-lopez-paz-2017",
+  "ts": "2026-05-12T00:00:00+00:00",
+  "paper_title": "Gradient Episodic Memory for Continual Learning",
+  "paper_source": "arXiv:1706.08840 ; Lopez-Paz & Ranzato 2017, NeurIPS 2017",
+  "mechanism": "Per-task episodic memory M_t stores a subset of raw examples from each past task. At each step, compute gradient g on the current example and gradients g_k on each stored memory. If <g, g_k> >= 0 for all k, accept g. Otherwise solve a quadratic program in t-1 dimensions (one per past task) to find g_tilde — the closest vector to g satisfying the inequality constraints — and apply that instead. Hard constraint on plasticity, not soft penalty; preserves positive backward transfer because g_tilde can still improve old-task loss.",
+  "invariant": "A parameter update is safe iff it doesn't increase loss on any past task; equivalently, the update vector should have non-negative inner product with each past task's loss gradient computed on stored examples. The safe-update region is a convex cone in parameter space.",
+  "prediction": "GEM achieves positive backward transfer (learning new tasks improves old-task accuracy) — unlike EWC which only prevents forgetting. Demonstrated on permuted MNIST, rotated MNIST, and incremental CIFAR-100 against the SOTA at the time (EWC, iCaRL).",
+  "failure_mode": "Memory grows with the number of tasks; QP solve is O((t-1)^2) per step. When t is large, computational cost dominates. Also requires storing raw examples (unlike EWC/Latent Replay storage-light alternatives). Episodic memory itself may not be representative if sampled naively (last m examples per task).",
+  "first_principle": "Constraint-based plasticity beats penalty-based plasticity when you can directly observe what 'old performance' means via stored examples. The constraint is exact (linear in gradient space); the penalty (EWC) is a Laplace approximation that loses information.",
+  "anti_pattern": "Treating GEM as 'just another regularizer.' The gradient projection is a hard inequality constraint, not a soft penalty — semantically different from EWC and admitting positive backward transfer. Also: confusing GEM's storage of raw examples with the storage-free promise of EWC — GEM IS rehearsal at the gradient level.",
+  "transferability_test": "Hard-constraint optimization (KKT conditions, projected gradient methods). Multi-objective RL where each old reward is a constraint. Employee skill training (don't degrade current competencies while adding new ones, framed as constraint). Org change management (institutional commitments as inequality constraints during reorg).",
+  "verdict": "foundational",
+  "one_sentence_compression": "Constrain new-task gradients to have non-negative inner product with stored old-task gradients, projecting onto the safe cone via a tiny QP when violated — turning EWC's soft 'don't forget' penalty into a hard 'don't get worse' constraint.",
+  "thesis_id": null,
+  "revision_of": null,
+  "entity_mentions": [],
+  "framework_alignment": []
+}

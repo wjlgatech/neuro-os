@@ -1,0 +1,19 @@
+{
+  "system": "Ours_full_loop",
+  "paper_id": "helm-liang-2022",
+  "paper_title": "Holistic Evaluation of Language Models (HELM)",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "HELM structures evaluation as a cross-product of scenarios \u00d7 metrics \u00d7 models, then mandates dense coverage: every model is benchmarked on every core scenario under standardized prompting conditions, and every scenario is measured on 7 metrics simultaneously (accuracy, calibration, robustness, fairness, bias, toxicity, efficiency). Sparse prior evaluation allowed models to be selectively reported on favorable scenarios, hiding trade-offs. Forced density causally exposes inter-metric and inter-scenario trade-offs that selective benchmarking structurally conceals.",
+  "invariant": "When evaluation coverage is sparse and self-selected, reported performance systematically overstates true capability breadth. Mandating dense, standardized co-evaluation across all conditions is necessary to reveal trade-offs that selective reporting suppresses \u2014 regardless of domain or model family.",
+  "prediction": "Models that rank highly on accuracy-only leaderboards will rank materially lower when calibration, fairness, and toxicity are jointly considered. Specifically, no single model should Pareto-dominate all others across all 7 metrics, and accuracy rank should be a poor predictor of fairness or robustness rank.",
+  "failure_mode": "When the scenario taxonomy itself is incomplete \u2014 e.g. question answering for neglected English dialects or trustworthiness metrics are absent \u2014 dense coverage of the chosen scenarios still yields a systematically biased picture, and the multi-metric structure provides false confidence in holism.",
+  "source_excerpt": "Prior to HELM, models on average were evaluated on just 17.9% of the core HELM scenarios, with some prominent models not sharing a single scenario in common. We improve this to 96.0%: now all 30 models have been densely benchmarked on a set of core scenarios and metrics under standardized conditions.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": true,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 2534,
+  "llm_tokens_out": 419,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-reviewed"
+}

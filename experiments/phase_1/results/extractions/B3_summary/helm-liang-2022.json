@@ -1,0 +1,19 @@
+{
+  "system": "B3_summary",
+  "paper_id": "helm-liang-2022",
+  "paper_title": "Holistic Evaluation of Language Models (HELM)",
+  "free_text_output": "desiderata we require of useful systems. See \u00a74: metrics for more details. The metrics we compute for our running example (Figure 6) might look like this:",
+  "retrieved_chunks": [],
+  "mechanism": "",
+  "invariant": "",
+  "prediction": "",
+  "failure_mode": "",
+  "source_excerpt": "",
+  "has_schema": false,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 0,
+  "llm_tokens_out": 0,
+  "extraction_method": "heuristic-abstract-extraction"
+}

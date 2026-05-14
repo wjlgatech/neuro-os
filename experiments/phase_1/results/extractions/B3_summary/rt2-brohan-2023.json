@@ -1,0 +1,19 @@
+{
+  "system": "B3_summary",
+  "paper_id": "rt2-brohan-2023",
+  "paper_title": "RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control",
+  "free_text_output": "https://robotics-transformer2.github.io\n                                                                                                                                                                       2023-8-1\n\n\n\n                                         RT-2: Vision-Language-Action Models Transfer\n                                         Web Knowledge to Robotic Control\n                                         Anthony Brohan, Noah Brown, Justice Carbajal, Yevgen Chebotar, Xi Chen, Krzysztof Choromanski,\n                                         Tianli Ding, Danny Driess, Avinava Dubey, Chelsea Finn, Pete Florence, Chuyuan Fu,\n                                         Montse Gonzalez Arenas, Keerthana Gopalakrishnan, Kehang Han, Karol Hausman, Alexander Herzog,\n                                         Jasmine Hsu, Brian Ichter, Alex Irpan, Nikhil",
+  "retrieved_chunks": [],
+  "mechanism": "",
+  "invariant": "",
+  "prediction": "",
+  "failure_mode": "",
+  "source_excerpt": "",
+  "has_schema": false,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 0,
+  "llm_tokens_out": 0,
+  "extraction_method": "heuristic-abstract-extraction"
+}

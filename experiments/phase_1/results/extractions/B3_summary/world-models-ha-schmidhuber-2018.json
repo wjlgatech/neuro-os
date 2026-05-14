@@ -1,0 +1,19 @@
+{
+  "system": "B3_summary",
+  "paper_id": "world-models-ha-schmidhuber-2018",
+  "paper_title": "World Models",
+  "free_text_output": "We explore building generative neural network models of popular reinforcement learning",
+  "retrieved_chunks": [],
+  "mechanism": "",
+  "invariant": "",
+  "prediction": "",
+  "failure_mode": "",
+  "source_excerpt": "",
+  "has_schema": false,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 0,
+  "llm_tokens_out": 0,
+  "extraction_method": "heuristic-abstract-extraction"
+}

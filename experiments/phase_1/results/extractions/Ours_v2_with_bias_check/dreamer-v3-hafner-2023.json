@@ -1,0 +1,26 @@
+{
+  "system": "Ours_v2_with_bias_check",
+  "paper_id": "dreamer-v3-hafner-2023",
+  "paper_title": "Mastering Diverse Domains through World Models (DreamerV3)",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "DreamerV3 learns a recurrent world model from experience, then trains actor and critic entirely inside imagined rollouts from that model. Three robustness interventions remove the need for domain-specific tuning: (1) symlog transformations compress extreme-magnitude inputs and targets, preventing gradient explosion; (2) learned return normalization via a percentile-based scale keeps critic targets in a stable range regardless of reward magnitude; (3) free-bits regularization balances KL terms so the model neither ignores latent states nor over-regularizes. Together these neutralize the scale a",
+  "invariant": "Learning instability across domains originates from unbounded input/target magnitudes and imbalanced regularization terms, not from domain-specific algorithmic gaps. Transformations that enforce bounded, balanced signal propagation \u2014 applied uniformly \u2014 can substitute for expert tuning across otherwise incompatible domains.",
+  "prediction": "Removing any single robustness component (symlog, return normalization, or free-bits) should cause measurable performance collapse on at least one benchmark class while leaving others relatively intact, revealing which instability each component specifically suppresses.",
+  "failure_mode": "When reward structure is so sparse and delayed that imagined rollouts in the world model cannot propagate meaningful credit (e.g., multi-thousand-step causal chains), the actor receives near-zero gradient signal even inside imagination and policy improvement stalls regardless of normalization quality.",
+  "source_excerpt": "Robustness techniques based on normalization, balancing, and transformations enable stable learning across domains. Applied out of the box, Dreamer is the first algorithm to collect diamonds in Minecraft from scratch without human data or curricula.",
+  "has_schema": true,
+  "pinned_provenance": true,
+  "review_gate_passed": true,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 2712,
+  "llm_tokens_out": 513,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-reviewed-bias-checked",
+  "bias_annotation": {
+    "authority_bias": 1,
+    "recency_bias": 1,
+    "novelty_bias": 2,
+    "confirmation_bias": 2,
+    "assumption_note": "Card repeats 'first algorithm' novelty claim without acknowledging prior MBRL work (e.g., DreamerV1/V2, MuZero) and omits the paper's own limitations around sparse long-horizon credit and sample effic"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "system": "Ours_minus_review",
+  "paper_id": "ewc-kirkpatrick-2017",
+  "paper_title": "Overcoming catastrophic forgetting in neural networks",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "After learning task A, EWC anchors each weight to its task-A value with a spring whose stiffness equals that weight's diagonal Fisher information entry. The Fisher diagonal approximates the curvature of the task-A log-posterior around each parameter \u2014 how sharply performance degrades when that weight moves. During task-B training, the total loss = task-B loss + sum over weights of (Fisher_i / 2) * (\u03b8_i \u2212 \u03b8*_A,i)\u00b2. High-curvature (high-Fisher) weights are strongly penalized for drifting; low-curvature weights remain plastic. Forgetting is prevented by differential, importance-weighted resistanc",
+  "invariant": "Parameter importance is heterogeneous and measurable via the Fisher information. Selectively constraining only the high-importance parameters allows new learning to proceed in the remaining parameter subspace, so plasticity and stability coexist regardless of the specific task domain or network architecture.",
+  "prediction": "Retention of task A scales with how accurately the Fisher diagonal captures true parameter importance. Perturbations aligned with the Fisher nullspace (low-Fisher directions) should harm task-A performance far less than equal-magnitude perturbations in high-Fisher directions, empirically demonstrable by comparing targeted vs. random weight perturbations.",
+  "failure_mode": "The Laplace/point-estimate Fisher is over-confident: it ignores parameter uncertainty and can freeze weights that are actually dispensable while missing diffuse importance spread across many weights. When task-A and task-B require heavily overlapping high-Fisher weights, EWC cannot simultaneously satisfy both constraints and performance on one task collapses.",
+  "source_excerpt": "This algorithm slows down learning on certain weights based on how important they are to previously seen tasks... the quadratic penalty is: L(\u03b8) = L_B(\u03b8) + \u03a3_i (F_i / 2)(\u03b8_i \u2212 \u03b8*_{A,i})\u00b2 where F_i is the Fisher information diagonal and \u03b8*_A is the parameter vector after training on task A.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 2125,
+  "llm_tokens_out": 488,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-no-review"
+}

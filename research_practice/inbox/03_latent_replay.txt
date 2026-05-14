@@ -1,0 +1,697 @@
+                                                                 Latent Replay for Real-Time Continual Learning
+
+                                                         Lorenzo Pellegrini, Gabriele Graffieti, Vincenzo Lomonaco, Davide Maltoni
+                                                                                    University of Bologna
+                                                                             Via dell’Università, 50, Cesena, Italy
+                                                  {l.pellegrini, gabriele.graffieti, vincenzo.lomonaco, davide.maltoni}@unibo.it
+                                                                                      http://bit.ly/latent-replay
+
+
+
+
+arXiv:1912.01100v2 [cs.LG] 4 Mar 2020
+                                                                 Abstract                                     inference.
+
+                                        Training deep neural networks at the edge on light compu-
+                                        tational devices, embedded systems and robotic platforms
+                                        is nowadays very challenging. Continual learning tech-
+                                        niques, where complex models are incrementally trained
+                                        on small batches of new data, can make the learning prob-
+                                        lem tractable even for CPU-only embedded devices enabling
+                                        remarkable levels of adaptiveness and autonomy. However,
+                                        a number of practical problems need to be solved: catas-
+                                        trophic forgetting before anything else. In this paper we in-
+                                        troduce an original technique named “Latent Replay” where,
+                                        instead of storing a portion of past data in the input space,
+                                        we store activations volumes at some intermediate layer.
+                                        This can significantly reduce the computation and storage re-
+                                        quired by native rehearsal. To keep the representation stable
+                                        and the stored activations valid we propose to slow-down
+                                        learning at all the layers below the latent replay one, leaving
+                                        the layers above free to learn at full pace. In our experi-
+                                        ments we show that Latent Replay, combined with existing
+                                        continual learning techniques, achieves state-of-the-art per-                Figure 1: Architectural diagram of Latent Replay.
+                                        formance on complex video benchmarks such as CORe50
+                                        NICv2 (with nearly 400 small and highly non-i.i.d. batches)
+                                        and OpenLORIS. Finally, we demonstrate the feasibility of                 Furthermore, in some applications (e.g., robotic vision,
+                                        nearly real-time continual learning on the edge through the           see Fig. 8), training a deep model from scratch as soon as
+                                        deployment of the proposed technique on a smartphone de-              new data becomes available is prohibitive in terms of stor-
+                                        vice.                                                                 age / computation even if performed server side. Continual
+                                                                                                              Learning (CL), that is the ability of continually training exist-
+                                                                                                              ing models using only new data, is gaining a lot of attention
+                                                                                                              and several solutions have been recently proposed to deal
+                                        1. Introduction
+                                                                                                              with the daunting issue of catastrophic forgetting (i.e., as the
+                                           Training on the edge (e.g., on light computing devices             model learns new concepts and skills, it tends to forget the
+                                        such as smartphones, smart cameras, embedded systems and              old ones) [18]. Recent surveys [19, 10] provide an overview
+                                        robotic platforms) is highly desirable in several applications        of the CL field. In principle, CL approaches could be ex-
+                                        where privacy, lack of network connection and fast adapta-            ploited not only to control forgetting but also to reduce the
+                                        tion are real constraints. While some steps in this direction         training complexity.
+                                        have been recently moved [11], training on the edge often                 In this paper we focus on real-time CL and prove that
+                                        remains unfeasible. In fact, given the high demand in terms           continual training with small batches can be compatible with
+                                        of memory and computation, most machine learning mod-                 the limited computing power made available by CPU-only
+                                        els nowadays are trained on powerful multi-GPUs servers,              embedded devices and robotic platforms.
+                                        and only frozen models are deployed to edge devices for                   In [15] it was shown that some CL approaches can ef-
+
+
+                                                                                                          1
+Figure 2: Continual learning accuracy along the incremental training batches over NICv2 – 79, NICv2 – 196 and NICv2 – 391 as presented
+in [15]. None of the method compared uses rehearsal. Naive refers to a simple approach where the model is tuned along the batches and the
+only protection against forgetting is early stopping. LWF and EWC are well-known methods for CL (see [13, 8]). CWR* and AR1* are
+discussed in the main text. DSLDA is a recently proposed streaming continual learning approach [3]. The black dashed line denotes the
+“upper bound” accuracy achieved by the Cumulative approach, that is a full single training on the entire dataset.
+
+
+fectively learn to recognize objects (on the CORe50 dataset            approaches to enable nearly real-time training on the edge.
+[14]) even when fed with fine-grained incremental batches.
+CORe50 NICv2 [15] is a continual learning benchmark                       To this purpose we first show that a small amount of pat-
+where objects from 50 different classes have to be learned             tern replay is sufficient to significantly improve accuracy on
+incrementally. What makes this benchmark challenging is                NICv2 - 391 (Section 3). However, even if in the CORe50
+that classes are discovered a little at a time and the training        setting the extra memory required by replay is not an issue
+batches are small and non i.i.d. In particular, in NICv2 -             (we store only 30 patterns for each of the 50 classes), a
+391 each training batch includes only 300 frames extracted             constant refresh significantly increases the required amount
+from a short video (15 seconds at 20 fps) of a single object           of computation because of the extra forward and backward
+slowly moving in front of the camera: hence, patterns within           steps and this makes the resulting training too resource de-
+each batch are highly correlated. Despite these nuisances,             manding for real-time applications. Therefore, we propose
+in [15] the approaches denoted as CWR* and AR1* proved                 a “Latent Replay” approach (Section 4) where old data are
+to be able to learn continually even in absence of replay              injected at some intermediate layer selected according to the
+mechanisms, that is, the periodic refresh of old examples              desired accuracy-efficiency trade-off.
+maintained in an external memory. Under this challenging                  In Section 5 we compare our approach with several con-
+setting both CWR* and AR1* performed significantly better              tinual learning algorithms and show its advantages reaching
+than well known techniques such as LWF [13] and EWC [8].               state-of-the-art performances on two different benchmarks:
+While these results are encouraging:                                   CORe50 and OpenLORIS. Finally, in order to demonstrate
+                                                                       the practical applicability of the proposed approach, in Sec-
+   • the accuracy gap w.r.t. the cumulative approach (a sort
+                                                                       tion 6 we discuss the implementation of a continual learning
+     of upper bound obtained by training the model on the
+                                                                       application for Android smartphones that, starting from a
+     entire training set) remains quite relevant (about 20%).          pre-trained MobileNetV1 model with 10 classes, can incre-
+   • in NICv2 - 391, the most challenging setup, AR1* was              mentally learn (in near real-time) new classes and/or new
+     not able to effectively adapt the representation layers           objects of existing classes.
+     during continual learning.
+                                                                       2. Related Works
+   The aim of this work is to reduce as much as possible
+the gap w.r.t. the cumulative upper bound and, at the same                While several works in the continual learning literature
+time, to provide an efficient implementation strategy of CL            focus on Multiple independent Tasks (MT) scenario, in many
+practical applications such as robotic vision, a Single Incre-
+mental Task (SIT) scenario is more appropriate [17]. In
+particular, a robot should be able to incrementally improve
+its object recognition capabilities while being exposed to new
+instances of both known and completely new classes (de-
+noted as NIC setting - New Instances and Classes). CORe50
+NICv2 benchmark specifically addresses this problem [15].
+Other datasets have been released to study continual learn-
+ing for robotic vision (e.g., iCub-transformation [20], Open-
+LORIS [28]) but no NIC benchmarks have been yet defined
+for them. ImageNet-1K [12] and CIFAR-100 [9] have also
+been used to evaluate continual learning techniques, but these
+datasets do not fit well the object recognition task because of
+the lack of multiple videos of the same objects taken under
+different poses, lighting and backgrounds.
+    In [15], two approaches denoted as CWR* and AR1*
+have been evaluated on CORe50 NICv2 (see Figure 2): in
+CWR* the last fully connected layer is implemented as a
+double memory, and simple initialization and fusions steps
+are performed before and after each training batch to syn-        Figure 3: Comparison of CWR* and AR1* on CORe50 NICv2 –
+chronize the two memories. However, after the first training      391 with and without rehearsal (RMsize = 1500). Each experi-
+batch, CWR* freezes all the layers except the last one, thus      ment was averaged on 5 runs with different batch ordering: colored
+losing the benefits of a continual adaptation of the underlying   areas represent the standard deviation of each curve. The black
+representation. AR1* extends CWR* by enabling end-to-end          dashed line denotes the reference accuracy of the cumulative upper
+continual training throughout the entire network; to this pur-    bound.
+pose the Synaptic Intelligence [29] regularization approach
+(similar to Online-EWC [27]) is adopted to constrain the
+change of critical weights.                                       LDA classifier works on the top of a fixed deep learning
+    Patterns replay, which is central in the proposed approach,   feature extractor. This approach, which achieved state-of-
+proved to be an effective approach to contrast forgetting in      the-art accuracy on (partitioned) ImageNet-1K and CORe50
+continual learning scenarios [23, 16, 25, 21]. In fact, period-   (10 classes version) was run on NICv2 and compared with
+ically replaying some representative patterns from old data       other techniques in Figure 2.
+helps the model to retain important information of past tasks        Finally, training on the edge was recently addressed in
+/ classes while learning new concepts. iCaRL [23] uses well-      [11], where an object detection model was incrementally
+designed entry / exit criteria (denoted as herding) to maintain   trained based on LWF and pattern replay. While training is
+a class-balanced set of exemplars that maximize represen-         not actually real-time (it requires a few minutes on Nvidia
+tativeness. A comparison between the proposed technique           Jetson TX2 board) and only few large continual training
+and iCaRL is reported in Section 5.1.3. Generative Replay         batches are presented to the model, the detection problem
+(also known as “Pseudo-rehearsal” [24]), where surrogates         approached in [11] is more difficult than the classification
+of past data are generated without explicitly storing native      problem here considered and therefore we cannot make a
+patterns, looks very appealing because of the storage saving;     direct comparison.
+however, most of the proposed approaches to date do not
+allow on-line generation of effective replay patterns.
+                                                                  3. Native Rehearsal
+    Another class of relevant techniques for our study are
+the so called streaming continual learning approaches [2],           In [17] it was shown that a very simple rehearsal imple-
+where a model can be incrementally trained with a single          mentation (hereafter denoted as native rehearsal), where for
+pattern at a time. Even if in a robotic vision scenario learn-    every training batch a random subset of the batch patterns is
+ing from single frames does not appear necessary (in fact,        added to the external storage to replace a (equally random)
+using short videos of single objects can be more efficient and    subset of the external memory, is not less effective than
+looks more biologically plausible) efficient streaming learn-     more sophisticated approaches such as iCaRL. Therefore, in
+ing techniques can be effortlessly applied to NIC setting.        this study we opted for simplicity and started by expanding
+Deep Streaming Linear Discriminant Analysis (DSLDA)               CWR* and AR1* with the trivial rehearsal approach summa-
+was recently proposed [3] where an online extension of the        rized in Algorithm 1. In Figure 3 we compare the learning
+Figure 4: Comparison of CWR*, AR1* and AR1*free on CORe50 NICv2 – 391 with different external memory sizes (RMsize =
+500, 1000, 1500 and 3000 patterns).
+
+
+trend of CWR* and AR1* of a MobileNetV11 trained with                to better accuracy for all the algorithms, but the gap between
+and without rehearsal on CORe50 NICv2 – 391. We use the              1500 and 3000 is not large and we believe 1500 is a good
+same protocol and hyper-parameters introduced in [15] and            trade-off for this dataset. AR1*free works slightly better
+a rehearsal memory of 1,500 patterns. It is well evident that        that AR1* when a sufficient number of rehearsal patterns are
+even a moderate external memory (about 1.27% of the total            provided but, as expected, accuracy is worse with light (i.e.
+training set) is very effective to improve the accuracy of both      RMsize = 500) or no rehearsal.
+approaches and to reduce the gap with the cumulative upper              It is worth noting that the best combination in Figure 4
+bound that for this model is ∼85%.                                   (AR1*free with 3000 patterns) is only 5% worse than the
+                                                                     cumulative upper bound and a better parametrization and
+Algorithm 1 Pseudocode explaining how the external memory
+                                                                     exploitation of the rehearsal memory could further reduce
+RM is populated across the training batches. Note that the amount
+                                                                     this gap.
+h of patterns to add progressively decreases to maintain a nearly
+balanced contribution from the different training batches, but no
+constraints are enforced to achieve a class-balancing.               4. Latent Replay
+ 1: RM = ∅                                                               In deep neural networks the layers close to the input
+ 2: RMsize = number of patterns to be stored in RM
+ 3: for each training batch Bi :
+                                                                     (often denoted as representation layers) usually perform low-
+ 4:   train the model on shuffled Bi ∪ RM                            level feature extraction and, after a proper pre-training on a
+            RMsize                                                   large dataset (e.g., ImageNet), their weights are quite stable
+ 5:   h=
+                i                                                    and reusable across applications. On the other hand, higher
+ 6:   Radd = random ( sampling h patterns from Bi
+                      ∅                                  if i == 1   layers tend to extract class-specific discriminant features and
+ 7:   Rreplace =                                                     their tuning is often important to maximize accuracy.
+                      random sample h patterns from RM   otherwise
+ 8:   RM = (RM − Rreplace ) ∪ Radd                                       With latent replay (see Figure 1) we denote an approach
+                                                                     where, instead of maintaining copies of input patterns in
+                                                                     the external memory in the form of raw data, we store the
+   To understand the influence of the external memory size           activations volumes at a given layer (denoted as Latent Re-
+we repeated the experiment with different RMsize values:             play layer). To keep the representation stable and the stored
+500, 1,000, 1,500, 3,000. Since rehearsal itself protects            activations valid we propose to slow-down the learning at
+the model from forgetting we also run AR1* (where impor-             all the layers below the latent replay one and to leave the
+tant weights of lower layers are protected from forgetting           layers above free to learn at full pace. In the limit case
+by using Synaptic Intelligence [29] regularization) without          where lower layers are completely frozen (i.e., slow-down to
+Synaptic Intelligence protection, that is lower layers weights       0) latent replay is functionally equivalent to rehearsal from
+are left totally unconstrained; in the following we denote this      the input, but achieves a computational and storage saving
+approach as AR1*free. The results are shown in Figure 4: it          thanks to the smaller fraction of patterns that need to flow
+is worth noting that increasing the rehearsal memory leads           forward and backward across the entire network and the
+   1 The network was pre-trained on ImageNet-1k.                     typical information compression that networks perform at
+higher layers.
+   In the general case where the representation layers are
+not completely frozen, the activations stored in the external
+memory suffer from an aging effect (i.e., as the time passes
+they tend to increasingly deviate from the activations that
+the same pattern would produce if feed-forwarded from the
+input layer). However, if the training of these layers is
+sufficiently slow, the aging effect is not disruptive since
+the external memory has enough time to be rejuvenated
+with fresh patterns. When latent replay is implemented
+with mini-batch SGD training: (i) in the forward step, a
+concatenation is performed at the replay layer (on the mini-
+batch dimension) to join patterns coming from the input
+layer with activations coming from the external storage; (ii)
+the backward step is stopped just before the replay layer for
+the replay patterns.
+
+5. Experiments and Results
+   Hereafter, while the proposed latent replay approach is        Figure 5: AR1*free with latent replay (RMsize = 1500) for dif-
+architecture agnostic, we discuss its specific design with sev-   ferent choices of the latent replay layer. Setting the replay layer at
+eral continual learning algorithms CWR*, AR1*, AR1*free           the pool6 layer makes AR1*free equivalent to CWR*. Setting the
+and LWF over a MobileNet [4] pre-trained on ImageNet-1K.          replay layer at the “images” layer corresponds to native rehearsal
+We compare our latent replay approach with other state-of-        (same curve of Figure 4 for AR1*free and 1500 patterns). The
+the-art techniques on CORe50 and OpenLORIS.                       saturation effect which characterizes the last training batches is due
+                                                                  to the data distribution in NICv2 – 391 (see [15]): in particular, the
+5.1. Experiments on CORe50 NICv2 - 391                            lack of new instances for some classes (that already introduced all
+                                                                  their data) slows-down the accuracy trend and intensifies the effect
+   For the CORe50 experiments:                                    of activations aging.
+
+  • we use a MobileNetV1 and focus on CWR*, AR1*
+    which have been already proved to be competitive on
+    this benchmark.                                               patterns. In this case only 21 patterns (over 128) need to
+                                                                  travel across the blue layers in Figure 1.
+  • for all the methods the output layer (fc7) must                  Concerning the learning slow-down in the representation
+    be implemented as a double memory with proper                 layers we found that an effective (and efficient) strategy is
+    (pre)initialization and (post)fusion for each training        blocking the weight changes after the first batch (i.e., learn-
+    batch (for details see CWR* pseudocode in Algorithm           ing rate set to 0), while leaving the batch normalization
+    2 of [15]);                                                   moments free to adapt to the statistics of the input patterns
+                                                                  across all the batches. Batch Normalization (BN) [6] is
+  • for CWR* the latent replay layer is the second-last layer     widely used in modern deep neural networks (including
+    (i.e., pool6);                                                MobileNets) to control internal covariate shift thus making
+                                                                  learning faster and more robust. Replacing BN with Batch
+  • for AR1* and AR1*free the latent replay layer can be
+                                                                  Renormalization (BRN) [5] was proved to be a very impor-
+    pushed down and selected according to the accuracy-
+                                                                  tant step for effective continual learning with fine-grained
+    efficiency trade-off discussed below;
+                                                                  non-i.d.d. batches [15], so in the MobileNetV1 here adopted
+  • for AR1*free the Synaptic Intelligence regularization         BN layers have been replaced with BRN layers. In the con-
+    is switched off.                                              text of latent replay, if we leave the BRN moments free to
+                                                                  adapt, the activations stored in the external memory suffer
+   To simplify the network design and training we keep            the aging effect described in Section 4. However, we ex-
+the proportion of original and replay patterns fixed: for         perimentally verified that, upon proper setting of the global
+example, if the training batches contain 300 patterns and         moment mobile windows (more details are provided in the
+the external memory 1500 patterns, in a mini-batch of size        Appendix B), the accuracy drop due to the aging effect is
+128 we concatenate 21 (128 × 300/1800) original patterns          quite limited and in any case the final accuracy is higher
+(of the current batch) with 107 (128 × 1500/1800) replay          w.r.t. the case where BRN moments in the representation
+Table 1: Computation, storage, and accuracy trade-off with Latent Replay at different layers of a MobileNetV1 ConvNet trained continually
+on NICv2 – 391 with RMsize = 1500. Computation and pattern size can be easily extrapolated from Table 6 in the appendix where the
+network architecture is exploded by reporting neurons, connections and weights at each layer.
+
+
+                                     Computation %                                                        ∆ Accuracy %
+             Layer                                           Pattern Size       Final Accuracy %
+                                   vs Native Rehearsal                                                  vs Native Rehearsal
+
+             Images                     100.00%                 49152                77.30%                    0.00%
+             conv5_1/dw                 59.261%                 32768                72.82%                    -4.49%
+             conv5_2/dw                 50.101%                 32768                73.21%                    -4.10%
+             conv5_3/dw                 40.941%                 32768                73.22%                    -4.09%
+             conv5_4/dw                 31.781%                 32768                72.24%                   -5.07%
+             conv5_5/dw                 22.621%                 32768                68.59%                    -8.71%
+             conv5_6/dw                 13.592%                  8192                65.24%                   -12.06%
+             conv6/dw                    9.012%                 16384                59.89%                   -17.42%
+             pool6                       0.027%                  1024                59.76%                   -17.55%
+
+
+layers are frozen. On the computational side, blocking the              dimensionality of the pattern to be stored in the external
+weight changes in the representation layers allows to skip              memory (considering that we are using a MobileNetV1 with
+the backward pass in the lower part of the network also for             128 × 128 × 3 inputs to match CORe50 image size); (iii)
+native patterns, since updating the BRN moments only relies             accuracy and ∆ accuracy quantify the absolute accuracy at
+on the forward pass.                                                    the end of the training and the gap with respect to a native
+   In Figure 5 we report the accuracy of AR1*free with la-              rehearsal, respectively.
+tent replay (RMsize = 1500) for different choices of the
+                                                                            For example, conv5_4/dw exhibits an interesting trade-
+rehearsal layer (reported between parenthesis). As expected,
+                                                                        off because the computation is about 32% of the native re-
+when the replay layer is pushed down the corresponding ac-
+                                                                        hearsal one, the storage is reduced to 66% (more on this point
+curacy increases, proving that a continual tuning of the repre-
+                                                                        in subsection 5.1.2) and the accuracy drop is mild (5.07%).
+sentation layers is important. However, after conv5_4/dw
+                                                                        CWR* (i.e. AR1* with latent replay layer ≡ pool6) has a
+there is a sort of saturation and the model accuracy is no
+                                                                        really negligible computational cost (0.027%) with respect to
+longer improving. The residual gap (∼4%) with respect to
+                                                                        native rehearsal and still provides and accuracy improvement
+native rehearsal is not due to the weights freezing of the
+                                                                        of ∼4% w.r.t. the non-rehearsal case (∼60% vs ∼56% as it
+lower part of the network but to the aging effect introduced
+                                                                        is possible to see from Figure 5 and Figure 4, respectively).
+above. This can be simply proved by implementing an “in-
+termediate” approach that always feeds the replay pattern
+from the input and stops the backward at conv5_4: such
+intermediate approach achieved an accuracy at the end of
+the training very close to the native rehearsal. We believe
+that the accuracy drop due to the aging effect can be fur-
+ther reduced with better tuning of BNR hyper-parameters
+and/or with the introduction of a scheduling policy making
+the global moment mobile windows wider as the continual
+learning progresses (i.e., more plasticity in the early stages
+and more stability later); however, such fine optimization is
+application specific and beyond the scope of this study.
+
+
+5.1.1   On the Computation, Storage and Accuracy
+        Trade-off
+
+To better evaluate the latent replay w.r.t. native rehearsal we         Figure 6: Sparsification of conv5_4/dw activations for different
+report in Table 1 the relevant dimensions: (i) computation              values of α and the corresponding accuracy after the first training
+refers to the percentage cost in terms of ops of a partial              batch.
+forward (from the latent replay layer on) relative to a full
+forward step from the input layer; (ii) pattern size is the
+Table 2: Summary of the computation, memory, and accuracy trade-off for each strategy. Memory overhead include both the data used for
+replay purposes as well as additional trainable parameters needed for continual learning. Each metric is averaged across 10 runs.
+
+
+                                         Run Time          Mem. Overhead                                        ∆ Acc. %
+           Strategy                                                                  Final Accuracy %
+                                         (Minutes)       (Data + Params, MB)                                  vs Cumulative
+
+           CWR*                             21.4                0 + 0.2                   56.99%                 -28.27%
+           AR1*free (pool6)                 23.7              5.8 + 12.4                  59.75%                 -25.51%
+           AR1*                            39.9                0 + 12.4                   56.32%                 -28.94%
+           AR1*free (conv5_4/dw)            41.2                48 + 0                    72.23%                 -13.03%
+           DSLDA                            79.1                0 + 0.2                   48.02%                 -37.24%
+           iCaRL                          20185.0              375 + 0                    15.65%                 -69.61%
+
+
+5.1.2   Reducing Activations Storage in Latent Replay
+Even if in our CORe50 case study the external storage is
+quite limited (e.g., 1,500 × 32KB = 48 MB for latent replay
+at conv5_4/dw), scaling up to applications with thousands
+of classes could require to store much more activations and
+the external memory could become an issue. Fortunately,
+high layers activations can be sparsified, quantized and en-
+coded with almost no accuracy reduction. The authors of [1]
+show that MobileNetV1 activations can be compressed up to
+10 times upon proper sparsification, encoding and lossless
+entropy compression. In their experiments a moderate com-
+pression even leads to slightly improved accuracy because
+of the regularization introduced.
+   In the case of latent replay, we only need to sparsify the
+activations of the latent replay layer (and not of the entire
+network), potentially introducing a sort of information bot-
+tleneck. This can be easily achieved by adding an L1 term
+(with relative weight) to the loss function attracting toward
+zero the activations of the latent replay layer (see [1]). We
+performed some preliminary experiments to sparsify activa-
+tions of layer conv5_4/dw during the first training batch            Figure 7: Accuracy results on the CORe50 NICv2 – 391 bench-
+starting from a non-sparsified ImageNet pre-trained model.           mark of CWR*, AR1*, DSLDA, iCaRL, AR1*free (conv5_4),
+Note that the weights of the latent replay layer and previous        AR1*free (pool6). Results are averaged across 10 runs in which
+                                                                     the batches order is randomly shuffled. Colored areas indicate
+layers are frozen after the first training batch and no further
+                                                                     the standard deviation of each curve. As an exception, iCaRL was
+sparsification can take place. The results are shown in Figure
+                                                                     trained only on a single run given its extensive run time (∼14 days).
+6: for α = 0 (i.e., no induced sparsification) ∼52% of acti-
+vations are non-zero due to the natural spasification effect of
+the Relu activation function and the accuracy is about 14%;
+as we increase α the amount of non-zero activation start             already discussed in the previous sections, a further compar-
+decreasing. Interestingly, for α = 0.004 we can reduce the           ison with other state-of-the-art continual learning techniques
+non-zero activations from ∼52% to ∼37% by achieving also             may be beneficial for better appreciating its practical impact
+a slight accuracy improvement (0.22%). By adding quanti-             and advantages. In particular, while AR1* and CWR* have
+zation and entropy encoding (out of the scope of this work)          been already proved to be substantially better than LWF and
+we believe that, analogously to [1], a 10× compression is at         EWC on the NICv2 - 391 benchmark, a comparison with
+reach with almost no accuracy loss.                                  iCaRL, one of the best know rehearsal-based technique, is
+                                                                     worth to be considered.
+5.1.3   Comparison with Other Approaches                                nfortunately, iCaRL was conceived for incremental class
+                                                                     learning scenario and its porting to NIC (whose batches also
+hile the accuracy improvement of the proposed approach               include patterns of know classes) is not trivial. To avoid
+w.r.t. state-of-the-art rehearsal-free techniques have been          subjective modifications, we started from the code shared
+by the authors and emulated a NIC setting by: (i) always
+creating new virtual classes from patterns in the coming
+batches; (ii) fusing virtual classes together when evaluating
+accuracies. For example, let us suppose to encounter 300
+patterns of class 5 in batch 2 and other 300 patterns of the
+same class in batch 7; while two virtual classes are created
+by iCaRL during training, when evaluating accuracy both
+classes point to the real class 5. The hereby modified iCaRL
+implementation, with an external memory of 8000 patterns
+(much more than the 1500 used by the proposed latent replay,
+but in line with the settings proposed in the original paper      Figure 8: Wheeled robot used in the Lifelong Robotic Vision chal-
+[23]), was run on NICv2 - 391, but we were not able to obtain     lenge at IROS 2019 [22] (left) and equipped with multiple sensors
+satisfactory results. In Figure 7 we report the iCaRL accuracy    including two Real Sense cameras (right).
+over time and compare it with AR1*free (conv5_4/dw),
+AR1* (pool6) as well as the top three performing rehearsal-
+                                                                      Seven finalists passed the first competition stage, and
+free strategies introduced before: CWR*, AR1* and DSLDA.
+                                                                  submitted their solutions to the organizers who finally pro-
+While iCaRL exhibits better performance than LWF and
+                                                                  duced the scoreboard reported in Table 3. The accuracy of
+EWC (as reported in [15]), it is far from DSLDA, CWR*
+                                                                  the proposed approach is just slightly lower that the top 1,
+and AR1*.
+                                                                  but its inference time, replay memory and model size are
+   Furthermore, when the algorithm has to deal with a so
+                                                                  significantly better. Since the challenge evaluation criteria
+large number of classes (including virtual ones) and training
+                                                                  did not include specific metrics on training efficiency, un-
+batches its efficiency becomes very low (as also reported
+                                                                  fortunately from this experiment we cannot appreciate the
+in [17]). In Table 2 we also report the total run time (train-
+                                                                  training efficiency of our solution.
+ing and testing), memory overhead and accuracy difference
+with respect to the cumulative upper bound. We believe            Table 3: Accuracy results at the end of the training and other
+AR1*free (conv5_4/dw) represents a good trade-off in              metrics used for the OpenLORIS challenge benchmark.
+terms of efficiency-efficacy with a limited computational-
+memory overhead and only at ∼13% distance from the cu-                         OpenLORIS Challenge Results (7 finalists)
+mulative upper bound. For iCaRL the total training time was
+                                                                                       Final Inference   Replay       Model
+14 days compared to a training time of less than 1 hour for       Strategy
+                                                                                      Acc. % Time (s) Size (Sample) Size (MB)
+the other techniques.
+                                                                  SDU_BFA_PKU         99.56% 2,444.01         28,500       171.40
+5.2. Experiments on OpenLORIS                                     UniBo-Team (ours)   97.68%   22.41           1,500         5.90
+                                                                  HIK_ILG             96.86%   25.42             0          16.30
+    In order to show the general applicability of latent replay   Vidit98             96.16%   112.2          13,000         9.40
+in different continual learning settings, we report and com-      NTU_LL              93.56% 4,213.76            0         467.10
+pare its performance also on the OpenLORIS dataset, which         Neverforget         92.93%   89.15             0         342.90
+                                                                  Guinness             72.9%  346.02             0          9.40
+has been used as the main benchmark in the recent IROS
+2019 “Lifelong Robotic Vision” competition [22].
+    OpenLORIS is particularly interesting for continual learn-
+ing in the context of robotic vision since its video sessions     6. Real-World Deployment on Embedded De-
+have been recorded on a real wheeled robot exploring its             vices
+environment (see Fig. 8). In this case, however, the scenario         The feasibility of continual learning at the edge on em-
+is quite different from CORe50 NICv2 - 391: it is based on        bedded devices is demonstrated through the development
+a sequence of 12 relatively large batches (∼14,000 samples        of an Android app (called CORe) for Android smartphone
+each) containing only new examples of the same 69 classes         (see Figure 9). While the app will be open-sourced and
+made available in the first batch (also known as the "New         uploaded in the Google Play store upon publication of this
+Instances" scenario, NI). For this scenario:                      manuscript, a video showing its functions is already available
+  • We use a MobileNetV2 [26] pre-trained on ImageNet-            at http://bit.ly/latent-replay.
+    1k.                                                               The app comes pre-trained with 10 classes (corresponding
+                                                                  to the 10 CORe50 categories) and allows to: (i) continually
+  • We apply our latent replay approach to LWF [13],              train existing classes (by learning new object/poses) and (ii)
+    whose distillation steps proved to be effective to contin-    to learn up to 5 brand new classes. As the app is launched it
+    ually learn over a moderate number or large batches.          switches to inference mode and classifies the framed objects
+                                                                         7. Conclusions
+                                                                             In this paper we showed that latent replay is an efficient
+                                                                         technique to continually learn new classes and new instances
+                                                                         of known classes even from small and non i.i.d. batches.
+                                                                         State-of-the-art CL approaches such as AR1*, extended with
+                                                                         latent replay, are able to learn efficiently and, at the same
+                                                                         time, the achieved accuracy is not far from the cumulative
+                                                                         upper bound (about 5% in some cases). The computation-
+                                                                         storage-accuracy trade-off can be defined according to both
+                                                                         the target application and the available resources so that even
+                                                                         edge devices with no GPUs can learn continually from short
+                                                                         videos, as we proved through the development of an Android
+                                                                         application. In the future we intend to investigate: (i) the
+                                                                         design of more sophisticated pattern replacing strategies for
+                                                                         the external memory to contrast the aging effect; (ii) replac-
+                                                                         ing the external memory with a generative model trained
+                                                                         in the loop and capable of providing pseudo activations on
+                                                                         demand.
+Figure 9: The user interface of CORe app. The camera field of
+view is partially grayed to highlight the central area where the         References
+image is cropped, resized to 128 × 128 and passed to the CNN.
+The top three categories are returned for each image (closed set          [1] Georgios Georgiadis. Accelerating Convolutional Neural
+classification) and a green frame is placed around the icon of the            Networks via Activation Map Compression. The IEEE Con-
+most likely class. A training session is trigger by tapping the icon          ference on Computer Vision and Pattern Recognition (CVPR),
+of one of the 10 existing classes or one of the (initially) five empty        pages 7085–7095, 2019. 7
+classes.                                                                  [2] Tyler L. Hayes, Nathan D. Cahill, and Christopher Kanan.
+                                                                              Memory Efficient Experience Replay for Streaming Learning.
+                                                                              In 2019 International Conference on Robotics and Automa-
+with an inference efficiency of about 5 fps (CPU-only with                    tion (ICRA), pages 9769–9776. IEEE, may 2019. 3
+no hardware acceleration). When learning is triggered a short             [3] Tyler L. Hayes and Christopher Kanan. Lifelong Machine
+                                                                              Learning with Deep Streaming Linear Discriminant Analysis.
+video of 20 seconds (at 5 fps) is acquired and the resulting
+                                                                              pages 1–15, 2019. 2, 3
+100 frames are used for continual learning that completes in
+                                                                          [4] Andrew G Howard, Menglong Zhu, Bo Chen, Dmitry
+less than 1 seconds after the end of the acquisition.
+                                                                              Kalenichenko, Weijun Wang, Tobias Weyand, Marco An-
+    Behind the scenes the app is running a customized Caffe                   dreetto, and Hartwig Adam. MobileNets: Efficient Convo-
+version cross-compiled for Android and using the same Mo-                     lutional Neural Networks for Mobile Vision Applications.
+bileNetV1 architecture introduced in Section 5, here initial-                 arXiv preprint arXiv: 1704.04861, pages 1–12, 2017. 5, 11
+ized to work with 15 classes. Latent replay in this case is               [5] Sergey Ioffe. Batch Renormalization: Towards Reducing
+implemented at the pool6 layer2 with and external mem-                        Minibatch Dependence in Batch-Normalized Models. In
+ory of 500 patterns. Low level code is written in C++ and                     Advances in Neural Information Processing Systems (NIPS),
+the app interface in Java. A training session consists of 8                   pages 1945—-1953, 2017. 5, 10
+epochs, 5 iterations per epoch with a mini-batch size of 120              [6] Sergey Ioffe and Christian Szegedy. Batch Normalization:
+patterns: each mini-batch includes 20 original frames and                     Accelerating Deep Network Training by Reducing Internal
+100 replay patterns. In order to speed up training during                     Covariate Shift. International Conference on Machine Learn-
+                                                                              ing (ICML), 10(6):448—-456, aug 2015. 5
+the video acquisition, a second thread immediately moves
+available frames forward in the CNN and caches activations                [7] Yangqing Jia, Evan Shelhamer, Jeff Donahue, Sergey Karayev,
+                                                                              Jonathan Long, Ross Girshick, Sergio Guadarrama, and
+at latent replay layer so that, when the acquisition is con-
+                                                                              Trevor Darrell. Caffe: Convolutional Architecture for Fast
+cluded, we can directly train the class specific discriminative
+                                                                              Feature Embedding. Proceedings of the ACM International
+layers. Further details and precise timing of different phases                Conference on Multimedia, pages 675–678, 2014. 10
+are provided in the appendix D.                                           [8] James Kirkpatrick, Razvan Pascanu, Neil Rabinowitz, Joel
+                                                                              Veness, Guillaume Desjardins, Andrei A Rusu, Kieran Milan,
+   2 Placing latent reply layer at pool6 corresponds to extending CWR*        John Quan, Tiago Ramalho, Agnieszka Grabska-Barwinska,
+with latent replay, and leads to maximum efficiency on a CPU-only edge        Demis Hassabis, Claudia Clopath, Dharshan Kumaran, and
+device.                                                                       Raia Hadsell. Overcoming catastrophic forgetting in neu-
+     ral networks. In Proceedings of the National Academy of         [23] Sylvestre Rebuffi, Alexander Kolesnikov, Georg Sperl, and
+     Sciences, volume 114, pages 3521–3526, 2017. 2                       Christoph H Lampert. iCaRL: Incremental Classifier and Rep-
+ [9] Alex Krizhevsky. Learning Multiple Layers of Features from           resentation Learning. In The IEEE Conference on Computer
+     Tiny Images. PhD thesis, 2009. 3                                     Vision and Pattern Recognition (CVPR), Honolulu, Hawaii,
+[10] Timothée Lesort, Vincenzo Lomonaco, Andrei Stoian, Davide            2017. 3, 8
+     Maltoni, David Filliat, and Natalia Díaz-Rodríguez. Contin-     [24] Anthony Robins. Catastrophic Forgetting, Rehearsal and
+     ual Learning for Robotics. arXiv preprint arXiv:1907.00182,          Pseudorehearsal. Connection Science, 7(2):123–146, 1995. 3
+     pages 1–34, 2019. 1                                             [25] David Rolnick, Arun Ahuja, Jonathan Schwarz, Timothy P
+[11] Dawei Li, Serafettin Tasci, Shalini Ghosh, Jingwen Zhu, Junt-        Lillicrap, and Greg Wayne. Experience replay for continual
+     ing Zhang, and Larry Heck. RILOD: Near Real-Time In-                 learning. arXiv preprint arXiv: 1811.11682v1, pages 1–16,
+     cremental Learning for Object Detection at the Edge. In              2018. 3
+     Proceedings of the 4th ACM/IEEE Symposium on Edge Com-          [26] Mark Sandler, Andrew Howard, Menglong Zhu, Andrey Zh-
+     puting (SEC), pages 113–126, New York, New York, USA,                moginov, and Liang Chieh Chen. MobileNetV2: Inverted
+     2019. ACM Press. 1, 3                                                Residuals and Linear Bottlenecks. Proceedings of the IEEE
+[12] Li-Jia Li, Kai Li, Fei Fei Li, Jia Deng, Wei Dong, Richard           Computer Society Conference on Computer Vision and Pat-
+     Socher, and Li Fei-Fei. ImageNet: A Large-Scale Hierarchi-           tern Recognition, pages 4510–4520, 2018. 8
+     cal Image Database. 2009 IEEE Conference on Computer            [27] Jonathan Schwarz, Jelena Luketina, Wojciech M. Czarnecki,
+     Vision and Pattern Recognition (CVPR), pages 248–255, 2009.          Agnieszka Grabska-Barwinska, Yee Whye Teh, Razvan Pas-
+     3                                                                    canu, and Raia Hadsell. Progress & Compress: A scalable
+                                                                          framework for continual learning. In Proceedings of the
+[13] Zhizhong Li and Derek Hoiem. Learning without forgetting.
+                                                                          35th International Conference on Machine Learning (ICML),
+     In 14th European Conference on Computer Vision (ECCV),
+                                                                          pages 4528—-4537, 2018. 3
+     volume 9908 LNCS, pages 614–629, Amsterdam, Nether-
+     lands, 2016. 2, 8                                               [28] Qi She, Fan Feng, Xinyue Hao, Qihan Yang, Chuanlin
+                                                                          Lan, Vincenzo Lomonaco, Xuesong Shi, Zhengwei Wang,
+[14] Vincenzo Lomonaco and Davide Maltoni. CORe50: a New
+                                                                          Yao Guo, Yimin Zhang, Fei Qiao, and Rosa H. M. Chan.
+     Dataset and Benchmark for Continuous Object Recognition.
+                                                                          Openloris-object: A dataset and benchmark towards lifelong
+     In Proceedings of the 1st Annual Conference on Robot Learn-
+                                                                          object recognition. CoRR, abs/1911.06487, 2019. 3
+     ing (CoRL), volume 78, pages 17–26, 2017. 2
+                                                                     [29] Friedemann Zenke, Ben Poole, and Surya Ganguli. Continual
+[15] Vincenzo Lomonaco, Davide Maltoni, and Lorenzo Pelle-
+                                                                          Learning Through Synaptic Intelligence. In 34th International
+     grini. Fine-Grained Continual Learning. arXiv preprint arXiv:
+                                                                          Conference on Machine Learning (ICML), volume 70, pages
+     1907.03799, pages 1–14, 2019. 1, 2, 3, 4, 5, 8, 10
+                                                                          3987–3995, 2017. 3, 4
+[16] David Lopez-paz and Marc’Aurelio Ranzato. Gradient
+     Episodic Memory for Continuum Learning. In Advances
+     in Neural Information Processing Systems (NIPS 2017), 2017.
+                                                                     A. Implementation and Experiments Details
+     3                                                                  For each of the proposed strategies a test accuracy curve
+[17] Davide Maltoni and Vincenzo Lomonaco. Continuous learn-         was obtained by averaging over 5 different runs. We followed
+     ing in single-incremental-task scenarios. Neural Networks,      the same experimental setup as in [15] so that each run differs
+     116:56–73, aug 2019. 3, 8, 10                                   from the others by the order of the encountered batches.
+[18] Michael McCloskey and Neal J. Cohen. Catastrophic Inter-           Our experiments were executed in a "Ubuntu 16.04"
+     ference in Connectionist Networks: The Sequential Learning      Docker environment with a customized version of the Caffe
+     Problem. Psychology of Learning and Motivation - Advances
+                                                                     [7] framework using a single GPU. See table 5 for more
+     in Research and Theory, 24(C):109–165, 1989. 1
+                                                                     details of the host setup.
+[19] German I. Parisi, Ronald Kemker, Jose L. Part, Christopher
+     Kanan, and Stefan Wermter. Continual lifelong learning with
+     neural networks: A review. Neural Networks, 113:54–71,
+                                                                     B. Hyperparameters
+     may 2019. 1                                                        The hyperparameters used in our experiments are de-
+[20] Giulia Pasquale, Carlo Ciliberto, Francesca Odone, Lorenzo      scribed in tables 4 and 7. Please note that:
+     Rosasco, and Lorenzo Natale. Are we done with object
+     recognition? The iCub robot’s perspective. Robotics and           • We used the same naming scheme used in [17].
+     Autonomous Systems, 112:260–281, 2019. 3
+[21] Jary Pomponi, Simone Scardapane, Vincenzo Lomonaco,               • For AR1* and AR1*free we used a higher learning rate
+     and Aurelio Uncini. Efficient continual learning in neural          for the CWR layer, as described in [15].
+     networks with embedding regularization. Neurocomputing,
+     2020. 3                                                           • In order to optimize the results for the two different
+[22] Qi She. Lifelong Roboic Vision Challenge, 2019. https:              rehearsal types (native rehearsal and latent replay) we
+     //lifelong-robotic-vision.github.io. Tech-                          chose two different values for the moving average up-
+     nical report to appear on arXiv. 8                                  date rate of the BatchReNorm layers [5]. We found out
+     that an higher value of the update rate was better suited    Table 4: Hyperparameter values used in our experiments. The
+     for the latent version.                                      selection was performed on run 0, and hyperparameters were then
+                                                                  fixed for runs 1, 2, 3, 4. As an exception for the long running time
+  • Excluding the aforementioned update rate, we used the         (around 14 days), iCaRL was trained only on run 0.
+    same hyperparameters for both the native and latent
+    rehearsal-based experiments.                                                               CWR*
+C. Model Architecture and Memory Trade-off                                         Parameters                   MobileNet V1
+
+    In order to assess the trade-off between accuracy, compu-          Head                                     Maximal
+tation and memory usage we ran AR1* free using different               B1 : epochs, η (learn. rate)             4, 0.001
+latent replay layers. Table 6 shows the details of the model           Bi , i > 1: epochs, η (learn. rate)      4, 0.003
+we used, which is based on the MobileNetV1 [4] with the                                         AR1*
+only difference that Batch Norm layers have been replaced                          Parameters                   MobileNet V1
+with Batch ReNorm ones. Here we report the network archi-
+tecture as well as the pattern size and the number of weights          Head                                     Maximal
+per layer.                                                             w1 , wi (i > 1)                          0.5, 0.5
+                                                                       maxF                                     0.001
+D. Android Application Setup and Perfor-                               B1 : epochs, η (learn. rate)             4, 0.001
+   mance                                                               Bi , i > 1: epochs                       4
+                                                                           η (learn. rate, CWR layer)           0.003
+   The CORe Android application has been tested on a One-                  η (learn. rate,other layers)         0.0003
+Plus 6 smartphone without additional accelerators. Table 8                                   AR1* free
+shows the details about this hardware platform.
+   In table 10 we report the overall time taken for the differ-                    Parameters                   MobileNet V1
+ent inference and training steps as well as the detected peak          Head                                     Maximal
+RAM usage. Note that step times, CPU usage and memory                  B1 : epochs, η (learn. rate)             4, 0.001
+consumption may vary greatly depending on the hardware,                Bi , i > 1: epochs                       4
+operative system and other processes running in background.                η (learn. rate, CWR layer)           0.003
+   In our experiments we used a customized version of Caffe                η (learn. rate,other layers)         0.0003
+compiled for arm64-v8a platform using OpenBLAS as the
+                                                                                               DSLDA
+BLAS library. Additional information about the used li-
+braries can be found in Table 9.                                                   Parameters                   MobileNet V1
+
+                  Table 5: Experimental setup                          Shrinkage                                1e-4
+                                                                       Σ                                        plastic
+      Component                   Model/Version                                                iCaRL
+   Operating System                         Debian 8.3                             Parameters                   MobileNet V1
+   Docker                                      18.06.1                 B1 : epochs, η (learn. rate)             40, 0.01
+   Nvidia Driver          430.40 (CUDA 9.0, CuDNN 7)                   Bi , i > 1: epochs, η (learn. rate)      4, 0.001
+   CPU                   Intel(R) Xeon(R) CPU E5-2650                  K                                        8000
+   GPU                     GTX 1080 Ti (11 GB VRAM)
+   RAM                         64 GB DDR3 (1600 MHz)
+                                                                  Table 8: The reference platform for the CORe App. In our tests
+                                                                  we used a OnePlus 6 smartphone.
+Table 7: Batch ReNormalization parameters. The reported param-
+eters were used in our experiments on the NICv2-391 scenario               Component                   Model/Version
+involving the CWR*, AR1* and AR1* free algorithms.
+                                                                       Model                   OnePlus 6 (A6000)
+                                                                       Release date            2018, May
+     Parameters       Latent Replay     Native Rehearsal
+                                                                       Operating System        Android 9 (OxygenOS 9.0.9)
+   Rmax               1.25              1.25                           Chipset                 Qualcomm SDM845 Snap-
+   Dmax               0.5               0.5                                                    dragon 845
+   Moving Avg.        0.99995           0.9999                         CPU                     Octa-core (4x2.8 GHz)
+   update rate                                                         RAM                     8 GB LPDDR4X, 1866 MHz
+Table 6: The architecture of model used in our experiments with
+neurons, weights and ops for each layer. Those information, along
+with the results reported in table 1, can be used to identify the
+most appropriate trade-off between accuracy, computation and used
+memory depending on the problem context.
+                                                                    Table 9: The libraries used in our Android application. In our
+ Layer            Neurons            Ops      Weights               experiments and in the Android application we use the BVLC
+ Images             49152             -            -                Caffe distribution with a custom BatchReNorm layer and extended
+                                                                    pyCaffe bindings. We also report the tools used in the build pro-
+ conv1             131072       3670016          896
+                                                                    cess. Note that OpenBLAS was compiled with OpenMP support
+ conv2_1/dw        131072       1310720          320                (provided in the Android Ndk).
+ conv2_1/sep       262144       8650752         2112
+ conv2_2/dw         65536        655360          640
+                                                                                           Used libraries
+ conv2_2/sep       131072       8519680         8320
+ conv3_1/dw        131072       1310720         1280                                  Library                  Version
+ conv3_1/sep       131072      16908288        16512                          Caffe (BVLC)                          Mar, 2
+ conv3_2/dw         32768        327680         1280                          OpenBLAS                               0.3.6
+ conv3_2/sep        65536       8454144        33024                          OpenMP                         5.0.20140926
+ conv4_1/dw         65536        655360         2560                          OpenCV                                 4.1.1
+ conv4_1/sep        65536      16842752        65792                          Boost                                 1.56.0
+ conv4_2/dw         16384        163840         2560                          Gflags                                 2.2.0
+ conv4_2/sep        32768       8421376       131584                          Glog                                   0.3.5
+ conv5_1/dw         32768        327680         5120                          LevelDB                               1.21.0
+ conv5_1/sep        32768      16809984       262656                          Protobuf                               3.6.1
+ conv5_2/dw         32768        327680         5120                          Snappy                                 1.1.7
+ conv5_2/sep        32768      16809984       262656
+ conv5_3/dw         32768        327680         5120                                           Build tools
+ conv5_3/sep        32768      16809984       262656                                    Tool                   Version
+ conv5_4/dw         32768        327680         5120
+                                                                              Android Studio                         3.5.2
+ conv5_4/sep        32768      16809984       262656
+                                                                              Gradle Android Plugin                  3.5.0
+ conv5_5/dw         32768        327680         5120
+                                                                              Android Ndk                    20.0.5594570
+ conv5_5/sep        32768      16809984       262656
+                                                                              Android Clang                          8.0.7
+ conv5_6/dw          8192         81920         5120
+                                                                              Cmake                                 3.10.2
+ conv5_6/sep        16384       8404992       525312
+                                                                              Android Build tools                   28.0.3
+ conv6/dw           16384        163840        10240
+ conv6/sep          16384      16793600      1049600
+ pool6               1024         16384            0
+ fc7                   50         51250        51250
+ Total                          187,09M        3,35M
+Table 10: The profiling information obtained while running the CORe App on the reference platform. The training times here reported were
+obtained by averaging the time taken from 5 incremental training sessions.
+
+                                             Inference and training times (per step)
+                                           Step name                               Average time (ms)
+                        Inference                                                                     255.1
+                        Features pre-extraction                                202.3 ms (for each pattern)
+                        Misc. training preparation                                             1.6 (overall)
+                        Data feeding (at latent layer)                               64.4 (8.05 per epoch)
+                        Forward                                               292.4 (36.55 for each epoch)
+                        Backward                                                43.6 (5.45 for each epoch)
+                        Update                                              1269.0 (158.63 for each epoch)
+                        Consolidation (CWR*)                                                   1.0 (overall)
+                                                       CPU and RAM usage
+                                             Phase                          CPU usage          RAM usage
+                        Inference                                                  17%               225 MB
+                        Image gathering (and feature pre-extraction)               25%               240 MB
+                        Training                                                   18%               260 MB
+

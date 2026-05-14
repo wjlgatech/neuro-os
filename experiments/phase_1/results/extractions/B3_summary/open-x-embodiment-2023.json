@@ -1,0 +1,19 @@
+{
+  "system": "B3_summary",
+  "paper_id": "open-x-embodiment-2023",
+  "paper_title": "Open X-Embodiment: Robotic Learning Datasets and RT-X Models",
+  "free_text_output": "Open X-Embodiment: Robotic Learning Datasets and RT-X Models\n                                                                                            Open X-Embodiment Collaboration0\n                                                                                              robotics-transformer-x.github.io\n                                                  Abby O\u2019Neill34 , Abdul Rehman37 , Abhinav Gupta4 , Abhiram Maddukuri45 , Abhishek Gupta46 , Abhishek Padalkar10 , Abraham Lee34 ,\n                                                    Acorn Pooley11 , Agrim Gupta28 , Ajay Mandlekar22 , Ajinkya Jain15 , Albert Tung28 , Alex Bewley11 , Alex Herzog11 , Alex Irpan11 ,\n                                                      Alexander Khazatsky28 , Anant Rai23 , Anchit Gupta19 , Andrew Wang34 , Andrey Kolobov20 , Anikait Singh11,34 , Animesh Garg9 ,\n                                           Aniruddha Kembhavi1 , Annie Xie28 , Anthony Brohan11 ,",
+  "retrieved_chunks": [],
+  "mechanism": "",
+  "invariant": "",
+  "prediction": "",
+  "failure_mode": "",
+  "source_excerpt": "",
+  "has_schema": false,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 0,
+  "llm_tokens_out": 0,
+  "extraction_method": "heuristic-abstract-extraction"
+}

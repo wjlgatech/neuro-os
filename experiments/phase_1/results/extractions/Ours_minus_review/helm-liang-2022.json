@@ -1,0 +1,19 @@
+{
+  "system": "Ours_minus_review",
+  "paper_id": "helm-liang-2022",
+  "paper_title": "Holistic Evaluation of Language Models (HELM)",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "HELM imposes a fixed cross-product structure: every model is evaluated on every (scenario, metric) pair under standardized prompting conditions. This forces sparse prior evaluation coverage\u2014where models shared few or no scenarios in common\u2014to collapse into a dense, comparable matrix. Rankings then emerge from aggregating across all metrics simultaneously rather than a single accuracy score, exposing trade-offs that single-metric leaderboards hide by construction.",
+  "invariant": "A model's apparent superiority is evaluation-protocol-relative: whenever only accuracy on self-selected benchmarks is reported, rankings are artifacts of selection bias rather than capability differences. Multi-metric, multi-scenario standardization is the invariant prerequisite for any cross-model comparison that claims generality.",
+  "prediction": "Models that rank highly on accuracy-only leaderboards will show substantially different relative orderings when calibration, fairness, toxicity, and robustness are included as co-equal metrics. The model maximizing accuracy will not generally maximize the holistic aggregate, and the gap between the two rankings will widen as model count grows.",
+  "failure_mode": "When the chosen scenario and metric set is itself unrepresentative\u2014e.g., neglected English dialects and trustworthiness metrics are explicitly flagged as underrepresented\u2014the dense benchmarking matrix yields false completeness: models appear holistically evaluated but systematic blind spots remain, making the standardized rankings misleading for deployment contexts those gaps cover.",
+  "source_excerpt": "Prior to HELM, models on average were evaluated on just 17.9% of the core HELM scenarios, with some prominent models not sharing a single scenario in common. We improve this to 96.0%: now all 30 models have been densely benchmarked on a set of core scenarios and metrics under standardized conditions.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 2342,
+  "llm_tokens_out": 414,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-no-review"
+}

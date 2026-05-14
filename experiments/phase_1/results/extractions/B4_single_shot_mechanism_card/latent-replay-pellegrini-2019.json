@@ -1,0 +1,19 @@
+{
+  "system": "B4_single_shot_mechanism_card",
+  "paper_id": "latent-replay-pellegrini-2019",
+  "paper_title": "Latent Replay for Real-Time Continual Learning",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "Latent Replay stores intermediate layer activation volumes (rather than raw input data) in a replay buffer, and freezes or slows learning in all layers below the replay injection point. New mini-batches are concatenated with replayed latent activations and fed only to the upper network layers. This reduces compute and storage per replay step, while slow learning in lower layers keeps the latent representation stable so stored activations remain valid proxies for past data, jointly mitigating catastrophic forgetting.",
+  "invariant": "The lower network layers (below the latent replay point) maintain a stable feature representation across all incremental training steps, ensuring that activation volumes stored in the replay buffer remain valid and representative of past experiences regardless of how many new batches are processed.",
+  "prediction": "If the lower layers are allowed to learn at full pace (not slowed or frozen), the stored latent activations will become stale and misaligned with the current representation, causing accuracy to degrade compared to Latent Replay with stabilized lower layers.",
+  "failure_mode": "If the distribution of new data shifts the optimal low-level features substantially (e.g., large domain shift in lighting or viewpoint), freezing the lower layers prevents adaptation of the feature extractor, making the latent representation inadequate for new classes and causing accuracy to drop despite replay.",
+  "source_excerpt": "instead of storing a portion of past data in the input space, we store activations volumes at some intermediate layer. This can significantly reduce the computation and storage required by native rehearsal. To keep the representation stable and the stored activations valid we propose to slow-down learning at all the layers below the latent replay one, leaving the layers above free to learn at full pace.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 1670,
+  "llm_tokens_out": 391,
+  "extraction_method": "llm-claude-sonnet-4-6-single-shot"
+}

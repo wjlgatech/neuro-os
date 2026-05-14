@@ -1,0 +1,19 @@
+{
+  "system": "B5_reviewed_mechanism_card",
+  "paper_id": "rt2-brohan-2023",
+  "paper_title": "RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "RT-2 co-fine-tunes a pretrained vision-language model on both robotic trajectory data and internet-scale vision-language tasks simultaneously. Robot actions are tokenized as text tokens and treated identically to natural language tokens during training. This shared token representation causes the model's pre-existing semantic and visual reasoning capabilities\u2014acquired from web-scale pretraining\u2014to transfer directly into action generation, enabling generalization to novel objects and commands absent from robot training data.",
+  "invariant": "Representing robot actions as text tokens in the same format as natural language tokens allows a single model to share weights and representations across language, vision, and action domains, preserving web-scale knowledge while acquiring robotic control behavior.",
+  "prediction": "If robot actions are encoded in a separate, non-language token space and not co-trained with language tokens, emergent generalization to novel objects and semantic reasoning commands not present in robot training data should degrade significantly compared to RT-2's shared-token formulation.",
+  "failure_mode": "If the robot training data distribution diverges sufficiently from web-scale vision-language data, co-fine-tuning causes catastrophic forgetting of VLM representations, collapsing the semantic transfer mechanism and eliminating emergent generalization capabilities.",
+  "source_excerpt": "in order to fit both natural language responses and robotic actions into the same format, we express the actions as text tokens and incorporate them directly into the training set of the model in the same way as natural language tokens.",
+  "has_schema": true,
+  "pinned_provenance": true,
+  "review_gate_passed": true,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 1918,
+  "llm_tokens_out": 820,
+  "extraction_method": "llm-claude-sonnet-4-6-self-reviewed"
+}

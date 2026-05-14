@@ -1,0 +1,19 @@
+{
+  "id": "progressive-networks-rusu-2016",
+  "ts": "2026-05-12T00:00:00+00:00",
+  "paper_title": "Progressive Neural Networks",
+  "paper_source": "arXiv:1606.04671 ; Rusu, Rabinowitz, Desjardins, Soyer, Kirkpatrick, Kavukcuoglu, Pascanu, Hadsell 2016",
+  "mechanism": "For each new task k, instantiate a new neural network column with parameters Theta^(k). Each layer h_i^(k) receives input from its own previous layer h_(i-1)^(k) AND from corresponding layers of previous columns h_(i-1)^(j) (j<k) via learned adapter MLPs. Prior columns' parameters are FROZEN during task-k training — no gradient flows back. Zero catastrophic forgetting by construction. Transfer happens through adapters that can reuse, modify, or ignore prior features. Average Fisher Sensitivity (AFS) analysis shows transfer occurs at multiple network depths.",
+  "invariant": "Catastrophic forgetting can be eliminated by architecture, not regularization. When you can afford parameter growth, separating tasks structurally is strictly safer than blending them parametrically. The cost is parameter-count growth linear in tasks.",
+  "prediction": "Progressive networks beat fine-tuning and pretraining baselines on RL transfer tasks (Atari game sequences, 3D maze games). AFS analysis reveals transfer at both low-level (perceptual) and high-level (control) layers, demonstrating modular knowledge reuse.",
+  "failure_mode": "Parameter count grows linearly with number of tasks — becomes prohibitive at hundreds of tasks. Choosing which column to use at inference requires knowledge of the task label (limitation on open-world deployment). Adapter overhead per task is non-trivial; can be addressed via pruning but unstudied in the paper.",
+  "first_principle": "Capacity is cheap; learning is expensive. When you can afford parameter growth, separating tasks structurally is strictly safer than blending them parametrically. Modular reuse via adapters is a separate question from forgetting — solve it independently.",
+  "anti_pattern": "Treating Progressive Networks as a general continual-learning algorithm. They are really 'no-forgetting-by-construction + cheap transfer via adapters.' Misapplied when you DO want representation sharing (architectural separation kills it) or when parameter count growth is a hard constraint (e.g. on-device CL).",
+  "transferability_test": "Microservices architecture (separate service per concern, immutable APIs, transfer via well-defined inter-service calls). Plugin systems (frozen core, plugins add capabilities). Modern MoE LLMs (sparse routing across expert columns). Org structure (new functions get new teams; preserves institutional memory).",
+  "verdict": "foundational",
+  "one_sentence_compression": "Spin up a new neural network column per task, freeze prior columns, and learn cheap lateral adapters to reuse prior features — make forgetting structurally impossible by trading parameter count for plasticity.",
+  "thesis_id": null,
+  "revision_of": null,
+  "entity_mentions": [],
+  "framework_alignment": []
+}

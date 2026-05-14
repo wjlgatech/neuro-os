@@ -1,0 +1,19 @@
+{
+  "id": "rt2-brohan-2023",
+  "ts": "2026-05-12T00:00:00+00:00",
+  "paper_title": "RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control",
+  "paper_source": "arXiv:2307.15818 ; Brohan et al. 2023, Google DeepMind ; CoRL 2023",
+  "mechanism": "Start with a pretrained large Vision-Language Model (PaLI-X 55B or PaLM-E 12B). Express robot actions as discrete tokens — a 7-DOF action (Delta translation_3, Delta rotation_3, gripper_1) becomes 7 integers, each encoded as a text token. Co-fine-tune the VLM on (a) original web VQA tasks AND (b) RT-1-style robot trajectories — same model, same parameters, mixed batches. At inference, the model outputs language tokens for VQA prompts and action tokens for robot prompts. No new parameters introduced; the VLM's web knowledge stays intact and is available for grounding actions.",
+  "invariant": "Robot actions are just another language. The right interface between web-scale pretrained knowledge and low-level control is the token-level output, not a separate action head. The mixed-objective fine-tuning preserves both grounding and semantic reasoning.",
+  "prediction": "VLMs co-fine-tuned with robot data generalize dramatically better than robot-data-only baselines: to novel objects, semantically varied instructions, and emergent reasoning (e.g., 'use this rock as a hammer'). 6k evaluation trials confirm. Emergent capabilities include picking based on semantic location (numbers, icons) absent from robot training data.",
+  "failure_mode": "Physical skills bounded by the robot-data distribution — VLA cannot perform skills it didn't see, only deploy seen skills in new contexts. Inference speed at 55B parameters is a hard real-time constraint. The model is FROZEN at deployment — no on-site adaptation. Co-fine-tuning bandwidth is a bottleneck for adding new domains.",
+  "first_principle": "When your downstream domain is scarce-data, encode it in the input/output format of an abundant-data pretrained model rather than building a new architecture. Web text is 10^9+ tokens; robot trajectories are 10^6 — the only way to leverage the gap is shared format.",
+  "anti_pattern": "Treating VLA models as 'just LLMs that output actions.' The co-fine-tuning matters: train only on robot data and you lose semantic reasoning; train only on web data and you lose grounding. The mixed-objective fine-tuning is the contribution, not the tokenization itself. Also: assuming this scales arbitrarily — physical skills still bounded by robot data.",
+  "transferability_test": "Any scarce-data domain with an abundant adjacent pretraining surface: medicine (general LLM + clinical action tokens), finance (general LLM + trade tokens), biology (protein-language models + lab action tokens), formal verification (general LLM + proof-step tokens). Career switching frame: leverage abundant general skills by encoding domain-specific actions in a 'general' frame.",
+  "verdict": "foundational",
+  "one_sentence_compression": "Cast robot actions as text tokens, co-fine-tune a vision-language model on both web-scale VQA and robot trajectory data, and inherit semantic reasoning and generalization that pure robot-data training cannot match.",
+  "thesis_id": null,
+  "revision_of": null,
+  "entity_mentions": [],
+  "framework_alignment": []
+}

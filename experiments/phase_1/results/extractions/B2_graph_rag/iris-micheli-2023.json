@@ -1,0 +1,23 @@
+{
+  "system": "B2_graph_rag",
+  "paper_id": "iris-micheli-2023",
+  "paper_title": "Transformers are Sample-Efficient World Models (IRIS)",
+  "free_text_output": "[intro/motivation community]: Lookahead search                       No lookahead search\n  Game                 Random    Human     MuZero    EfficientZero   SimPLe    CURL        DrQ       SPR    IRIS (ours)\n\n  Alien                  227.8    7127.7     530.0          808.5      616.9    711.0     865.2     841.9       420.0\n  Amidar                   5.8    1719.5      38.8          148.6       74.3    113.7     137.8     179.7       143.0\n  Assault                222.4     742.0     500.1         1263.1      527.2    500.9     579.6     565.6      1524.4\n  Asterix                210.0    8503.3    1734.0        25557.8 \n\n[method/mechanism community]: With the equivalent of only two hours of gameplay, IRIS achieves a superhuman mean score of 1.046\n(+70%), an IQM of 0.501 (+49%), an optimality gap of 0.512 (+11%), and outperforms human\nplayers on 10 out of 26 games (+67%), where the relative improvements are computed with respect\nto SPR (Schwarzer et al., 2021).\n\n[results/discussion community]: Game                 Random    Human     IRIS (100k)   IRIS (10M)\n\n                       Alien                  227.8    7127.7        420.0       1003.1\n                       Amidar                   5.8    1719.5        143.0        213.4\n                       Assault                222.4     742.0       1524.4       9355.6\n                       Asterix                210.0    8503.3        853.6       6861.0\n                       BankHeist               14.2     753.1         53.1        921.6\n                       BattleZone            2360.0   37187.5      13074.0      34562.5\n     ",
+  "retrieved_chunks": [
+    "[intro/motivation community]: Lookahead search                       No lookahead search\n  Game                 Random    Human     MuZero    EfficientZero   SimPLe    CURL        DrQ       SPR    IRIS (ours)\n\n  Alien                  227.8    7127.7     530.0          808.5      616.9    711.0     865.2     841.9       420.0\n  Amidar                   5.8    1719.5      38.8          148.6       74.3    113.7     137.8     179.7       143.0\n  Assault                222.4     742.0     500.1         1263.1      527.2    500.9     579.6     565.6      1524.4\n  Asterix                210.0    8503.3    1734.0        25557.8 ",
+    "[method/mechanism community]: With the equivalent of only two hours of gameplay, IRIS achieves a superhuman mean score of 1.046\n(+70%), an IQM of 0.501 (+49%), an optimality gap of 0.512 (+11%), and outperforms human\nplayers on 10 out of 26 games (+67%), where the relative improvements are computed with respect\nto SPR (Schwarzer et al., 2021).",
+    "[results/discussion community]: Game                 Random    Human     IRIS (100k)   IRIS (10M)\n\n                       Alien                  227.8    7127.7        420.0       1003.1\n                       Amidar                   5.8    1719.5        143.0        213.4\n                       Assault                222.4     742.0       1524.4       9355.6\n                       Asterix                210.0    8503.3        853.6       6861.0\n                       BankHeist               14.2     753.1         53.1        921.6\n                       BattleZone            2360.0   37187.5      13074.0      34562.5\n     "
+  ],
+  "mechanism": "",
+  "invariant": "",
+  "prediction": "",
+  "failure_mode": "",
+  "source_excerpt": "",
+  "has_schema": false,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 0,
+  "llm_tokens_out": 0,
+  "extraction_method": "heuristic-positional-communities"
+}

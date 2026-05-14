@@ -1,0 +1,847 @@
+                                            Open X-Embodiment: Robotic Learning Datasets and RT-X Models
+                                                                                            Open X-Embodiment Collaboration0
+                                                                                              robotics-transformer-x.github.io
+                                                  Abby O’Neill34 , Abdul Rehman37 , Abhinav Gupta4 , Abhiram Maddukuri45 , Abhishek Gupta46 , Abhishek Padalkar10 , Abraham Lee34 ,
+                                                    Acorn Pooley11 , Agrim Gupta28 , Ajay Mandlekar22 , Ajinkya Jain15 , Albert Tung28 , Alex Bewley11 , Alex Herzog11 , Alex Irpan11 ,
+                                                      Alexander Khazatsky28 , Anant Rai23 , Anchit Gupta19 , Andrew Wang34 , Andrey Kolobov20 , Anikait Singh11,34 , Animesh Garg9 ,
+                                           Aniruddha Kembhavi1 , Annie Xie28 , Anthony Brohan11 , Antonin Raffin10 , Archit Sharma28 , Arefeh Yavary35 , Arhan Jain46 , Ashwin Balakrishna32 ,
+                                            Ayzaan Wahid11 , Ben Burgess-Limerick25 , Beomjoon Kim17 , Bernhard Schölkopf18 , Blake Wulfe32 , Brian Ichter11 , Cewu Lu27,8 , Charles Xu34 ,
+                                                         Charlotte Le34 , Chelsea Finn11,28 , Chen Wang28 , Chenfeng Xu34 , Cheng Chi5,28 , Chenguang Huang38 , Christine Chan11 ,
+                                           Christopher Agia28 , Chuer Pan28 , Chuyuan Fu11 , Coline Devin11 , Danfei Xu9 , Daniel Morton28 , Danny Driess11 , Daphne Chen46 , Deepak Pathak4 ,
+                                                      Dhruv Shah34 , Dieter Büchler18 , Dinesh Jayaraman42 , Dmitry Kalashnikov11 , Dorsa Sadigh11 , Edward Johns14 , Ethan Foster28 ,
+                                               Fangchen Liu34 , Federico Ceola16 , Fei Xia11 , Feiyu Zhao13 , Felipe Vieira Frujeri20 , Freek Stulp10 , Gaoyue Zhou23 , Gaurav S. Sukhatme43 ,
+                                                         Gautam Salhotra43,15 , Ge Yan36 , Gilbert Feng34 , Giulio Schiavi7 , Glen Berseth41,21 , Gregory Kahn34 , Guangwen Yang33 ,
+
+
+
+
+arXiv:2310.08864v9 [cs.RO] 14 May 2025
+                                               Guanzhi Wang3,22 , Hao Su36 , Hao-Shu Fang27 , Haochen Shi28 , Henghui Bao43 , Heni Ben Amor2 , Henrik I Christensen36 , Hiroki Furuta31 ,
+                                                       Homanga Bharadhwaj4,19 , Homer Walke34 , Hongjie Fang27 , Huy Ha5,28 , Igor Mordatch11 , Ilija Radosavovic34 , Isabel Leal11 ,
+                                                     Jacky Liang11 , Jad Abou-Chakra25 , Jaehyung Kim17 , Jaimyn Drake34 , Jan Peters29 , Jan Schneider18 , Jasmine Hsu11 , Jay Vakil19 ,
+                                                Jeannette Bohg28 , Jeffrey Bingham11 , Jeffrey Wu34 , Jensen Gao28 , Jiaheng Hu30 , Jiajun Wu28 , Jialin Wu12 , Jiankai Sun28 , Jianlan Luo34 ,
+                                                   Jiayuan Gu36 , Jie Tan11 , Jihoon Oh31 , Jimmy Wu24 , Jingpei Lu36 , Jingyun Yang28 , Jitendra Malik34 , João Silvério10 , Joey Hejna28 ,
+                                                      Jonathan Booher28 , Jonathan Tompson11 , Jonathan Yang28 , Jordi Salvador1 , Joseph J. Lim17 , Junhyek Han17 , Kaiyuan Wang36 ,
+                                                   Kanishka Rao11 , Karl Pertsch34,28 , Karol Hausman11 , Keegan Go15 , Keerthana Gopalakrishnan11 , Ken Goldberg34 , Kendra Byrne11 ,
+                                                 Kenneth Oslund11 , Kento Kawaharazuka31 , Kevin Black34 , Kevin Lin28 , Kevin Zhang4 , Kiana Ehsani1 , Kiran Lekkala43 , Kirsty Ellis41 ,
+                                                  Krishan Rana25 , Krishnan Srinivasan28 , Kuan Fang34 , Kunal Pratap Singh6 , Kuo-Hao Zeng1 , Kyle Hatch32 , Kyle Hsu28 , Laurent Itti43 ,
+                                                      Lawrence Yunliang Chen34 , Lerrel Pinto23 , Li Fei-Fei28 , Liam Tan34 , Linxi ”Jim” Fan22 , Lionel Ott7 , Lisa Lee11 , Luca Weihs1 ,
+                                         Magnum Chen13 , Marion Lepert28 , Marius Memmel46 , Masayoshi Tomizuka34 , Masha Itkina32 , Mateo Guaman Castro46 , Max Spero28 , Maximilian Du28 ,
+                                                      Michael Ahn11 , Michael C. Yip36 , Mingtong Zhang39 , Mingyu Ding34 , Minho Heo17 , Mohan Kumar Srirama4 , Mohit Sharma4 ,
+                                              Moo Jin Kim28 , Muhammad Zubair Irshad32 , Naoaki Kanazawa31 , Nicklas Hansen36 , Nicolas Heess11 , Nikhil J Joshi11 , Niko Suenderhauf25 ,
+                                                Ning Liu13 , Norman Di Palo14 , Nur Muhammad Mahi Shafiullah23 , Oier Mees38 , Oliver Kroemer4 , Osbert Bastani42 , Pannag R Sanketi11 ,
+                                             Patrick ”Tree” Miller32 , Patrick Yin46 , Paul Wohlhart11 , Peng Xu11 , Peter David Fagan37 , Peter Mitrano40 , Pierre Sermanet11 , Pieter Abbeel34 ,
+                                                       Priya Sundaresan28 , Qiuyu Chen46 , Quan Vuong11 , Rafael Rafailov11,28 , Ran Tian34 , Ria Doshi34 , Roberto Mart’in-Mart’in30 ,
+                                                    Rohan Baijal46 , Rosario Scalise46 , Rose Hendrix1 , Roy Lin34 , Runjia Qian13 , Ruohan Zhang28 , Russell Mendonca4 , Rutav Shah30 ,
+                                                 Ryan Hoque34 , Ryan Julian11 , Samuel Bustamante10 , Sean Kirmani11 , Sergey Levine11,34 , Shan Lin36 , Sherry Moore11 , Shikhar Bahl4 ,
+                                                   Shivin Dass43,30 , Shubham Sonawani2 , Shubham Tulsiani4 , Shuran Song5 , Sichun Xu11 , Siddhant Haldar23 , Siddharth Karamcheti28 ,
+                                                Simeon Adebola34 , Simon Guist18 , Soroush Nasiriany30 , Stefan Schaal15 , Stefan Welker11 , Stephen Tian28 , Subramanian Ramamoorthy37 ,
+                                             Sudeep Dasari4 , Suneel Belkhale28 , Sungjae Park17 , Suraj Nair32 , Suvir Mirchandani28 , Takayuki Osa31 , Tanmay Gupta1 , Tatsuya Harada31,26 ,
+                                                           Tatsuya Matsushima31 , Ted Xiao11 , Thomas Kollar32 , Tianhe Yu11 , Tianli Ding11 , Todor Davchev11 , Tony Z. Zhao28 ,
+                                              Travis Armstrong11 , Trevor Darrell34 , Trinity Chung34 , Vidhi Jain11,4 , Vikash Kumar4 , Vincent Vanhoucke11 , Vitor Guizilini32 , Wei Zhan34 ,
+                                                Wenxuan Zhou11,4 , Wolfram Burgard44 , Xi Chen11 , Xiangyu Chen13 , Xiaolong Wang36 , Xinghao Zhu34 , Xinyang Geng34 , Xiyuan Liu13 ,
+                                                      Xu Liangwei13 , Xuanlin Li36 , Yansong Pang11 , Yao Lu11 , Yecheng Jason Ma42 , Yejin Kim1 , Yevgen Chebotar11 , Yifan Zhou2 ,
+                                             Yifeng Zhu30 , Yilin Wu4 , Ying Xu11 , Yixuan Wang39 , Yonatan Bisk4 , Yongqiang Dou33 , Yoonyoung Cho17 , Youngwoon Lee34 , Yuchen Cui28 ,
+                                                        Yue Cao13 , Yueh-Hua Wu36 , Yujin Tang11,31 , Yuke Zhu30 , Yunchu Zhang46 , Yunfan Jiang28 , Yunshuang Li42 , Yunzhu Li39 ,
+                                                       Yusuke Iwasawa31 , Yutaka Matsuo31 , Zehan Ma34 , Zhuo Xu11 , Zichen Jeff Cui23 , Zichen Zhang1 , Zipeng Fu28 , Zipeng Lin34
+
+
+
+
+                                         Fig. 1: We propose an open, large-scale dataset for robot learning curated from 21 institutions across the globe. The dataset represents
+                                         diverse behaviors, robot embodiments and environments, and enables learning generalized robotic policies.
+
+                                           Abstract— Large, high-capacity models trained on diverse                  for many applications. Can such a consolidation happen in
+                                         datasets have shown remarkable successes on efficiently tackling            robotics? Conventionally, robotic learning methods train a
+                                         downstream applications. In domains from NLP to Computer                    separate model for every application, every robot, and even
+                                         Vision, this has led to a consolidation of pretrained models,               every environment. Can we instead train “generalist” X-robot
+                                         with general pretrained backbones serving as a starting point               policy that can be adapted efficiently to new robots, tasks,
+and environments? In this paper, we provide datasets in                                      in environments and robots. Learning generalizable robot
+standardized data formats and models to make it possible to                                  policies requires developing methods that can utilize X-
+explore this possibility in the context of robotic manipulation,                             embodiment data, tapping into datasets from many labs,
+alongside experimental results that provide an example of
+effective X-robot policies. We assemble a dataset from 22                                    robots, and settings. Even if such datasets in their current
+different robots collected through a collaboration between 21                                size and coverage are insufficient to attain the impressive
+institutions, demonstrating 527 skills (160266 tasks). We show                               generalization results that have been demonstrated by large
+that a high-capacity model trained on this data, which we call                               language models, in the future, the union of such data can
+RT-X, exhibits positive transfer and improves the capabilities of                            potentially provide this kind of coverage. Because of this, we
+multiple robots by leveraging experience from other platforms.
+The project website is robotics-transformer-x.github.io.                                     believe that enabling research into X-embodiment robotic
+                       I. I NTRODUCTION                                                      learning is critical at the present juncture.
+   A central lesson from advances in machine learning and                                       Following this rationale, we have two goals: (1) Evaluate
+artificial intelligence is that large-scale learning from di-                                whether policies trained on data from many different robots
+verse datasets can enable capable AI systems by providing                                    and environments enjoy the benefits of positive transfer,
+for general-purpose pretrained models. In fact, large-scale                                  attaining better performance than policies trained only on
+general-purpose models typically trained on large and di-                                    data from each evaluation setup. (2) Organize large robotic
+verse datasets can often outperform their narrowly targeted                                  datasets to enable future research on X-embodiment models.
+counterparts trained on smaller but more task-specific data.                                    We focus our work on robotic manipulation. Addressing
+For instance, open-vocab classifiers (e.g., CLIP [1]) trained                                goal (1), our empirical contribution is to demonstrate that
+on large datasets scraped from the web tend to outperform                                    several recent robotic learning methods, with minimal mod-
+fixed-vocabulary models trained on more limited datasets,                                    ification, can utilize X-embodiment data and enable positive
+and large language models [2, 3] trained on massive text                                     transfer. Specifically, we train the RT-1 [8] and RT-2 [9]
+corpora tend to outperform systems that are only trained on                                  models on 9 different robotic manipulators. We show that
+narrow task-specific datasets. Increasingly, the most effective                              the resulting models, which we call RT-X, can improve over
+way to tackle a given narrow task (e.g., in vision or NLP)                                   policies trained only on data from the evaluation domain,
+is to adapt a general-purpose model. However, these lessons                                  exhibiting better generalization and new capabilities. Ad-
+are difficult to apply in robotics: any single robotic domain                                dressing (2), we provide the Open X-Embodiment (OXE)
+might be too narrow, and while computer vision and NLP can                                   Repository, which includes a dataset with 22 different robotic
+leverage large datasets sourced from the web, comparably                                     embodiments from 21 different institutions that can enable
+large and broad datasets for robotic interaction are hard to                                 the robotics community to pursue further research on X-
+come by. Even the largest data collection efforts still end                                  embodiment models, along with open-source tools to facili-
+up with datasets that are a fraction of the size and diversity                               tate such research. Our aim is not to innovate in terms of the
+of benchmark datasets in vision (5-18M) [4, 5] and NLP                                       particular architectures and algorithms, but rather to provide
+(1.5B-4.5B) [6, 7]. More importantly, such datasets are often                                the model that we trained together with data and tools to
+still narrow along some axes of variation, either focusing on                                energize research around X-embodiment robotic learning.
+                                                                                                                   II. R ELATED W ORK
+a single environment, a single set of objects, or a narrow
+range of tasks. How can we overcome these challenges in                                      Transfer across embodiments. A number of prior works
+robotics and move the field of robotic learning toward large                                 have studied methods for transfer across robot embodiments
+data regime that has been so successful in other domains?                                    in simulation [10–22] and on real robots [23–29]. These
+   Inspired by the generalization made possible by pretrain-                                 methods often introduce mechanisms specifically designed to
+ing large vision or language models on diverse data, we                                      address the embodiment gap between different robots, such
+take the perspective that the goal of training generalizable                                 as shared action representations [14, 30], incorporating rep-
+robot policies requires X-embodiment training, i.e., with                                    resentation learning objectives [17, 26], adapting the learned
+data from multiple robotic platforms. While each individual                                  policy on embodiment information [11, 15, 18, 30, 31], and
+robotic learning dataset might be too narrow, the union of                                   decoupling robot and environment representations [24]. Prior
+all such datasets provides a better coverage of variations                                   work has provided initial demonstrations of X-embodiment
+                                                                                             training [27] and transfer [25, 29, 32] with transformer
+   0 1 Allen Institute for AI; 2 Arizona State University; 3 California Institute of Tech-   models. We investigate complementary architectures and
+nology; 4 Carnegie Mellon University; 5 Columbia University; 6 EPFL; 7 ETH Zürich;
+8
+  Flexiv Robotics; 9 Georgia Institute of Technology; 10 German Aerospace Center;
+                                                                                             provide complementary analyses, and, in particular, study the
+11
+   Google DeepMind; 12 Google Research; 13 IO-AI TECH; 14 Imperial College Lon-              interaction between X-embodiment transfer and web-scale
+don; 15 Intrinsic LLC; 16 Istituto Italiano di Tecnologia; 17 Korea Advanced Institute
+of Science & Technology; 18 Max Planck Institute; 19 Meta AI; 20 Microsoft Re-
+                                                                                             pretraining. Similarly, methods for transfer across human
+search; 21 Mila Quebec; 22 NVIDIA; 23 New York University; 24 Princeton University;
+25
+                                                                                             and robot embodiments also often employ techniques for
+   Queensland University of Technology; 26 RIKEN; 27 Shanghai Jiao Tong University;
+28
+   Stanford University; 29 Technische Universität Darmstadt; 30 The University of Texas
+                                                                                             reducing the embodiment gap, i.e. by translating between
+at Austin; 31 The University of Tokyo; 32 Toyota Research Institute; 33 Tsinghua             domains or learning transferable representations [33–43]. Al-
+University; 34 University of California, Berkeley; 35 University of California, Davis;
+36
+   University of California, San Diego; 37 University of Edinburgh; 38 University of
+                                                                                             ternatively, some works focus on sub-aspects of the problem
+Freiburg; 39 University of Illinois Urbana-Champaign; 40 University of Michigan;
+41
+                                                                                             such as learning transferable reward functions [17, 44–48],
+   University of Montreal; 42 University of Pennsylvania; 43 University of Southern
+California; 44 University of Technology, Nuremberg; 45 University of Texas at Austin;
+                                                                                             goals [49, 50], dynamics models [51], or visual representa-
+46
+   University of Washington                                                                  tions [52–59] from human video data. Unlike most of these
+                                                                                                                                Google
+                                                                                Franka                                          Robot
+
+                                                                     Google
+                                                                                                                 xArm                  Franka
+                                                                     Robot
+
+
+                                                                                                                                Kuka iiwa
+                                                                       xArm
+                        Fra nk  a                                                                Sawyer
+              Go      S
+                 og wye  axA rm
+                                                                                               Kinova Gen3
+                   Kule  Ro r
+                        ka  bo
+                           iiw  t
+               He    Wi
+                  llo owXd UR   a
+                                5
+                 DL    St ret
+                           PR ch
+                      R  SA  RA 2
+                                                                                             Hello Stretch
+             xA  Un co 2
+               rm treei Ja
+                    Bim A1
+                         an
+                      Co al
+                 DL bott     u
+                                                                    WidowX          Jackal                   WidowX             Sawyer
+               Kin PAMR  ED  AN a
+                Fa  ov  aG 2
+                    nu en3
+                        cM   Y
+                        Ja e
+                           ck
+                       RC al at
+                 Tu  rtle ar
+                          Bo
+                        Ba 2C t
+                           xte
+                     (a) # Datasets per Robot Embodiment        (b) # Scenes per Embodiment            (c) # Trajectories per Embodiment
+                                r
+
+
+
+
+                                                                       Shapes
+
+
+
+                                                                                Containers                      Food
+
+                                                                                                Furniture
+                                                                                                                        Appliances
+
+                                                                                                                                       Utensils
+
+
+
+                    pic
+                    mo g kin
+                   pu ng
+                      sh
+                    pla gvi
+                         cinin g                                    he xa
+                                                                                         tra
+                                                                                       bo ywl
+                                                                                          po
+                                                                                         bo tx                                          f
+                                                                                                                                      sp ork
+                                                                     tria gon
+                     sli
+                    pu g din
+                        ttin                                                        ba upc
+                                                                                        sk  et                                          oo
+                                                                                                                                       k n
+               na vig         g                                                    co  u
+              se atin
+                  pa rat
+                  po ng    i  g                                          ng         dr nter
+                                                                                       aw
+                                                                                       t er                                          sp nife
+                                                                        he le
+                     int
+                  op ng    i                                                       ca able
+                                                                                       bin
+                                                                                        do te
+                  nu en
+                     dg   ing                                              a           ch or
+                                                                                           air                                         atu
+                                                                        cu rt
+                   clo ng
+                       s
+                 ins ing
+                     ert   i
+                           in                                                         ap
+                                                                                    or ple
+                                                                                   b nga
+                                                                                 co anane                                                  la
+                kn
+                dr
+                dro oc g
+                   ag g
+                     ppkin
+                       gin
+                    wi g  in  g                                            be       ke a
+                                                                                  ch ca
+                                                                                     ip n
+                                                                                     fau ba
+                                                                                          c
+                                                                                      frid etg
+             as se
+              tur  mb g
+                  nin gpin
+                         lin                                                            s e
+                                                                                mi st ink
+                                                                                  cro ov
+                                                                                       wa eg
+                      g
+                  ke on
+                     ep   ing                                                          ov ev
+                                                                                           en
+
+                        (d) Common Dataset Skills                                        (e) Common Dataset Objects
+Fig. 2: The Open X-Embodiment Dataset. (a): the dataset consists of 60 individual datasets across 22 embodiments. (b): the Franka robot
+has the largest diversity in visually distinct scenes due to the large number of Franka datasets, (c): xArm and Google Robot contribute
+the most number of trajectories due to a few large datasets, (d, e): the dataset contains a great diversity of skills and common objects.
+prior works, we directly train a policy on X-embodiment                  •  Open X-Embodiment Dataset: robot learning dataset
+data, without any mechanisms to reduce the embodiment gap,                  with 1M+ robot trajectories from 22 robot embodi-
+and observe positive transfer by leveraging that data.                      ments.
+Large-scale robot learning datasets. The robot learning                  • Pre-Trained Checkpoints: a selection of RT-X model
+community has created open-source robot learning datasets,                  checkpoints ready for inference and finetuning.
+spanning grasping [60–71], pushing interactions [23, 72–74],          We intend for these resources to form a foundation for X-
+sets of objects and models [75–85], and teleoperated demon-           embodiment research in robot learning, but they are just
+strations [8, 86–95]. With the exception of RoboNet [23],             the start. Open X-Embodiment is a community-driven effort,
+these datasets contain data of robots of the same type,               currently involving 21 institutions from around the world,
+whereas we focus on data spanning multiple embodiments.               and we hope to further broaden participation and grow the
+The goal of our data repository is complementary to these             initial Open X-Embodiment Dataset over time. In this sec-
+efforts: we process and aggregate a large number of prior             tion, we summarize the dataset and X-embodiment learning
+datasets into a single, standardized repository, called Open          framework, before discussing the specific models we use to
+X-Embodiment, which shows how robot learning datasets                 evaluate our dataset and our experimental results.
+can be shared in a meaningul and useful way.                          A. The Open X-Embodiment Dataset
+Language-conditioned robot learning. Prior work has
+                                                                         The Open X-Embodiment Dataset contains 1M+ real robot
+aimed to endow robots and other agents with the ability to
+                                                                      trajectories spanning 22 robot embodiments, from single
+understand and follow language instructions [96–101], often
+                                                                      robot arms to bi-manual robots and quadrupeds. The dataset
+by learning language-conditioned policies [8, 40, 45, 102–
+                                                                      was constructed by pooling 60 existing robot datasets from
+106]. We train language-conditioned policies via imitation
+                                                                      34 robotic research labs around the world and converting
+learning like many of these prior works but do so using
+                                                                      them into a consistent data format for easy download and
+large-scale multi-embodiment demonstration data. Following
+                                                                      usage. We use the RLDS data format [119], which saves data
+previous works that leverage pre-trained language embed-
+                                                                      in serialized tfrecord files and accommodates the various
+dings [8, 40, 45, 103, 107–112] and pre-trained vision-
+                                                                      action spaces and input modalities of different robot setups,
+language models [9, 113–115] in robotic imitation learning,
+                                                                      such as differing numbers of RGB cameras, depth cameras
+we study both forms of pre-training in our experiments,
+                                                                      and point clouds. It also supports efficient, parallelized data
+specifically following the recipes of RT-1 [8] and RT-2 [9].
+                                                                      loading in all major deep learning frameworks. For more
+      III. T HE O PEN X-E MBODIMENT R EPOSITORY                       details about the data storage format and a breakdown of all
+                                                                      60 datasets, see robotics-transformer-x.github.io.
+   We introduce the Open X-Embodiment Repository
+(robotics-transformer-x.github.io) – an open-source reposi-           B. Dataset Analysis
+tory which includes large-scale data along with pre-trained              Fig. 2 analyzes the Open X-Embodiment Dataset. Fig. 2(a)
+model checkpoints for X-embodied robot learning research.             shows the breakdown of datasets by robot embodiments,
+More specifically, we provide and maintain the following              with the Franka robot being the most common. This is
+open-source resources to the broader community:                       reflected in the number of distinct scenes (based on dataset
+                                                                                                                                10 Hz
+                            Route cable                                                                              Discrete
+                                                                                                                     Discrete   Closed Gripper
+                                                                                                                      Action
+                                                                                                                      Action
+                                                  Instruction                                                                   Velocity
+                                                                 ·
+                                                                                                                                Z-Rot. Velocity
+                                                   Images
+                                                                β
+                                                                 +
+                                                                                                            RT-1-X
+                                                                (1+γ)
+
+
+
+
+                                                                                                                                3 Hz
+                     Pick apple from top drawer
+                        and place on counter                                                                                    Gripper
+                                                                        FiLM EﬃcientNet   Transformer                           Position Delta
+                                                                                                                                Rotation Delta
+                                                                                                                     Discrete
+                                                                                                                     Discrete
+                                                  Instruction                                                         Action
+                                                                                                                      Action
+                                                                                                                                5 Hz
+                       Pick up the orange fruit     Image                                                   RT-2-X              Gripper
+                                                                                                                                Position Delta
+                                                                  ViT              LLM       De-Tokenizer
+                                                                                                                                No Rotation
+
+
+
+Fig. 3: RT-1-X and RT-2-X both take images and a text instruction as input and output discretized end-effector actions. RT-1-X is an
+architecture designed for robotics, with a FiLM [116] conditioned EfficientNet [117] and a Transformer [118]. RT-2-X builds on a VLM
+backbone by representing actions as another language, and training action text tokens together with vision-language data.
+metadata) per embodiment (Fig. 2(b)), where Franka dom-                                        B. Policy architectures
+inates. Fig. 2(c) shows the breakdown of trajectories per                                         We consider two model architectures in our experiments:
+embodiment. To further analyze the diversity, we use the                                       (1) RT-1 [8], an efficient Transformer-based architecture
+language annotations present in our data. We use the PaLM                                      designed for robotic control, and (2) RT-2 [9] a large vision-
+language model [3] to extract objects and behaviors from                                       language model co-fine-tuned to output robot actions as
+the instructions. Fig. 2(d,e) show the diversity of skills and                                 natural language tokens. Both models take in a visual input
+objects. While most skills belong to the pick-place family,                                    and natural language instruction describing the task, and
+the long tail of the dataset contains skills like “wiping” or                                  output a tokenized action. For each model, the action is
+“assembling”. Additionally, the data covers a range of house-                                  tokenized into 256 bins uniformly distributed along each of
+hold objects, from appliances to food items and utensils.                                      eight dimensions; one dimension for terminating the episode
+                       IV. RT-X D ESIGN                                                        and seven dimensions for end-effector movement. Although
+   To evaluate how much X-embodiment training can im-                                          both architectures are described in detail in their original
+prove the performance of learned policies on individual                                        papers [8, 9], we provide a short summary of each below:
+robots, we require models that have sufficient capacity to                                        RT-1 [8] is a 35M parameter network built on a Trans-
+productively make use of such large and heterogeneous                                          former architecture [118] and designed for robotic control,
+datasets. To that end, our experiments will build on two                                       as shown in Fig. 3. It takes in a history of 15 images
+recently proposed Transformer-based robotic policies: RT-                                      along with the natural language. Each image is processed
+1 [8] and RT-2 [9]. We briefly summarize the design of these                                   through an ImageNet-pretrained EfficientNet [117] and the
+models in this section, and discuss how we adapted them to                                     natural language instruction is transformed into a USE [120]
+the X-embodiment setting in our experiments.                                                   embedding. The visual and language representations are then
+                                                                                               interwoven via FiLM [116] layers, producing 81 vision-
+A. Data format consolidation
+                                                                                               language tokens. These tokens are fed into a decoder-only
+   One challenge of creating X-embodiment models is that                                       Transformer, which outputs the tokenized actions.
+observation and action spaces vary significantly across                                           RT-2 [9] is a family of large vision-language-action
+robots. We use a coarsely aligned action and observation                                       models (VLAs) trained on Internet-scale vision and language
+space across datasets. The model receives a history of                                         data along with robotic control data. RT-2 casts the tokenized
+recent images and language instructions as observations and                                    actions to text tokens, e.g., a possible action may be “1 128
+predicts a 7-dimensional action vector controlling the end-                                    91 241 5 101 127”. As such, any pretrained vision-language
+effector (x, y, z, roll, pitch, yaw, and gripper opening or the                                model (VLM [121–123]) can be finetuned for robotic control,
+rates of these quantities). We select one canonical camera                                     thus leveraging the backbone of VLMs and transferring some
+view from each dataset as the input image, resize it to a com-                                 of their generalization properties. In this work, we focus on
+mon resolution and convert the original action set into a 7                                    the RT-2-PaLI-X variant [121] built on a backbone of a visual
+DoF end-effector action. We normalize each dataset’s actions                                   model, ViT [124], and a language model, UL2 [125], and
+prior to discretization. This way, an output of the model can                                  pretrained primarily on the WebLI [121] dataset.
+be interpreted (de-normalized) differently depending on the
+embodiment used. It should be noted that despite this coarse                                   C. Training and inference details
+alignment, the camera observations still vary substantially                                       Both models use a standard categorical cross-entropy
+across datasets, e.g. due to differing camera poses relative                                   objective over their output space (discrete buckets for RT-
+to the robot or differing camera properties, see Figure 3.                                     1 and all possible language tokens for RT-2).
+Similarly, for the action space, we do not align the coordinate                                   We define the robotics data mixture used across all of
+frames across datasets in which the end-effector is controlled,                                the experiments as the data from 9 manipulators, and taken
+and allow action values to represent either absolute or relative                               from RT-1 [8], QT-Opt [66], Bridge [95], Task Agnostic
+positions or velocities, as per the original control scheme                                    Robot Play [126, 127], Jaco Play [128], Cable Routing [129],
+chosen for each robot. Thus, the same action vector may                                        RoboTurk [86], NYU VINN [130], Austin VIOLA [131],
+induce very different motions for different robots.                                            Berkeley Autolab UR5 [132], TOTO [133] and Language
+Fig. 4: RT-1-X mean success rate is 50% higher than that of either the Original Method or RT-1. RT-1 and RT-1-X have the same network
+architecture. Therefore the performance increase can be attributed to co-training on the robotics data mixture. The lab logos indicate the
+physical location of real robot evaluation, and the robot pictures indicate the embodiment used for the evaluation.
+                                                                          tasks. We split our evaluation into two types: evaluation on
+ Evaluation Setting    Bridge           Bridge      RT-1 paper 6 skills
+                                                                          domains that have small-scale datasets (Fig. 4), where we
+ Evaluation Location IRIS (Stanford) RAIL Lab (UCB) Google Robotic Lab
+ Robot Embodiment       WidowX          WidowX        Google Robot        would expect transfer from larger datasets to significantly
+ Original Method       LCBC [95]       LCBC [95]            -             improve performance, and evaluation on domains that have
+ Original Method        13%             13%                  -            large-scale datasets (Table I), where we expect further im-
+ RT-1                   40%             30%                92%
+ RT-1-X                 27%             27%                73%
+                                                                          provement to be more challenging. Note that we use the
+ RT-2-X (55B)           50%             30%                91%            same robotics data training mixture (defined in Sec. IV-C) for
+TABLE I: Parameter count scaling experiment to assess the impact
+                                                                          all the evaluations presented in this section. For small-scale
+of capacity on absorbing large-scale diverse embodiment data. For         dataset experiments, we use Kitchen Manipulation [128],
+these large-scale datasets (Bridge and RT-1 paper data), RT-1-X           Cable Routing [129], NYU Door Opening [130], AUTOLab
+underfits and performs worse than the Original Method and RT-1.           UR5 [132], and Robot Play [134]. We use the same evalua-
+RT-2-X model with significantly many more parameters can obtain           tion and robot embodiment as in the respective publications.
+strong performance in these two evaluation scenarios.
+                                                                          For large-scale dataset experiments, we consider Bridge [95]
+Table [91] datasets. RT-1-X is trained on only robotics                   and RT-1 [8] for in-distribution evaluation and use their
+mixture data defined above, whereas RT-2-X is trained via                 respective robots: WidowX and Google Robot.
+co-fine-tuning (similarly to the original RT-2 [9]), with an
+approximately one to one split of the original VLM data                      For each small dataset domain, we compare the perfor-
+and the robotics data mixture. Note that the robotics data                mance of the RT-1-X model, and for each large dataset
+mixture used in our experiments includes 9 embodiments                    we consider both the RT-1-X and RT-2-X models. For
+which is fewer than the entire Open X-Embodiment dataset                  all experiments, the models are co-trained on the full X-
+(22) – the practical reason for this difference is that we have           embodiment dataset. Throughout this evaluation we compare
+continued to extend the dataset over time, and at the time                with two baseline models: (1) The model developed by
+of the experiments, the dataset above represented all of the              the creators of the dataset trained only on that respective
+data. In the future, we plan to continue training policies on             dataset. This constitutes a reasonable baseline insofar as
+the extended versions of the dataset as well as continue to               it can be expected that the model has been optimized to
+grow the dataset together with the robot learning community.              work well with the associated data; we refer to this baseline
+   At inference time, each model is run at the rate required              model as the Original Method model. (2) An RT-1 model
+for the robot (3-10 Hz), with RT-1 run locally and RT-2                   trained on the dataset in isolation; this baseline allows us to
+hosted on a cloud service and queried over the network.                   assess whether the RT-X model architectures have enough
+                V. E XPERIMENTAL R ESULTS                                 capacity to represent policies for multiple different robot
+                                                                          platforms simultaneously, and whether co-training on multi-
+   Our experiments answer three questions about the effect                embodiment data leads to higher performance.
+of X-embodiment training: (1) Can policies trained on our
+X-embodiment dataset effectively enable positive transfer,                   Small-scale dataset domains (Fig. 4). RT-1-X outper-
+such that co-training on data collected on multiple robots                forms Original Method trained on each of the robot-specific
+improves performance on the training task? (2) Does co-                   datasets on 4 of the 5 datasets, with a large average im-
+training models on data from multiple platforms and tasks                 provement, demonstrating domains with limited data benefit
+improve generalization to new, unseen tasks? (3) What is the              substantially from co-training on X-embodiment data.
+influence of different design dimensions, such as model size,
+model architecture or dataset composition, on performance                    Large-scale dataset domains (Table I). In the large-
+and generalization capabilities of the resulting policy? To               dataset setting, the RT-1-X model does not outperform
+answer these questions we conduct the total number of 3600                the RT-1 baseline trained on only the embodiment-specific
+evaluation trials across 6 different robots.                              dataset, which indicates underfitting for that model class.
+                                                                          However, the larger RT-2-X model outperforms both the
+A. In-distribution performance across different embodiments               Original Method and RT-1 suggesting that X-robot training
+  To assess the ability of RT-X models to learn from X-                   can improve performance in the data-rich domains, but only
+embodiment data, we evaluate performance on in-distribution               when utilizing a sufficiently high-capacity architecture.
+ Row   Model   Size History Length             Dataset             Co-Trained w/ Web Initial Checkpoint Emergent Skills Evaluation RT-2 Generalization Evaluation
+ (1)    RT-2 55B         none           Google Robot action               Yes           Web-pretrained            27.3%                         62%
+ (2)   RT-2-X 55B        none               Robotics data                 Yes           Web-pretrained            75.8%                         61%
+ (3)   RT-2-X 55B        none        Robotics data except Bridge          Yes           Web-pretrained            42.8%                         54%
+ (4)   RT-2-X 5B          2                 Robotics data                 Yes           Web-pretrained            44.4%                         52%
+ (5)   RT-2-X 5B         none               Robotics data                 Yes           Web-pretrained            14.5%                         30%
+ (6)   RT-2-X 5B          2                 Robotics data                 No            From scratch               0%                            1%
+ (7)   RT-2-X 5B          2                 Robotics data                 No            Web-pretrained            48.7%                         47%
+
+TABLE II: Ablations to show the impact of design decisions on generalization (to unseen objects, backgrounds, and environments) and
+emergent skills (skills from other datasets on the Google Robot), showing the importance of Web-pretraining, model size, and history.
+B. Improved generalization to out-of-distribution settings
+   We now examine how X-embodiment training can enable
+better generalization to out-of-distribution settings and more
+complex and novel instructions. These experiments focus on
+the high-data domains, and use the RT-2-X model.
+   Unseen objects, backgrounds and environments. We
+first conduct the same evaluation of generalization properties
+as proposed in [9], testing for the ability to manipulate
+unseen objects in unseen environments and against unseen
+backgrounds. We find that RT-2 and RT-2-X perform roughly
+on par (Table II, rows (1) and (2), last column). This is not
+unexpected, since RT-2 already generalizes well (see [9])
+along these dimensions due to its VLM backbone.
+   Emergent skills evaluation. To investigate the transfer
+of knowledge across robots, we conduct experiments with
+the Google Robot, assessing the performance on tasks like
+the ones shown in Fig. 5. These tasks involve objects and                           Fig. 5: To assess transfer between embodiments, we evaluate the
+skills that are not present in the RT-2 dataset but occur in the                    RT-2-X model on out-of-distribution skills. These skills are in
+Bridge dataset [95] for a different robot (the WidowX robot).                       the Bridge dataset, but not in the Google Robot dataset (the
+                                                                                    embodiment they are evaluated on).
+Results are shown in Table II, Emergent Skills Evaluation                           across robotic datasets. Contrary to previous RT-2 findings,
+column. Comparing rows (1) and (2), we find that RT-2-X                             co-fine-tuning and fine-tuning have similar performance in
+outperforms RT-2 by ∼ 3×, suggesting that incorporating                             both the Emergent Skills and Generalization Evaluation (row
+data from other robots into the training improves the range                         (4) vs row (7)), which we attribute to the fact that the robotics
+of tasks that can be performed even by a robot that already                         data used in RT-2-X is much more diverse than the previously
+has large amounts of data available. Our results suggest that                       used robotics datasets.
+co-training with data from other platforms imbues the RT-2-
+X controller with additional skills for the platform that are                       VI. D ISCUSSION , F UTURE W ORK , AND O PEN P ROBLEMS
+not present in that platform’s original dataset.                                       We presented a consolidated dataset that combines data
+   Our next ablation involves removing the Bridge dataset                           from 22 robotic embodiments collected through a collab-
+from RT-2-X training: Row (3) shows the results for RT-2-                           oration between 21 institutions, demonstrating 527 skills
+X that includes all data used for RT-2-X except the Bridge                          (160266 tasks). We also presented an experimental demon-
+dataset. This variation significantly reduces performance on                        stration that Transformer-based policies trained on this data
+the hold-out tasks, suggesting that transfer from the WidowX                        can exhibit significant positive transfer between the different
+data may indeed be responsible for the additional skills that                       robots in the dataset. Our results showed that the RT-1-
+can be performed by RT-2-X with the Google Robot.                                   X policy has a 50% higher success rate than the original,
+                                                                                    state-of-the-art methods contributed by different collabo-
+C. Design decisions                                                                 rating institutions, while the bigger vision-language-model-
+   Lastly, we perform ablations to measure the influence of                         based version (RT-2-X) demonstrated ∼ 3× generalization
+different design decisions on the generalization capabilities                       improvements over a model trained only on data from the
+of our most performant RT-2-X model, which are presented                            evaluation embodiment. In addition, we provided multiple
+in Table II. We note that including a short history of im-                          resources for the robotics community to explore the X-
+ages significantly improves generalization performance (row                         embodiment robot learning research, including: the unified
+(4) vs row (5)). Similarly to the conclusions in the RT-2                           X-robot and X-institution dataset, sample code showing
+paper [9], Web-based pre-training of the model is critical                          how to use the data, and the RT-1-X model to serve as a
+to achieving a high performance for the large models (row                           foundation for future exploration.
+(4) vs row (6)). We also note that the 55B model has                                   While RT-X demonstrates a step towards a X-embodied
+significantly higher success rate in the Emergent Skills com-                       robot generalist, many more steps are needed to make this
+pared to the 5B model (row (2) vs row (4)), demonstrating                           future a reality. Our experiments do not consider robots
+that higher model capacity enables higher degree of transfer                        with very different sensing and actuation modalities. They
+do not study generalization to new robots, and provide a              Advances in Neural Information Processing Systems,
+decision criterion for when positive transfer does or does            2018, pp. 9355–9366.
+not happen. Studying these questions is an important future      [12] A. Sanchez-Gonzalez, N. Heess, J. T. Springenberg,
+work direction. This work serves not only as an example that          J. Merel, M. Riedmiller, R. Hadsell, and P. Battaglia,
+X-robot learning is feasible and practical, but also provide          “Graph networks as learnable physics engines for
+the tools to advance research in this direction in the future.        inference and control,” in Proceedings of the 35th
+                                                                      International Conference on Machine Learning, ser.
+                       R EFERENCES                                    Proceedings of Machine Learning Research, J. Dy
+                                                                      and A. Krause, Eds., vol. 80. PMLR, 10–15 Jul
+  [1] A. Radford, J. W. Kim, C. Hallacy, A. Ramesh,                   2018, pp. 4470–4479. [Online]. Available: https://
+      G. Goh, S. Agarwal, G. Sastry, A. Askell, P. Mishkin,           proceedings.mlr.press/v80/sanchez-gonzalez18a.html
+      J. Clark et al., “Learning transferable visual models      [13] D. Pathak, C. Lu, T. Darrell, P. Isola, and A. A. Efros,
+      from natural language supervision,” in International            “Learning to control self-assembling morphologies: a
+      conference on machine learning. PMLR, 2021, pp.                 study of generalization via modularity,” Advances in
+      8748–8763.                                                      Neural Information Processing Systems, vol. 32, 2019.
+  [2] OpenAI, “GPT-4 technical report,” 2023.                    [14] R. Martı́n-Martı́n, M. Lee, R. Gardner, S. Savarese,
+  [3] R. Anil, A. M. Dai, O. Firat, M. Johnson, D. Lepikhin,          J. Bohg, and A. Garg, “Variable impedance control in
+      A. Passos, S. Shakeri, E. Taropa, P. Bailey, Z. Chen            end-effector space. an action space for reinforcement
+      et al., “PaLM 2 technical report,” arXiv preprint               learning in contact rich tasks,” in Proceedings of the
+      arXiv:2305.10403, 2023.                                         International Conference of Intelligent Robots and
+  [4] T. Weyand, A. Araujo, B. Cao, and J. Sim, “Google               Systems (IROS), 2019.
+      landmarks dataset v2 - a large-scale benchmark for         [15] W. Huang, I. Mordatch, and D. Pathak, “One policy to
+      instance-level recognition and retrieval,” in Proceed-          control them all: Shared modular policies for agent-
+      ings of the IEEE/CVF Conference on Computer Vision              agnostic control,” in ICML, 2020.
+      and Pattern Recognition (CVPR), June 2020.                 [16] V. Kurin, M. Igl, T. Rocktäschel, W. Boehmer, and
+  [5] B. Wu, W. Chen, Y. Fan, Y. Zhang, J. Hou, J. Liu,               S. Whiteson, “My body is a cage: the role of mor-
+      and T. Zhang, “Tencent ML-images: A large-scale                 phology in graph-based incompatible control,” arXiv
+      multi-label image database for visual representation            preprint arXiv:2010.01856, 2020.
+      learning,” IEEE Access, vol. 7, 2019.                      [17] K. Zakka, A. Zeng, P. Florence, J. Tompson, J. Bohg,
+  [6] J. Lehmann, R. Isele, M. Jakob, A. Jentzsch,                    and D. Dwibedi, “XIRL: Cross-embodiment inverse
+      D. Kontokostas, P. N. Mendes, S. Hellmann,                      reinforcement learning,” Conference on Robot Learn-
+      M. Morsey, P. van Kleef, S. Auer, and C. Bizer,                 ing (CoRL), 2021.
+      “DBpedia - a large-scale, multilingual knowledge           [18] A. Ghadirzadeh, X. Chen, P. Poklukar, C. Finn,
+      base extracted from wikipedia.” Semantic Web,                   M. Björkman, and D. Kragic, “Bayesian meta-learning
+      vol. 6, no. 2, pp. 167–195, 2015. [Online].                     for few-shot policy adaptation across robotic plat-
+      Available: http://dblp.uni-trier.de/db/journals/semweb/         forms,” in 2021 IEEE/RSJ International Conference
+      semweb6.html#LehmannIJJKMHMK15                                  on Intelligent Robots and Systems (IROS). IEEE,
+  [7] H. Mühleisen and C. Bizer, “Web data commons-                  2021, pp. 1274–1280.
+      extracting structured data from two large web cor-         [19] A. Gupta, L. Fan, S. Ganguli, and L. Fei-Fei, “Meta-
+      pora.” LDOW, vol. 937, pp. 133–145, 2012.                       morph: Learning universal controllers with transform-
+  [8] A. Brohan, N. Brown, J. Carbajal, Y. Chebotar,                  ers,” in International Conference on Learning Repre-
+      J. Dabis, C. Finn, K. Gopalakrishnan, K. Hausman,               sentations, 2021.
+      A. Herzog, J. Hsu et al., “RT-1: Robotics transformer      [20] I. Schubert, J. Zhang, J. Bruce, S. Bechtle,
+      for real-world control at scale,” Robotics: Science and         E. Parisotto, M. Riedmiller, J. T. Springenberg,
+      Systems (RSS), 2023.                                            A. Byravan, L. Hasenclever, and N. Heess, “A gen-
+  [9] A. Brohan, N. Brown, J. Carbajal, Y. Chebotar,                  eralist dynamics model for control,” 2023.
+      X. Chen, K. Choromanski, T. Ding, D. Driess,               [21] D. Shah, A. Sridhar, A. Bhorkar, N. Hirose, and
+      A. Dubey, C. Finn et al., “RT-2: Vision-language-               S. Levine, “GNM: A general navigation model to drive
+      action models transfer web knowledge to robotic con-            any robot,” in 2023 IEEE International Conference on
+      trol,” arXiv preprint arXiv:2307.15818, 2023.                   Robotics and Automation (ICRA). IEEE, 2023, pp.
+ [10] C. Devin, A. Gupta, T. Darrell, P. Abbeel, and                  7226–7233.
+      S. Levine, “Learning modular neural network policies       [22] Y. Zhou, S. Sonawani, M. Phielipp, S. Stepputtis, and
+      for multi-task and multi-robot transfer,” in 2017 IEEE          H. Amor, “Modularity through attention: Efficient
+      international conference on robotics and automation             training and transfer of language-conditioned policies
+      (ICRA). IEEE, 2017, pp. 2169–2176.                              for robot manipulation,” in Proceedings of The 6th
+ [11] T. Chen, A. Murali, and A. Gupta, “Hardware con-                Conference on Robot Learning, ser. Proceedings
+      ditioned policies for multi-robot transfer learning,” in        of Machine Learning Research, K. Liu, D. Kulic,
+     and J. Ichnowski, Eds., vol. 205. PMLR, 14–                    controller,” Advances in Neural Information Process-
+     18 Dec 2023, pp. 1684–1695. [Online]. Available:               ing Systems, vol. 32, 2019.
+     https://proceedings.mlr.press/v205/zhou23b.html           [36] L. Smith, N. Dhawan, M. Zhang, P. Abbeel, and
+[23] S. Dasari, F. Ebert, S. Tian, S. Nair, B. Bucher,              S. Levine, “Avid: Learning multi-stage tasks via pixel-
+     K. Schmeckpeper, S. Singh, S. Levine, and C. Finn,             level translation of human videos,” arXiv preprint
+     “RoboNet: Large-scale multi-robot learning,” in Con-           arXiv:1912.04443, 2019.
+     ference on Robot Learning (CoRL), vol. 100. PMLR,         [37] A. Bonardi, S. James, and A. J. Davison, “Learning
+     2019, pp. 885–897.                                             one-shot imitation from humans without humans,”
+[24] E. S. Hu, K. Huang, O. Rybkin, and D. Jayaraman,               IEEE Robotics and Automation Letters, vol. 5, no. 2,
+     “Know thyself: Transferable visual control policies            pp. 3533–3539, 2020.
+     through robot-awareness,” in International Conference     [38] K. Schmeckpeper, O. Rybkin, K. Daniilidis, S. Levine,
+     on Learning Representations, 2022.                             and C. Finn, “Reinforcement learning with videos:
+[25] K. Bousmalis, G. Vezzani, D. Rao, C. Devin, A. X.              Combining offline observations with interaction,” in
+     Lee, M. Bauza, T. Davchev, Y. Zhou, A. Gupta,                  Conference on Robot Learning. PMLR, 2021, pp.
+     A. Raju et al., “RoboCat: A self-improving founda-             339–354.
+     tion agent for robotic manipulation,” arXiv preprint      [39] H. Xiong, Q. Li, Y.-C. Chen, H. Bharadhwaj, S. Sinha,
+     arXiv:2306.11706, 2023.                                        and A. Garg, “Learning by watching: Physical imita-
+[26] J. Yang, D. Sadigh, and C. Finn, “Polybot: Training            tion of manipulation skills from human videos,” in
+     one policy across robots while embracing variability,”         2021 IEEE/RSJ International Conference on Intelli-
+     arXiv preprint arXiv:2307.03719, 2023.                         gent Robots and Systems (IROS). IEEE, 2021, pp.
+[27] S. Reed, K. Zolna, E. Parisotto, S. G. Colmenarejo,            7827–7834.
+     A. Novikov, G. Barth-maron, M. Giménez, Y. Sul-          [40] E. Jang, A. Irpan, M. Khansari, D. Kappler, F. Ebert,
+     sky, J. Kay, J. T. Springenberg, T. Eccles, J. Bruce,          C. Lynch, S. Levine, and C. Finn, “BC-Z: Zero-shot
+     A. Razavi, A. Edwards, N. Heess, Y. Chen, R. Had-              task generalization with robotic imitation learning,”
+     sell, O. Vinyals, M. Bordbar, and N. de Freitas, “A            in Conference on Robot Learning (CoRL), 2021, pp.
+     generalist agent,” Transactions on Machine Learning            991–1002.
+     Research, 2022.                                           [41] S. Bahl, A. Gupta, and D. Pathak, “Human-to-robot
+[28] G. Salhotra, I.-C. A. Liu, and G. Sukhatme, “Bridging          imitation in the wild,” Robotics: Science and Systems
+     action space mismatch in learning from demonstra-              (RSS), 2022.
+     tions,” arXiv preprint arXiv:2304.03833, 2023.            [42] M. Ding, Y. Xu, Z. Chen, D. D. Cox, P. Luo,
+[29] I. Radosavovic, B. Shi, L. Fu, K. Goldberg, T. Darrell,        J. B. Tenenbaum, and C. Gan, “Embodied concept
+     and J. Malik, “Robot learning with sensorimotor pre-           learner: Self-supervised learning of concepts and map-
+     training,” in Conference on Robot Learning, 2023.              ping through instruction following,” in Conference on
+[30] L. Shao, F. Ferreira, M. Jorda, V. Nambiar, J. Luo,            Robot Learning. PMLR, 2023, pp. 1743–1754.
+     E. Solowjow, J. A. Ojea, O. Khatib, and J. Bohg,          [43] S. Bahl, R. Mendonca, L. Chen, U. Jain, and
+     “UniGrasp: Learning a unified model to grasp with              D. Pathak, “Affordances from human videos as a
+     multifingered robotic hands,” IEEE Robotics and Au-            versatile representation for robotics,” in Proceedings
+     tomation Letters, vol. 5, no. 2, pp. 2286–2293, 2020.          of the IEEE/CVF Conference on Computer Vision and
+[31] Z. Xu, B. Qi, S. Agrawal, and S. Song, “Adagrasp:              Pattern Recognition (CVPR), June 2023, pp. 13 778–
+     Learning an adaptive gripper-aware grasping policy,”           13 790.
+     in 2021 IEEE International Conference on Robotics         [44] P. Sermanet, K. Xu, and S. Levine, “Unsupervised per-
+     and Automation (ICRA). IEEE, 2021, pp. 4620–4626.              ceptual rewards for imitation learning,” arXiv preprint
+[32] D. Shah, A. Sridhar, N. Dashora, K. Stachowicz,                arXiv:1612.06699, 2016.
+     K. Black, N. Hirose, and S. Levine, “ViNT: A Foun-        [45] L. Shao, T. Migimatsu, Q. Zhang, K. Yang, and
+     dation Model for Visual Navigation,” in 7th Annual             J. Bohg, “Concept2Robot: Learning manipulation con-
+     Conference on Robot Learning (CoRL), 2023.                     cepts from instructions and human demonstrations,” in
+[33] Y. Liu, A. Gupta, P. Abbeel, and S. Levine, “Imitation         Proceedings of Robotics: Science and Systems (RSS),
+     from observation: Learning to imitate behaviors from           2020.
+     raw video via context translation,” in 2018 IEEE          [46] A. S. Chen, S. Nair, and C. Finn, “Learning generaliz-
+     International Conference on Robotics and Automation            able robotic reward functions from “in-the-wild” hu-
+     (ICRA). IEEE, 2018, pp. 1118–1125.                             man videos,” arXiv preprint arXiv:2103.16817, 2021.
+[34] T. Yu, C. Finn, S. Dasari, A. Xie, T. Zhang, P. Abbeel,   [47] S. Kumar, J. Zamora, N. Hansen, R. Jangir, and
+     and S. Levine, “One-shot imitation from observing hu-          X. Wang, “Graph inverse reinforcement learning from
+     mans via domain-adaptive meta-learning,” Robotics:             diverse videos,” in Conference on Robot Learning.
+     Science and Systems XIV, 2018.                                 PMLR, 2023, pp. 55–66.
+[35] P. Sharma, D. Pathak, and A. Gupta, “Third-person         [48] M. Alakuijala, G. Dulac-Arnold, J. Mairal, J. Ponce,
+     visual imitation learning via decoupled hierarchical           and C. Schmid, “Learning reward functions for robotic
+     manipulation by observing humans,” in 2023 IEEE                  2015.
+     International Conference on Robotics and Automation         [62] D. Kappler, J. Bohg, and S. Schaal, “Leveraging big
+     (ICRA). IEEE, 2023, pp. 5006–5012.                               data for grasp planning,” in ICRA, 2015, pp. 4304–
+[49] Y. Zhou, Y. Aytar, and K. Bousmalis, “Manipulator-               4311.
+     independent representations for visual imitation,”          [63] J. Mahler, J. Liang, S. Niyaz, M. Laskey, R. Doan,
+     2021.                                                            X. Liu, J. A. Ojea, and K. Goldberg, “Dex-Net 2.0:
+[50] C. Wang, L. Fan, J. Sun, R. Zhang, L. Fei-Fei, D. Xu,            Deep learning to plan robust grasps with synthetic
+     Y. Zhu, and A. Anandkumar, “Mimicplay: Long-                     point clouds and analytic grasp metrics,” in Robotics:
+     horizon imitation learning by watching human play,”              Science and Systems (RSS), 2017.
+     in Conference on Robot Learning, 2023.                      [64] A. Depierre, E. Dellandréa, and L. Chen, “Jacquard:
+[51] K. Schmeckpeper, A. Xie, O. Rybkin, S. Tian,                     A large scale dataset for robotic grasp detection,” in
+     K. Daniilidis, S. Levine, and C. Finn, “Learning pre-            2018 IEEE/RSJ International Conference on Intelli-
+     dictive models from observation and interaction,” in             gent Robots and Systems (IROS). IEEE, 2018, pp.
+     European Conference on Computer Vision. Springer,                3511–3516.
+     2020, pp. 708–725.                                          [65] S. Levine, P. Pastor, A. Krizhevsky, J. Ibarz, and
+[52] S. Nair, A. Rajeswaran, V. Kumar, C. Finn, and                   D. Quillen, “Learning hand-eye coordination for
+     A. Gupta, “R3m: A universal visual representation for            robotic grasping with deep learning and large-scale
+     robot manipulation,” in CoRL, 2022.                              data collection,” The International journal of robotics
+[53] T. Xiao, I. Radosavovic, T. Darrell, and J. Malik,               research, vol. 37, no. 4-5, pp. 421–436, 2018.
+     “Masked visual pre-training for motor control,” arXiv       [66] D. Kalashnikov, A. Irpan, P. Pastor, J. Ibarz, A. Her-
+     preprint arXiv:2203.06173, 2022.                                 zog, E. Jang, D. Quillen, E. Holly, M. Kalakrishnan,
+[54] I. Radosavovic, T. Xiao, S. James, P. Abbeel, J. Ma-             V. Vanhoucke et al., “QT-Opt: Scalable deep rein-
+     lik, and T. Darrell, “Real-world robot learning with             forcement learning for vision-based robotic manipu-
+     masked visual pre-training,” in Conference on Robot              lation,” arXiv preprint arXiv:1806.10293, 2018.
+     Learning, 2022.                                             [67] S. Brahmbhatt, C. Ham, C. Kemp, and J. Hays,
+[55] Y. J. Ma, S. Sodhani, D. Jayaraman, O. Bastani,                  “Contactdb: Analyzing and predicting grasp contact
+     V. Kumar, and A. Zhang, “Vip: Towards universal                  via thermal imaging,” 04 2019.
+     visual reward and representation via value-implicit         [68] H.-S. Fang, C. Wang, M. Gou, and C. Lu, “Graspnet-
+     pre-training,” arXiv preprint arXiv:2210.00030, 2022.            1billion: a large-scale benchmark for general object
+[56] A. Majumdar, K. Yadav, S. Arnaud, Y. J. Ma, C. Chen,             grasping,” in Proceedings of the IEEE/CVF conference
+     S. Silwal, A. Jain, V.-P. Berges, P. Abbeel, J. Malik            on computer vision and pattern recognition, 2020, pp.
+     et al., “Where are we in the search for an artificial vi-        11 444–11 453.
+     sual cortex for embodied intelligence?” arXiv preprint      [69] C. Eppner, A. Mousavian, and D. Fox, “ACRONYM:
+     arXiv:2303.18240, 2023.                                          A large-scale grasp dataset based on simulation,” in
+[57] S. Karamcheti, S. Nair, A. S. Chen, T. Kollar, C. Finn,          2021 IEEE Int. Conf. on Robotics and Automation,
+     D. Sadigh, and P. Liang, “Language-driven represen-              ICRA, 2020.
+     tation learning for robotics,” Robotics: Science and        [70] K. Bousmalis, A. Irpan, P. Wohlhart, Y. Bai, M. Kel-
+     Systems (RSS), 2023.                                             cey, M. Kalakrishnan, L. Downs, J. Ibarz, P. Pastor,
+[58] Y. Mu, S. Yao, M. Ding, P. Luo, and C. Gan, “EC2:                K. Konolige, S. Levine, and V. Vanhoucke, “Using
+     Emergent communication for embodied control,” in                 simulation and domain adaptation to improve effi-
+     Proceedings of the IEEE/CVF Conference on Com-                   ciency of deep robotic grasping,” in ICRA, 2018, pp.
+     puter Vision and Pattern Recognition, 2023, pp. 6704–            4243–4250.
+     6714.                                                       [71] X. Zhu, R. Tian, C. Xu, M. Huo, W. Zhan,
+[59] S. Bahl, R. Mendonca, L. Chen, U. Jain, and                      M. Tomizuka, and M. Ding, “Fanuc manipulation:
+     D. Pathak, “Affordances from human videos as a                   A dataset for learning-based manipulation with fanuc
+     versatile representation for robotics,” in Proceedings           mate 200iD robot,” https://sites.google.com/berkeley.
+     of the IEEE/CVF Conference on Computer Vision and                edu/fanuc-manipulation, 2023.
+     Pattern Recognition, 2023, pp. 13 778–13 790.               [72] K.-T. Yu, M. Bauza, N. Fazeli, and A. Rodriguez,
+[60] Y. Jiang, S. Moseson, and A. Saxena, “Efficient                  “More than a million ways to be pushed. a high-
+     grasping from RGBD images: Learning using a new                  fidelity experimental dataset of planar pushing,” in
+     rectangle representation,” in 2011 IEEE International            2016 IEEE/RSJ international conference on intelligent
+     conference on robotics and automation. IEEE, 2011,               robots and systems (IROS). IEEE, 2016, pp. 30–37.
+     pp. 3304–3311.                                              [73] C. Finn and S. Levine, “Deep visual foresight for plan-
+[61] L. Pinto and A. K. Gupta, “Supersizing self-                     ning robot motion,” in 2017 IEEE International Con-
+     supervision: Learning to grasp from 50k tries and                ference on Robotics and Automation (ICRA). IEEE,
+     700 robot hours,” 2016 IEEE International Conference             2017, pp. 2786–2793.
+     on Robotics and Automation (ICRA), pp. 3406–3413,           [74] F. Ebert, C. Finn, S. Dasari, A. Xie, A. Lee, and
+     S. Levine, “Visual foresight: Model-based deep rein-            E. Orbay, S. Savarese, and L. Fei-Fei, “RoboTurk:
+     forcement learning for vision-based robotic control,”           A crowdsourcing platform for robotic skill learning
+     arXiv preprint arXiv:1812.00568, 2018.                          through imitation,” CoRR, vol. abs/1811.02790, 2018.
+[75] P. Shilane, P. Min, M. Kazhdan, and T. Funkhouser,              [Online]. Available: http://arxiv.org/abs/1811.02790
+     “The princeton shape benchmark,” in Shape Modeling         [87] P. Sharma, L. Mohan, L. Pinto, and A. Gupta, “Mul-
+     Applications, 2004, pp. 167–388.                                tiple interactions made easy (MIME): Large scale
+[76] W. Wohlkinger, A. Aldoma Buchaca, R. Rusu, and                  demonstrations data for imitation,” in Conference on
+     M. Vincze, “3DNet: Large-Scale Object Class Recog-              robot learning. PMLR, 2018, pp. 906–915.
+     nition from CAD Models,” in IEEE International Con-        [88] A. Mandlekar, J. Booher, M. Spero, A. Tung,
+     ference on Robotics and Automation (ICRA), 2012.                A. Gupta, Y. Zhu, A. Garg, S. Savarese, and L. Fei-
+[77] A. Kasper, Z. Xue, and R. Dillmann, “The kit object             Fei, “Scaling robot supervision to hundreds of hours
+     models database: An object model database for object            with RoboTurk: Robotic manipulation dataset through
+     recognition, localization and manipulation in service           human reasoning and dexterity,” in 2019 IEEE/RSJ
+     robotics,” The International Journal of Robotics Re-            International Conference on Intelligent Robots and
+     search, vol. 31, no. 8, pp. 927–934, 2012.                      Systems (IROS). IEEE, 2019, pp. 1048–1055.
+[78] A. Singh, J. Sha, K. S. Narayan, T. Achim, and             [89] F. Ebert, Y. Yang, K. Schmeckpeper, B. Bucher,
+     P. Abbeel, “BigBIRD: A large-scale 3D database of               G. Georgakis, K. Daniilidis, C. Finn, and S. Levine,
+     object instances,” in IEEE International Conference             “Bridge data: Boosting generalization of robotic skills
+     on Robotics and Automation (ICRA), 2014, pp. 509–               with cross-domain datasets,” in Robotics: Science and
+     516.                                                            Systems (RSS) XVIII, 2022.
+[79] B. Calli, A. Walsman, A. Singh, S. Srinivasa,              [90] A. Mandlekar, D. Xu, J. Wong, S. Nasiriany, C. Wang,
+     P. Abbeel, and A. M. Dollar, “Benchmarking in ma-               R. Kulkarni, L. Fei-Fei, S. Savarese, Y. Zhu, and
+     nipulation research: Using the Yale-CMU-Berkeley                R. Martı́n-Martı́n, “What matters in learning from
+     object and model set,” IEEE Robotics & Automation               offline human demonstrations for robot manipulation,”
+     Magazine, vol. 22, no. 3, pp. 36–52, 2015.                      in arXiv preprint arXiv:2108.03298, 2021.
+[80] Zhirong Wu, S. Song, A. Khosla, Fisher Yu, Linguang        [91] C. Lynch, A. Wahid, J. Tompson, T. Ding, J. Betker,
+     Zhang, Xiaoou Tang, and J. Xiao, “3D ShapeNets: A               R. Baruch, T. Armstrong, and P. Florence, “Interac-
+     deep representation for volumetric shapes,” in IEEE             tive language: Talking to robots in real time,” IEEE
+     Conference on Computer Vision and Pattern Recogni-              Robotics and Automation Letters, 2023.
+     tion (CVPR), 2015, pp. 1912–1920.                          [92] H.-S. Fang, H. Fang, Z. Tang, J. Liu, J. Wang, H. Zhu,
+[81] Y. Xiang, W. Kim, W. Chen, J. Ji, C. Choy, H. Su,               and C. Lu, “RH20T: A robotic dataset for learning
+     R. Mottaghi, L. Guibas, and S. Savarese, “Object-               diverse skills in one-shot,” in RSS 2023 Workshop on
+     Net3D: A large scale database for 3d object recog-              Learning for Task and Motion Planning, 2023.
+     nition,” in European Conference on Computer Vision         [93] H. Bharadhwaj, J. Vakil, M. Sharma, A. Gupta, S. Tul-
+     (ECCV). Springer, 2016, pp. 160–176.                            siani, and V. Kumar, “RoboAgent: Towards sample
+[82] D. Morrison, P. Corke, and J. Leitner, “Egad! an                efficient robot manipulation with semantic augmenta-
+     evolved grasping analysis dataset for diversity and re-         tions and action chunking,” arxiv, 2023.
+     producibility in robotic manipulation,” IEEE Robotics      [94] M. Heo, Y. Lee, D. Lee, and J. J. Lim, “Furni-
+     and Automation Letters, vol. 5, no. 3, pp. 4368–4375,           turebench: Reproducible real-world benchmark for
+     2020.                                                           long-horizon complex manipulation,” in Robotics: Sci-
+[83] R. Gao, Y.-Y. Chang, S. Mall, L. Fei-Fei, and J. Wu,            ence and Systems, 2023.
+     “ObjectFolder: A dataset of objects with implicit vi-      [95] H. Walke, K. Black, A. Lee, M. J. Kim, M. Du,
+     sual, auditory, and tactile representations,” in Confer-        C. Zheng, T. Zhao, P. Hansen-Estruch, Q. Vuong,
+     ence on Robot Learning, 2021, pp. 466–476.                      A. He, V. Myers, K. Fang, C. Finn, and S. Levine,
+[84] L. Downs, A. Francis, N. Koenig, B. Kinman, R. Hick-            “Bridgedata v2: A dataset for robot learning at scale,”
+     man, K. Reymann, T. B. McHugh, and V. Vanhoucke,                2023.
+     “Google scanned objects: A high-quality dataset of 3D      [96] T. Winograd, “Understanding natural language,”
+     scanned household items,” in 2022 International Con-            Cognitive Psychology, vol. 3, no. 1, pp. 1–191,
+     ference on Robotics and Automation (ICRA). IEEE,                1972. [Online]. Available: https://www.sciencedirect.
+     2022, pp. 2553–2560.                                            com/science/article/pii/0010028572900023
+[85] D. Kalashnikov, J. Varley, Y. Chebotar, B. Swan-           [97] M. MacMahon, B. Stankiewicz, and B. Kuipers,
+     son, R. Jonschkowski, C. Finn, S. Levine, and                   “Walk the talk: Connecting language, knowledge, and
+     K. Hausman, “MT-Opt: Continuous multi-task robotic              action in route instructions,” in Proceedings of the
+     reinforcement learning at scale,” arXiv preprint                Twenty-First AAAI Conference on Artificial Intelli-
+     arXiv:2104.08212, 2021.                                         gence, 2006.
+[86] A. Mandlekar, Y. Zhu, A. Garg, J. Booher,                  [98] T. Kollar, S. Tellex, D. Roy, and N. Roy, “Toward
+     M. Spero, A. Tung, J. Gao, J. Emmons, A. Gupta,                 understanding natural language directions,” in 2010
+      5th ACM/IEEE International Conference on Human-           [112] W. Huang, C. Wang, R. Zhang, Y. Li, J. Wu, and
+      Robot Interaction (HRI), 2010, pp. 259–266.                     L. Fei-Fei, “VoxPoser: Composable 3d value maps
+ [99] D. L. Chen and R. J. Mooney, “Learning to interpret             for robotic manipulation with language models,” arXiv
+      natural language navigation instructions from observa-          preprint arXiv:2307.05973, 2023.
+      tions,” in Proceedings of the Twenty-Fifth AAAI Con-      [113] M. Shridhar, L. Manuelli, and D. Fox, “Cliport: What
+      ference on Artificial Intelligence, 2011, p. 859–865.           and where pathways for robotic manipulation,” in
+[100] F. Duvallet, J. Oh, A. Stentz, M. Walter, T. Howard,            Conference on Robot Learning. PMLR, 2022, pp.
+      S. Hemachandra, S. Teller, and N. Roy, “Inferring               894–906.
+      maps and behaviors from natural language instruc-         [114] A. Stone, T. Xiao, Y. Lu, K. Gopalakrishnan, K.-H.
+      tions,” in International Symposium on Experimental              Lee, Q. Vuong, P. Wohlhart, B. Zitkovich, F. Xia,
+      Robotics (ISER), 2014.                                          C. Finn et al., “Open-world object manipulation using
+[101] J. Luketina, N. Nardelli, G. Farquhar, J. N. Foer-              pre-trained vision-language models,” arXiv preprint
+      ster, J. Andreas, E. Grefenstette, S. Whiteson, and             arXiv:2303.00905, 2023.
+      T. Rocktäschel, “A survey of reinforcement learning      [115] Y. Mu, Q. Zhang, M. Hu, W. Wang, M. Ding, J. Jin,
+      informed by natural language,” in IJCAI, 2019.                  B. Wang, J. Dai, Y. Qiao, and P. Luo, “EmbodiedGPT:
+[102] S. Stepputtis, J. Campbell, M. Phielipp, S. Lee,                Vision-language pre-training via embodied chain of
+      C. Baral, and H. Ben Amor, “Language-conditioned                thought,” arXiv preprint arXiv:2305.15021, 2023.
+      imitation learning for robot manipulation tasks,” Ad-     [116] E. Perez, F. Strub, H. de Vries, V. Dumoulin, and
+      vances in Neural Information Processing Systems,                A. Courville, “Film: Visual reasoning with a general
+      vol. 33, pp. 13 139–13 150, 2020.                               conditioning layer,” 2017.
+[103] S. Nair, E. Mitchell, K. Chen, S. Savarese, C. Finn       [117] M. Tan and Q. Le, “EfficientNet: Rethinking model
+      et al., “Learning language-conditioned robot behavior           scaling for convolutional neural networks,” in Inter-
+      from offline data and crowd-sourced annotation,” in             national conference on machine learning. PMLR,
+      Conference on Robot Learning. PMLR, 2022, pp.                   2019, pp. 6105–6114.
+      1303–1315.                                                [118] A. Vaswani, N. Shazeer, N. Parmar, J. Uszkoreit,
+[104] O. Mees, L. Hermann, E. Rosete-Beas, and                        L. Jones, A. N. Gomez, Ł. Kaiser, and I. Polosukhin,
+      W. Burgard, “CALVIN: A benchmark for language-                  “Attention is all you need,” Advances in neural infor-
+      conditioned policy learning for long-horizon robot              mation processing systems, vol. 30, 2017.
+      manipulation tasks,” IEEE Robotics and Automation         [119] S. Ramos, S. Girgin, L. Hussenot, D. Vincent,
+      Letters, 2022.                                                  H. Yakubovich, D. Toyama, A. Gergely, P. Stanczyk,
+[105] O. Mees, L. Hermann, and W. Burgard, “What matters              R. Marinier, J. Harmsen, O. Pietquin, and N. Mom-
+      in language conditioned robotic imitation learning              chev, “RLDS: an ecosystem to generate, share and use
+      over unstructured data,” IEEE Robotics and Automa-              datasets in reinforcement learning,” 2021.
+      tion Letters, vol. 7, no. 4, pp. 11 205–11 212, 2022.     [120] D. Cer, Y. Yang, S. yi Kong, N. Hua, N. Limti-
+[106] M. Shridhar, L. Manuelli, and D. Fox, “Perceiver-               aco, R. S. John, N. Constant, M. Guajardo-Cespedes,
+      actor: A multi-task transformer for robotic manipu-             S. Yuan, C. Tar, Y.-H. Sung, B. Strope, and
+      lation,” Conference on Robot Learning (CoRL), 2022.             R. Kurzweil, “Universal sentence encoder,” 2018.
+[107] F. Hill, S. Mokra, N. Wong, and T. Harley, “Human         [121] X. Chen, J. Djolonga, P. Padlewski, B. Mustafa,
+      instruction-following with deep reinforcement learn-            S. Changpinyo, J. Wu, C. R. Ruiz, S. Goodman,
+      ing via transfer-learning from text,” arXiv preprint            X. Wang, Y. Tay, S. Shakeri, M. Dehghani, D. Salz,
+      arXiv:2005.09382, 2020.                                         M. Lucic, M. Tschannen, A. Nagrani, H. Hu, M. Joshi,
+[108] C. Lynch and P. Sermanet, “Grounding language in                B. Pang, C. Montgomery, P. Pietrzyk, M. Ritter,
+      play,” Robotics: Science and Systems (RSS), 2021.               A. Piergiovanni, M. Minderer, F. Pavetic, A. Waters,
+[109] M. Ahn, A. Brohan, N. Brown, Y. Chebotar, O. Cortes,            G. Li, I. Alabdulmohsin, L. Beyer, J. Amelot, K. Lee,
+      B. David, C. Finn, K. Gopalakrishnan, K. Hausman,               A. P. Steiner, Y. Li, D. Keysers, A. Arnab, Y. Xu,
+      A. Herzog et al., “Do as I can, not as I say: Grounding         K. Rong, A. Kolesnikov, M. Seyedhosseini, A. An-
+      language in robotic affordances,” Conference on Robot           gelova, X. Zhai, N. Houlsby, and R. Soricut, “Pali-
+      Learning (CoRL), 2022.                                          x: On scaling up a multilingual vision and language
+[110] Y. Jiang, A. Gupta, Z. Zhang, G. Wang, Y. Dou,                  model,” 2023.
+      Y. Chen, L. Fei-Fei, A. Anandkumar, Y. Zhu, and           [122] J.-B. Alayrac, J. Donahue, P. Luc, A. Miech, I. Barr,
+      L. Fan, “VIMA: General robot manipulation with                  Y. Hasson, K. Lenc, A. Mensch, K. Millican,
+      multimodal prompts,” International Conference on                M. Reynolds, R. Ring, E. Rutherford, S. Cabi, T. Han,
+      Machine Learning (ICML), 2023.                                  Z. Gong, S. Samangooei, M. Monteiro, J. Menick,
+[111] S. Vemprala, R. Bonatti, A. Bucker, and A. Kapoor,              S. Borgeaud, A. Brock, A. Nematzadeh, S. Shar-
+      “ChatGPT for robotics: Design principles and model              ifzadeh, M. Binkowski, R. Barreira, O. Vinyals,
+      abilities,” Microsoft Auton. Syst. Robot. Res, vol. 2,          A. Zisserman, and K. Simonyan, “Flamingo: a visual
+      p. 20, 2023.                                                    language model for few-shot learning,” 2022.
+[123] D. Driess, F. Xia, M. S. M. Sajjadi, C. Lynch,
+      A. Chowdhery, B. Ichter, A. Wahid, J. Tompson,
+      Q. Vuong, T. Yu, W. Huang, Y. Chebotar, P. Sermanet,
+      D. Duckworth, S. Levine, V. Vanhoucke, K. Hausman,
+      M. Toussaint, K. Greff, A. Zeng, I. Mordatch, and
+      P. Florence, “PaLM-E: An embodied multimodal lan-
+      guage model,” 2023.
+[124] A. Dosovitskiy, L. Beyer, A. Kolesnikov, D. Weis-
+      senborn, X. Zhai, T. Unterthiner, M. Dehghani,
+      M. Minderer, G. Heigold, S. Gelly, J. Uszkoreit,
+      and N. Houlsby, “An image is worth 16x16 words:
+      Transformers for image recognition at scale,” 2021.
+[125] Y. Tay, M. Dehghani, V. Q. Tran, X. Garcia, J. Wei,
+      X. Wang, H. W. Chung, S. Shakeri, D. Bahri, T. Schus-
+      ter, H. S. Zheng, D. Zhou, N. Houlsby, and D. Metzler,
+      “UL2: Unifying language learning paradigms,” 2023.
+[126] E. Rosete-Beas, O. Mees, G. Kalweit, J. Boedecker,
+      and W. Burgard, “Latent plans for task agnostic offline
+      reinforcement learning,” in Proceedings of the 6th
+      Conference on Robot Learning (CoRL), 2022.
+[127] O. Mees, J. Borja-Diaz, and W. Burgard, “Grounding
+      language with visual affordances over unstructured
+      data,” in Proceedings of the IEEE International Con-
+      ference on Robotics and Automation (ICRA), London,
+      UK, 2023.
+[128] S. Dass, J. Yapeter, J. Zhang, J. Zhang, K. Pertsch,
+      S. Nikolaidis, and J. J. Lim, “CLVR jaco play
+      dataset,” 2023. [Online]. Available: https://github.
+      com/clvrai/clvr jaco play dataset
+[129] J. Luo, C. Xu, X. Geng, G. Feng, K. Fang, L. Tan,
+      S. Schaal, and S. Levine, “Multi-stage cable rout-
+      ing through hierarchical imitation learning,” arXiv
+      preprint arXiv:2307.08927, 2023.
+[130] J. Pari, N. M. Shafiullah, S. P. Arunachalam, and
+      L. Pinto, “The surprising effectiveness of representa-
+      tion learning for visual imitation,” 2021.
+[131] Y. Zhu, A. Joshi, P. Stone, and Y. Zhu, “Viola:
+      Imitation learning for vision-based manipulation with
+      object proposal priors,” 2023.
+[132] L. Y. Chen, S. Adebola, and K. Goldberg, “Berkeley
+      UR5 demonstration dataset,” https://sites.google.com/
+      view/berkeley-ur5/home.
+[133] G. Zhou, V. Dean, M. K. Srirama, A. Rajeswaran,
+      J. Pari, K. Hatch, A. Jain, T. Yu, P. Abbeel, L. Pinto,
+      C. Finn, and A. Gupta, “Train offline, test online: A
+      real robot learning benchmark,” 2023.
+[134] “Task-agnostic real world robot play,” https://www.
+      kaggle.com/datasets/oiermees/taco-robot.
+

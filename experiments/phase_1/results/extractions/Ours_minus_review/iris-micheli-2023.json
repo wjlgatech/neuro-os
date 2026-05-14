@@ -1,0 +1,19 @@
+{
+  "system": "Ours_minus_review",
+  "paper_id": "iris-micheli-2023",
+  "paper_title": "Transformers are Sample-Efficient World Models (IRIS)",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "IRIS decomposes world-model imagination into two coupled stages: (1) a discrete autoencoder (VQ-style encoder E + decoder D) compresses raw frames into sequences of discrete tokens \u2014 a learned symbolic vocabulary \u2014 and (2) an autoregressive Transformer G predicts the next token sequence, reward, and episode termination conditioned on the full history of token sequences and actions. The Transformer's global self-attention over this token history is what makes multi-step rollouts coherent; the policy is then trained entirely inside these imagined rollouts via actor-critic.",
+  "invariant": "The bottleneck that makes imagination-based RL sample-efficient is world-model accuracy over long horizons. Compressing observations into discrete tokens and using a sequence model with global context (Transformer) keeps that accuracy high regardless of game, because the same mechanism \u2014 symbolic compression + causal attention \u2014 handles both spatial structure and temporal dependencies.",
+  "prediction": "Replacing the Transformer backbone with a recurrent model of equal parameter count should degrade long-horizon rollout fidelity and downstream policy performance on Atari 100k, particularly on games requiring credit assignment over many steps \u2014 measurable as a drop in human-normalized score and in imagined-frame quality at step s > 10.",
+  "failure_mode": "When the discrete autoencoder's codebook fails to capture all visually relevant variation (codebook collapse or insufficient tokens K), the Transformer receives impoverished inputs and its accurate sequence modeling cannot compensate, causing compounding hallucinations in long rollouts and policy degradation \u2014 mirroring the 'world model accuracy over extended periods' bottleneck the authors identi",
+  "source_excerpt": "IRIS, a data-efficient agent that learns in a world model composed of a discrete autoencoder and an autoregressive Transformer. [...] this framework relies heavily on accurate world models since the policy is purely trained in imagination. [...] designing new world model architectures, capable of handling visually complex and partially observable environments with few samples, is key to realize their potential as surrogate training grounds.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 2153,
+  "llm_tokens_out": 474,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-no-review"
+}

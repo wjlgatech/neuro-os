@@ -1,0 +1,19 @@
+{
+  "system": "Ours_minus_review",
+  "paper_id": "latent-replay-pellegrini-2019",
+  "paper_title": "Latent Replay for Real-Time Continual Learning",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "Instead of replaying raw input images, Latent Replay stores activation volumes at an intermediate network layer and replays them directly into the upper sub-network during training. The lower sub-network (below the replay layer) is frozen or heavily slowed, stabilizing the representation so stored activations remain valid across batches. The upper sub-network trains at full pace on both new latent activations and replayed ones, combating catastrophic forgetting at a fraction of the compute cost of full input-space rehearsal.",
+  "invariant": "Wherever rehearsal is applied in the network, the layers feeding the replay point must produce stable representations \u2014 otherwise stored activations become stale and mislead the upper network. Stability below the replay layer is a necessary precondition for the validity of any latent-space memory buffer.",
+  "prediction": "Latent Replay should achieve accuracy comparable to full input-space rehearsal while requiring substantially less computation and storage, and this advantage should scale with how early in the network the replay layer is placed \u2014 shallower replay layers compress more computation at the cost of representation stability.",
+  "failure_mode": "If the lower sub-network is not sufficiently frozen or slowed, the latent representation drifts across batches, invalidating stored activations and causing the replayed samples to mislead rather than stabilize training \u2014 degrading performance below even naive continual learning baselines.",
+  "source_excerpt": "instead of storing a portion of past data in the input space, we store activations volumes at some intermediate layer. This can significantly reduce the computation and storage required by native rehearsal. To keep the representation stable and the stored activations valid we propose to slow-down learning at all the layers below the latent replay one, leaving the layers above free to learn at full pace.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 2063,
+  "llm_tokens_out": 405,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-no-review"
+}

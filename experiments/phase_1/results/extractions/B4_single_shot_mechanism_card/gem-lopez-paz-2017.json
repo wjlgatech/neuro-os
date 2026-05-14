@@ -1,0 +1,19 @@
+{
+  "system": "B4_single_shot_mechanism_card",
+  "paper_id": "gem-lopez-paz-2017",
+  "paper_title": "Gradient Episodic Memory for Continual Learning",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "GEM stores a small episodic memory of examples from past tasks and, at each gradient update step, projects the current task's gradient onto a feasible cone such that the loss on every stored past-task memory does not increase. Formally, the update is constrained so that the inner product of the new gradient with each past-task gradient is non-negative, preventing interference with previously learned knowledge while permitting beneficial backward transfer.",
+  "invariant": "Across all tasks and all gradient update steps, the constraint that the dot product between the proposed update gradient and each episodic-memory gradient is non-negative is enforced, ensuring past-task losses are never increased by any single update regardless of task sequence or dataset.",
+  "prediction": "Removing the gradient projection constraint (e.g., allowing unconstrained SGD updates) will cause catastrophic forgetting of earlier tasks proportional to task dissimilarity, while GEM with the constraint active will maintain or improve past-task performance.",
+  "failure_mode": "If the episodic memory is too small to represent the diversity of past-task data distributions, the stored gradients will poorly approximate the true past-task gradient directions, making the projection constraint ineffective and allowing forgetting to occur.",
+  "source_excerpt": "GEM's key idea is to use the memories Mt as inequality constraints for the optimization problem at hand. Specifically, GEM requires the gradient update concerning the current task t to not interfere with the memories of any of the previous tasks, that is, the gradient update should have non-negative inner product with the gradient from every previous task memory.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 1849,
+  "llm_tokens_out": 362,
+  "extraction_method": "llm-claude-sonnet-4-6-single-shot"
+}

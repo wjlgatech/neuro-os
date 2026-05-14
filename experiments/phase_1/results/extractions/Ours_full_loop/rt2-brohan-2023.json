@@ -1,0 +1,19 @@
+{
+  "system": "Ours_full_loop",
+  "paper_id": "rt2-brohan-2023",
+  "paper_title": "RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "RT-2 co-fine-tunes a pretrained vision-language model on robot trajectory data by encoding continuous actions as discrete text tokens, placing them in the same token vocabulary as natural language. Because the model sees action tokens and language tokens through an identical interface, the gradient updates that teach robotic control simultaneously preserve \u2014 and can draw on \u2014 the semantic representations learned from Internet-scale vision-language pretraining. Web knowledge transfers causally: the shared token space forces the action head to reuse the same visual and semantic features that sup",
+  "invariant": "Whenever a high-capacity model is trained on two superficially different tasks that share an underlying representational substrate, formatting the outputs of both tasks into a common token space allows transfer without architectural separation \u2014 the model's prior knowledge remains accessible to the new task.",
+  "prediction": "RT-2 should succeed on tasks requiring semantic reasoning absent from robot training data (e.g., identifying an improvised tool or matching an object to a concept) at rates substantially above a robot-only baseline, while a model trained only on robot trajectories with identical architecture should fail those same tasks near chance.",
+  "failure_mode": "If the robot action distribution is so different in scale or structure from natural language tokens that co-fine-tuning causes the model to forget its vision-language representations (catastrophic forgetting), the semantic transfer mechanism collapses and the model degrades on both VQA benchmarks and novel-concept robot tasks simultaneously.",
+  "source_excerpt": "we propose a simple, general recipe to achieve this goal: in order to fit both natural language responses and robotic actions into the same format, we express the actions as text tokens and incorporate them directly into the training set of the model in the same way as natural language tokens.",
+  "has_schema": true,
+  "pinned_provenance": true,
+  "review_gate_passed": true,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 2389,
+  "llm_tokens_out": 403,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-reviewed"
+}

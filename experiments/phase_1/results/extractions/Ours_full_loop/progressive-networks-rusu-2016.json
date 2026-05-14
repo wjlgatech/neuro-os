@@ -1,0 +1,19 @@
+{
+  "system": "Ours_full_loop",
+  "paper_id": "progressive-networks-rusu-2016",
+  "paper_title": "Progressive Neural Networks",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "Each new task instantiates a fresh neural network column with randomly initialized weights. Previously learned columns are frozen, preventing any overwriting of prior knowledge. The new column receives input both from its own previous layer and, via learned lateral connections, from the corresponding layers of all prior frozen columns. This allows the new column to selectively recruit previously computed features at every layer of the hierarchy, composing old and new representations causally without modifying the source of those features.",
+  "invariant": "Freezing prior capacity while adding new capacity alongside it eliminates the forgetting-plasticity tradeoff: old functions are structurally preserved, and new functions can still be learned arbitrarily. Any system that routes new learning through additive lateral reads of frozen prior modules inherits this property regardless of domain.",
+  "prediction": "Transfer magnitude (measured by Fisher-based sensitivity) should be detectable at intermediate layers, not only at the input or output. If lateral connections carry no useful signal, blocking them (zeroing lateral weights) should degrade new-task convergence speed relative to a column trained with lateral connections active.",
+  "failure_mode": "The architecture grows one full column per task, so total parameter count scales linearly with the number of tasks. When tasks are numerous or columns are large, memory and compute become prohibitive. Additionally, if the new task requires representations entirely incompatible with all prior columns, lateral connections add noise rather than signal, giving no transfer benefit while still incurring",
+  "source_excerpt": "Progressive networks integrate these desiderata directly into the model architecture: catastrophic forgetting is prevented by instantiating a new neural network (a column) for each task being solved, while transfer is enabled via lateral connections to features of previously learned columns.",
+  "has_schema": true,
+  "pinned_provenance": true,
+  "review_gate_passed": true,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 2175,
+  "llm_tokens_out": 393,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-reviewed"
+}

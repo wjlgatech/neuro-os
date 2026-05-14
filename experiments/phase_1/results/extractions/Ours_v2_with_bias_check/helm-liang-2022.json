@@ -1,0 +1,26 @@
+{
+  "system": "Ours_v2_with_bias_check",
+  "paper_id": "helm-liang-2022",
+  "paper_title": "Holistic Evaluation of Language Models (HELM)",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "HELM constructs a two-dimensional evaluation space: scenarios (use-case \u00d7 domain combinations) crossed with metrics (accuracy, calibration, robustness, fairness, bias, toxicity, efficiency). For each model, every scenario is run under identical prompting conditions and all seven metrics are recorded simultaneously. Forcing co-measurement prevents selective reporting: a model cannot score well on the aggregate unless it performs adequately across all metric dimensions, not just accuracy. Rankings therefore reflect a Pareto-style multi-objective surface rather than a single leaderboard number.",
+  "invariant": "Single-metric benchmarking systematically conceals capability-safety trade-offs. Any evaluation framework that optimizes coverage of both use-case breadth and metric breadth under standardized conditions will surface trade-offs that narrow benchmarks structurally hide, regardless of domain.",
+  "prediction": "Models that rank highly on accuracy-only leaderboards will be measurably re-ranked \u2014 some falling, some rising \u2014 when calibration, fairness, and toxicity are included. Prior to HELM, prominent models shared on average only 17.9% of core scenarios; after standardization, divergences in multi-metric rankings should exceed what accuracy-only comparisons predict.",
+  "failure_mode": "Coverage is bounded by feasibility: the paper explicitly notes that question answering for neglected English dialects and trustworthiness metrics are underrepresented. When a scenario or metric class is absent from the taxonomy, HELM's holistic claim fails silently \u2014 models can still exploit blind spots in the selected 42 scenarios without penalty.",
+  "source_excerpt": "Prior to HELM, models on average were evaluated on just 17.9% of the core HELM scenarios, with some prominent models not sharing a single scenario in common. We improve this to 96.0%: now all 30 models have been densely benchmarked on a set of core scenarios and metrics under standardized conditions.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": true,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 3122,
+  "llm_tokens_out": 566,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-reviewed-bias-checked",
+  "bias_annotation": {
+    "authority_bias": 1,
+    "recency_bias": 1,
+    "novelty_bias": 2,
+    "confirmation_bias": 1,
+    "assumption_note": "Novelty framing overstated \u2014 multi-dimensional evaluation predates HELM (e.g., BIG-bench, GLUE/SuperGLUE multi-metric suites), and the card underweights the paper's own admissions about missing dialec"
+  }
+}

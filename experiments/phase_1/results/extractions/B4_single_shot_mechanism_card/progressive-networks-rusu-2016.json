@@ -1,0 +1,19 @@
+{
+  "system": "B4_single_shot_mechanism_card",
+  "paper_id": "progressive-networks-rusu-2016",
+  "paper_title": "Progressive Neural Networks",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "Progressive networks instantiate a new neural network column for each new task, freezing all previous columns' parameters to prevent overwriting. Lateral connections from frozen columns feed previously learned features into each layer of the new column. This allows the new column to selectively reuse or recombine prior representations at every layer of the feature hierarchy, enabling forward transfer without any modification to previously learned weights, thus structurally preventing catastrophic forgetting.",
+  "invariant": "Previously learned column parameters are always frozen when a new task is introduced. No gradient updates ever modify past columns' weights. Lateral connections always flow from older columns to newer ones, never in reverse, preserving the directionality of knowledge transfer across all task sequences.",
+  "prediction": "Transfer performance should improve as the number of prior columns increases (more source tasks), since more previously learned features are available via lateral connections. Conversely, a single-column baseline trained from scratch on a target task should show slower convergence and lower final performance than a progressive network with relevant prior columns.",
+  "failure_mode": "The mechanism breaks when prior tasks are entirely dissimilar to the new task, causing lateral connections to contribute noise rather than useful signal. It also breaks computationally as the number of tasks K grows large, since model size and the number of lateral connections scale with K, making the approach infeasible for very long task sequences without additional compression or pruning strate",
+  "source_excerpt": "catastrophic forgetting is prevented by instantiating a new neural network (a column) for each task being solved, while transfer is enabled via lateral connections to features of previously learned columns... When switching to a second task, the parameters \u0398(1) are 'frozen' and a new column with parameters \u0398(2) is instantiated (with random initialization), where layer h(2)_i receives input from both h(2)_{i\u22121} and h(1)_{i\u22121} via lateral connections.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 1590,
+  "llm_tokens_out": 437,
+  "extraction_method": "llm-claude-sonnet-4-6-single-shot"
+}

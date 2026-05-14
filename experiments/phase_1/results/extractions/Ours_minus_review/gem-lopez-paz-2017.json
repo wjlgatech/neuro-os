@@ -1,0 +1,19 @@
+{
+  "system": "Ours_minus_review",
+  "paper_id": "gem-lopez-paz-2017",
+  "paper_title": "Gradient Episodic Memory for Continual Learning",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "GEM stores a small episodic memory of past-task examples and, at each gradient step on the current task, projects the proposed gradient vector onto the intersection of half-spaces defined by the constraint that loss on each remembered task must not increase. If the raw gradient violates any memory constraint (dot product < 0 with the memory gradient), a quadratic program finds the nearest feasible gradient. The update direction is thus the minimal perturbation of the current-task gradient that is simultaneously non-harmful to all memorized tasks.",
+  "invariant": "Catastrophic forgetting is a geometric phenomenon: a gradient step that helps the new task hurts old tasks precisely when it points away from (negative inner product with) old-task loss-descent directions. Constraining the update to the feasible cone \u2014 where all remembered losses are non-increasing \u2014 is the invariant that separates forgetting from beneficial transfer.",
+  "prediction": "GEM's backward transfer should be non-negative by construction (loss on past tasks never rises), while a fine-tuned baseline degrades monotonically. If the episodic memory per task is reduced to zero, GEM degenerates to fine-tuning and backward transfer collapses to the unconstrained baseline.",
+  "failure_mode": "When the number of tasks grows large, the quadratic program's constraint set grows proportionally, making projection computationally expensive and potentially infeasible if past-task gradients span conflicting directions. Also, if the stored memory is unrepresentative (small buffer, distribution shift within a task), the half-space constraints are miscalibrated and the projection can still permit ",
+  "source_excerpt": "if the proposed gradient g is less than zero for any memory, we project g to the closest gradient g\u0303 (in L2 norm) such that the inner product between g\u0303 and the memory gradients g_t for all past tasks t < T is non-negative: minimize ||g\u0303 \u2212 g||^2 subject to \u27e8g\u0303, g_t\u27e9 \u2265 0 for all t < T.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 2242,
+  "llm_tokens_out": 485,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-no-review"
+}

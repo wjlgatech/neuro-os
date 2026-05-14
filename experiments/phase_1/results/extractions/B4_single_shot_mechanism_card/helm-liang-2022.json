@@ -1,0 +1,19 @@
+{
+  "system": "B4_single_shot_mechanism_card",
+  "paper_id": "helm-liang-2022",
+  "paper_title": "Holistic Evaluation of Language Models (HELM)",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "Narrow, metric-sparse benchmarking of language models causes an incomplete and misleading picture of model capabilities and risks. Because prior evaluations measured models on few scenarios (avg 17.9% of core scenarios) and typically only accuracy, trade-offs across dimensions like fairness, robustness, calibration, bias, and toxicity remain hidden. HELM addresses this by enforcing dense, multi-metric coverage across standardized scenarios, forcing trade-offs to become visible and enabling genuine cross-model comparison.",
+  "invariant": "Across all 30 models and 42 scenarios, the same 7 metrics (accuracy, calibration, robustness, fairness, bias, toxicity, efficiency) are measured under standardized prompting conditions, ensuring comparability regardless of model type, access level, or scenario domain.",
+  "prediction": "When models are evaluated on a broad multi-metric benchmark rather than accuracy alone, rankings will shift and trade-offs will emerge\u2014models that appear best on accuracy will not uniformly lead on fairness, calibration, or toxicity metrics.",
+  "failure_mode": "The mechanism breaks if standardized prompting conditions systematically disadvantage certain model architectures or if coverage remains incomplete for underrepresented scenarios (e.g., neglected English dialects, trustworthiness metrics), reintroducing the blind spots HELM aims to eliminate.",
+  "source_excerpt": "Prior to HELM, models on average were evaluated on just 17.9% of the core HELM scenarios, with some prominent models not sharing a single scenario in common. We improve this to 96.0%: now all 30 models have been densely benchmarked on a set of core scenarios and metrics under standardized conditions.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 1949,
+  "llm_tokens_out": 396,
+  "extraction_method": "llm-claude-sonnet-4-6-single-shot"
+}

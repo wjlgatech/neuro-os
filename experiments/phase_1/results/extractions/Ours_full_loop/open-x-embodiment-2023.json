@@ -1,0 +1,19 @@
+{
+  "system": "Ours_full_loop",
+  "paper_id": "open-x-embodiment-2023",
+  "paper_title": "Open X-Embodiment: Robotic Learning Datasets and RT-X Models",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "A single transformer policy (RT-X) is pre-trained on a large heterogeneous dataset pooling demonstrations across 21 institutions, diverse robot embodiments, and varied tasks. The causal driver is that exposure to broad behavioral diversity during training forces the model to learn action representations that generalize across morphologies and environments. Fine-tuning or direct deployment then transfers these representations to target robots, outperforming policies trained only on target-robot data because the shared pre-training signal provides richer coverage of manipulation primitives.",
+  "invariant": "Breadth of training distribution matters more than depth on any single embodiment: a model trained on diverse cross-embodiment data acquires transferable behavioral primitives that narrow single-robot datasets cannot supply, regardless of the specific robot morphology or task domain.",
+  "prediction": "An RT-X model evaluated zero-shot or with light fine-tuning on a held-out robot embodiment will outperform a policy trained exclusively on that embodiment's own data, and performance gap will correlate with how underrepresented that embodiment's task distribution is in its own dataset.",
+  "failure_mode": "When target-robot demonstrations are plentiful and highly specialized (e.g., precision assembly requiring embodiment-specific dynamics), the co-training signal from heterogeneous data introduces conflicting action distributions that degrade rather than improve target performance, causing negative transfer.",
+  "source_excerpt": "Large, high-capacity models trained on diverse datasets have",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": true,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 3631,
+  "llm_tokens_out": 339,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-reviewed"
+}

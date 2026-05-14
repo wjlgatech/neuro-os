@@ -1,0 +1,19 @@
+{
+  "id": "open-x-embodiment-2023",
+  "ts": "2026-05-12T00:00:00+00:00",
+  "paper_title": "Open X-Embodiment: Robotic Learning Datasets and RT-X Models",
+  "paper_source": "arXiv:2310.08864 ; Open X-Embodiment Collaboration 2023 (21 institutions, 200+ authors)",
+  "mechanism": "Two interlocking contributions. (1) The OXE dataset: standardized RLDS format across 22 robotic embodiments (Franka, Sawyer, xArm, Kinova, Google Robot, Stretch, and others), 21 institutions, ~1M trajectories, 527 skills, 160k tasks. (2) The RT-X models: take RT-1 and RT-2 (VLA from Brohan 2023) architectures and train them on the aggregated cross-embodiment dataset. Action representation shared across embodiments via tokenization. Result: RT-X improves per-robot performance over single-robot-only baselines, often substantially.",
+  "invariant": "Robotic learning datasets, when standardized in format and aggregated across embodiments, exhibit the same positive-transfer behavior that has powered scaling laws in NLP and vision. Cross-embodiment skills transfer because manipulation primitives are largely shared even across different end-effectors and bodies.",
+  "prediction": "A policy trained on the OXE aggregated dataset outperforms single-robot policies on each robot's own evaluation tasks (positive average transfer). Emergent skills appear that aren't present in any single dataset. Cross-institutional knowledge sharing becomes a force multiplier rather than a coordination cost.",
+  "failure_mode": "Standardization requires converting heterogeneous datasets — multi-institution year-long effort. Action-space heterogeneity (different end-effectors, control rates) is a real obstacle that shared tokenization only partially addresses. Per-robot effects of cross-embodiment training are uneven: positive on average doesn't mean uniform positive per robot.",
+  "first_principle": "When data is scarce in a domain, scarcity is often an artifact of fragmentation, not absolute volume. Standardize the interface across fragmented sources and aggregate; the apparent scarcity disappears. The same principle drove the BERT/GPT moment in NLP (web text was always there; standardized access made the difference).",
+  "anti_pattern": "Treating each new robot as requiring its own model and dataset from scratch — fragmentation is the disease, not the cost of doing business. Also: assuming OXE solves all of embodiment transfer when it shows positive AVERAGE transfer with uneven per-robot effects, and action-space heterogeneity remains an open obstacle.",
+  "transferability_test": "Federated benchmarks in any field with fragmented data sources: medical imaging across hospitals, bug reports across software projects, weather observations across stations. Trade associations and standards bodies — when individual firms can't afford the data scale but the aggregated industry can, standardization unlocks shared learning that benefits all participants.",
+  "verdict": "foundational",
+  "one_sentence_compression": "Aggregate 22 robot datasets from 21 institutions into one standardized format, train RT-1/RT-2 on the union, and watch the same cross-domain positive transfer that drove scaling in language and vision emerge for robotics.",
+  "thesis_id": null,
+  "revision_of": null,
+  "entity_mentions": [],
+  "framework_alignment": []
+}

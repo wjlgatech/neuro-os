@@ -1,0 +1,19 @@
+{
+  "system": "B4_single_shot_mechanism_card",
+  "paper_id": "rt2-brohan-2023",
+  "paper_title": "RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "RT-2 co-fine-tunes a pretrained vision-language model (VLM) on both robotic trajectory data and Internet-scale vision-language tasks by representing robot actions as text tokens in the same format as natural language. This unified token representation allows the model's web-scale semantic knowledge to transfer directly to robotic action generation, enabling emergent generalization and reasoning beyond the robot training distribution.",
+  "invariant": "Robot actions and natural language responses are expressed in the same discrete token format throughout training and inference. The underlying VLM architecture and tokenization scheme remain shared across both robotic and language tasks, preserving the representational bridge between web knowledge and motor control.",
+  "prediction": "RT-2 should succeed on tasks requiring semantic concepts (e.g., identifying an improvised tool or reasoning about object properties) that never appeared in robot training data but were present in Internet-scale VLM pretraining, at rates significantly above chance and above non-VLM robot baselines.",
+  "failure_mode": "If robotic action data requires a fundamentally different token distribution or precision than natural language (e.g., continuous high-DoF control at fine tolerances), the shared tokenization assumption breaks down and the knowledge-transfer mechanism degrades or fails.",
+  "source_excerpt": "in order to fit both natural language responses and robotic actions into the same format, we express the actions as text tokens and incorporate them directly into the training set of the model in the same way as natural language tokens.",
+  "has_schema": true,
+  "pinned_provenance": true,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 1804,
+  "llm_tokens_out": 343,
+  "extraction_method": "llm-claude-sonnet-4-6-single-shot"
+}

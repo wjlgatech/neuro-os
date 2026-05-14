@@ -1,0 +1,19 @@
+{
+  "system": "B5_reviewed_mechanism_card",
+  "paper_id": "gem-lopez-paz-2017",
+  "paper_title": "Gradient Episodic Memory for Continual Learning",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "GEM stores a small episodic memory of examples from each past task and constrains gradient updates so that the loss on every past-task memory batch does not increase. When the current-task gradient would violate these constraints, a quadratic program projects it onto the nearest direction satisfying all past-task inner-product constraints. This prevents catastrophic forgetting by geometrically enforcing that each parameter update lies in a cone of directions compatible with past-task performance, while still allowing beneficial forward and backward transfer.",
+  "invariant": "The inner-product inequality between the proposed update gradient and each past-task memory gradient must be non-negative for all stored tasks, regardless of task domain, model architecture, or position in the task sequence. This geometric feasibility condition is the invariant governing whether forgetting occurs.",
+  "prediction": "Reducing episodic memory size per task toward zero should cause forgetting rates to increase monotonically and converge to those of an unconstrained fine-tuning baseline, because smaller memories yield increasingly inaccurate gradient constraints that fail to represent past-task loss surfaces.",
+  "failure_mode": "When gradients from many diverse past tasks point in near-opposing directions, the feasible cone defined by all constraints simultaneously becomes empty or vanishingly small, causing the QP projection to produce near-zero updates and stalling learning on the current task.",
+  "source_excerpt": "GEM's inequality constraints are a necessary condition to avoid forgetting on Mt. However, since Mt is only a small subset of the data used to train task t, satisfying these inequality constraints does not guarantee to avoid forgetting.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": true,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 1963,
+  "llm_tokens_out": 849,
+  "extraction_method": "llm-claude-sonnet-4-6-self-reviewed"
+}

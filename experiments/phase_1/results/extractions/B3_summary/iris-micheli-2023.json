@@ -1,0 +1,19 @@
+{
+  "system": "B3_summary",
+  "paper_id": "iris-micheli-2023",
+  "paper_title": "Transformers are Sample-Efficient World Models (IRIS)",
+  "free_text_output": "Published as a conference paper at ICLR 2023\n\n\n\n\n                                        T RANSFORMERS ARE S AMPLE -E FFICIENT\n                                        W ORLD M ODELS\n                                         Vincent Micheli\u2217                     Eloi Alonso\u2217                      Fran\u00e7ois Fleuret\n                                         University of Geneva                 University of Geneva              University of Geneva\n\n\n\n                                                                                      A BSTRACT\n                                                    Deep reinforcement learning agents are notoriously sample inefficient, which\n\n\n\n\narXiv:2209.00588v2 [cs.LG] 1 Mar 2023\n                                                    considerably limits their application to real-world problems. Recently, many\n                                                    model-based methods have been designed to address this issue, wit",
+  "retrieved_chunks": [],
+  "mechanism": "",
+  "invariant": "",
+  "prediction": "",
+  "failure_mode": "",
+  "source_excerpt": "",
+  "has_schema": false,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 0,
+  "llm_tokens_out": 0,
+  "extraction_method": "heuristic-abstract-extraction"
+}

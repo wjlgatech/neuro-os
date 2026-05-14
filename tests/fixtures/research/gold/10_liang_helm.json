@@ -1,0 +1,19 @@
+{
+  "id": "helm-liang-2022",
+  "ts": "2026-05-12T00:00:00+00:00",
+  "paper_title": "Holistic Evaluation of Language Models (HELM)",
+  "paper_source": "arXiv:2211.09110 ; Liang, Bommasani, Lee et al. 2022 (Stanford CRFM) ; TMLR Aug 2023",
+  "mechanism": "Top-down construction of LM evaluation. Step 1: enumerate the design space — scenarios as (task, domain, language) triples; metrics as a 7-axis taxonomy (accuracy, calibration, robustness, fairness, bias, toxicity, efficiency). Step 2: implement a deliberate subset and explicitly name what's missing. Step 3: run 30 prominent LMs across the matrix under standardized adaptation; publish all raw prompts and completions. Concretely: 16 core scenarios x 7 metrics = 112 pairs (98 measured, 87.5%) + 7 targeted evaluations on 26 additional scenarios.",
+  "invariant": "Holistic evaluation requires (a) broad scenario coverage with explicit recognition of incompleteness, (b) multi-metric measurement so non-accuracy desiderata aren't relegated, (c) standardized adaptation procedure so the model — not the scenario-specific pipeline — is what's evaluated.",
+  "prediction": "Before HELM, prominent LMs shared on average 17.9% of evaluation scenarios; HELM standardization raises this to 96.0%, exposing previously-invisible trade-offs between accuracy and fairness/calibration/toxicity. Standardized side-by-side reveals model failure modes not visible in any single prior benchmark.",
+  "failure_mode": "English-centric (acknowledged); taxonomy embeds the authors' values about what matters (the 7 metrics are a choice, not a discovery); compute cost to run HELM is high and grows with new models and scenarios. Living benchmark may drift in priorities over time without clear governance.",
+  "first_principle": "Evaluation is a scientific object of study, not infrastructure. Benchmarks encode values; making those values explicit (via top-down taxonomy) is the first step toward correctable evaluation. Multi-metric measurement reveals trade-offs that single-metric benchmarks structurally hide.",
+  "anti_pattern": "Treating accuracy as the default evaluation and deferring other desiderata (fairness, toxicity, calibration) to 'separate benchmarks' — this guarantees they become second-class citizens. Or: treating a benchmark as canonical without making its taxonomy explicit — you can't tell what's missing if you can't see the design space.",
+  "transferability_test": "Multi-criteria decision analysis (OR). Medical trial design (efficacy + safety + quality of life as joint outcomes). Product KPIs (don't just measure DAU; measure DAU x retention x NPS x revenue concurrently). Engineering performance reviews (output x code quality x team impact x growth). ANY context where a single metric is being used as a proxy for a multi-dimensional outcome.",
+  "verdict": "foundational",
+  "one_sentence_compression": "Build a top-down taxonomy of (scenario x metric) pairs, evaluate every model on every pair under standardized conditions, and expose the trade-offs that single-metric benchmarks structurally hide — turning evaluation itself into a scientific object of study.",
+  "thesis_id": null,
+  "revision_of": null,
+  "entity_mentions": [],
+  "framework_alignment": []
+}

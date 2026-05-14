@@ -1,0 +1,19 @@
+{
+  "system": "B5_reviewed_mechanism_card",
+  "paper_id": "open-x-embodiment-2023",
+  "paper_title": "Open X-Embodiment: Robotic Learning Datasets and RT-X Models",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "Co-training a high-capacity transformer policy (RT-X) on a large consolidated dataset spanning 22 robot embodiments and diverse tasks causes the model to learn action representations that generalize across embodiments. Exposure to diverse robot types and environments during training acts as a data-driven regularizer: the model must extract task-relevant structure (e.g., object manipulation semantics) shared across embodiments, rather than fitting embodiment-specific quirks, thereby enabling positive transfer to target robots even when target-specific data is limited.",
+  "invariant": "A high-capacity model trained on cross-embodiment data will outperform a model trained only on target-embodiment data, as long as the consolidated dataset contains sufficient task-relevant diversity and the action spaces can be meaningfully aligned across embodiments.",
+  "prediction": "Adding data from embodiments dissimilar to the target robot should improve target-robot performance beyond what equivalent amounts of additional target-embodiment data provide, specifically because cross-embodiment diversity\u2014not mere data volume\u2014drives generalization gains.",
+  "failure_mode": "When constituent embodiments have irreconcilably heterogeneous action spaces (e.g., fundamentally different DOF counts or control modalities with no common representation), the shared latent structure cannot form, and cross-embodiment co-training yields no transfer benefit or actively degrades performance.",
+  "source_excerpt": "Large, high-capacity models trained on diverse datasets have shown remarkable performance and generalization in domains such as natural language processing and computer vision. Can such a consolidation happen in robotics?",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": true,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 3160,
+  "llm_tokens_out": 836,
+  "extraction_method": "llm-claude-sonnet-4-6-self-reviewed"
+}

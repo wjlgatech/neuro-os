@@ -1,0 +1,19 @@
+{
+  "system": "Ours_full_loop",
+  "paper_id": "latent-replay-pellegrini-2019",
+  "paper_title": "Latent Replay for Real-Time Continual Learning",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "Instead of replaying raw input images, Latent Replay stores activation volumes at an intermediate layer. During training on new data, these stored latent activations are concatenated into each mini-batch and fed directly into the upper network layers, bypassing recomputation through lower layers. To prevent the stored activations from becoming stale, lower layers are frozen or slowed, keeping their feature representation stable. Upper layers remain plastic. This splits the network into a frozen feature extractor and a continually updated classifier, cutting compute proportional to the depth of",
+  "invariant": "Replay-based continual learning benefits equally from replaying past information regardless of the representational space in which that information is stored; replaying at any sufficiently stable intermediate representation can substitute for raw-input replay, provided the representation does not drift after storage.",
+  "prediction": "Computation time per training step scales with the depth at which latent replay is inserted: deeper replay points yield faster training. Conversely, if lower layers are allowed to continue learning at full pace, accuracy should degrade because stored activations become misaligned with the evolving representation, causing latent replay to fail.",
+  "failure_mode": "If the lower frozen layers were pretrained on a domain too different from the deployment domain, their fixed representation lacks the features needed for new classes, and upper-layer plasticity cannot compensate. Additionally, if the number of classes grows very large, the per-class storage budget for latent activations still accumulates, eventually straining memory on constrained edge devices.",
+  "source_excerpt": "instead of storing a portion of past data in the input space, we store activations volumes at some intermediate layer. This can significantly reduce the computation and storage required by native rehearsal. To keep the representation stable and the stored activations valid we propose to slow-down learning at all the layers below the latent replay one, leaving the layers above free to learn at full pace.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": true,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 2255,
+  "llm_tokens_out": 435,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-reviewed"
+}

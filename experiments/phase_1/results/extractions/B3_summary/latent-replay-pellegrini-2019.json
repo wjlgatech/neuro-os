@@ -1,0 +1,19 @@
+{
+  "system": "B3_summary",
+  "paper_id": "latent-replay-pellegrini-2019",
+  "paper_title": "Latent Replay for Real-Time Continual Learning",
+  "free_text_output": "Latent Replay for Real-Time Continual Learning\n\n                                                         Lorenzo Pellegrini, Gabriele Graffieti, Vincenzo Lomonaco, Davide Maltoni\n                                                                                    University of Bologna\n                                                                             Via dell\u2019Universit\u00e0, 50, Cesena, Italy\n                                                  {l.pellegrini, gabriele.graffieti, vincenzo.lomonaco, davide.maltoni}@unibo.it\n                                                                                      http://bit.ly/latent-replay\n\n\n\n\narXiv:1912.01100v2 [cs.LG] 4 Mar 2020\n                                                                 Abstract                                     inference.\n\n                                        Training deep neural networks at the edge on light compu-",
+  "retrieved_chunks": [],
+  "mechanism": "",
+  "invariant": "",
+  "prediction": "",
+  "failure_mode": "",
+  "source_excerpt": "",
+  "has_schema": false,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 0,
+  "llm_tokens_out": 0,
+  "extraction_method": "heuristic-abstract-extraction"
+}

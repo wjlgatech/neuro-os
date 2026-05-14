@@ -1,0 +1,19 @@
+{
+  "system": "B4_single_shot_mechanism_card",
+  "paper_id": "ewc-kirkpatrick-2017",
+  "paper_title": "Overcoming catastrophic forgetting in neural networks",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "Elastic Weight Consolidation (EWC) prevents catastrophic forgetting by selectively penalizing changes to weights that are important for previously learned tasks. Importance is estimated via the diagonal of the Fisher information matrix, which approximates the curvature of the posterior over weights given task A data. A quadratic penalty anchors important weights near their task-A values, allowing task-B learning only through weights that are less critical to task A.",
+  "invariant": "Across all sequential learning scenarios, the Fisher information matrix diagonal serves as a per-weight importance measure, and the EWC penalty term remains proportional to importance times squared displacement from the previous task's optimal weights, regardless of task domain (supervised or reinforcement learning).",
+  "prediction": "Networks trained with EWC should retain task-A performance close to the single-task baseline when learning task B, and performance degradation on task A should increase as the EWC regularization coefficient \u03bb decreases toward zero, approaching the forgetting level of an unconstrained network.",
+  "failure_mode": "EWC breaks down when two tasks require the same weights to take substantially different values (i.e., no low-forgetting path exists in weight space), or when the number of sequential tasks grows large enough that the accumulated quadratic constraints prevent any further useful learning on new tasks.",
+  "source_excerpt": "This algorithm slows down learning on certain weights based on how important they are to previously seen tasks... catastrophic forgetting occurs specifically when the network is trained sequentially on multiple tasks because the weights in the network that are important for task A are changed to meet the objectives of task B.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 1732,
+  "llm_tokens_out": 372,
+  "extraction_method": "llm-claude-sonnet-4-6-single-shot"
+}

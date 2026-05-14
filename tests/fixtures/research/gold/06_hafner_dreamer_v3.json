@@ -1,0 +1,19 @@
+{
+  "id": "dreamer-v3-hafner-2023",
+  "ts": "2026-05-12T00:00:00+00:00",
+  "paper_title": "Mastering Diverse Domains through World Models (DreamerV3)",
+  "paper_source": "arXiv:2301.04104 ; Hafner, Pasukonis, Ba, Lillicrap 2023",
+  "mechanism": "Recurrent State-Space Model (RSSM): encoder maps inputs to discrete latents z_t; sequence model h_t = f_phi(h_(t-1), z_(t-1), a_(t-1)) tracks recurrent state; dynamics predictor learns p(z_hat | h). Actor-critic trained purely in imagination rollouts. Critical engineering: (a) symlog transform for reconstruction/value targets, (b) free bits (clip KL below 1 nat) prevents latent collapse, (c) categorical critic with exponential bins, (d) percentile-normalized returns, (e) mix categorical with 1% uniform. One hyperparameter config across 150+ tasks.",
+  "invariant": "Hyperparameter sensitivity is a symptom of poorly-normalized gradient flow. Solving robustness across domains means making every loss term invariant to the absolute scale of the target — not tuning the loss per domain.",
+  "prediction": "A single fixed hyperparameter configuration solves 150+ tasks across Atari, ProcGen, DMLab, Minecraft, and control suites — outperforming domain-tuned expert algorithms. First algorithm to collect diamonds in Minecraft from scratch without human data or curricula.",
+  "failure_mode": "Sample efficiency improves over Dreamer V2 but remains in the 100K-100M frames range — far from human or few-shot learning. The stabilization tricks (symlog, percentile norm, free bits) are essential but somewhat ad hoc; finding them required substantial experimentation. World-model fidelity degrades under distribution shift mid-training (not addressed in the paper).",
+  "first_principle": "Generality across domains comes from principled per-target normalization of every loss and signal — not from per-domain tuning. Gradient scale should decouple from absolute target magnitude. The trick scales horizontally (more tasks) and vertically (more model sizes).",
+  "anti_pattern": "Treating Dreamer V3 as 'just a bigger world model.' The architecture is largely Dreamer V2; the contribution is the constellation of normalization tricks. Skip those and the same architecture fails to converge on harder/diverse domains. Also: copying one trick (e.g. symlog) without the others; they synergize.",
+  "transferability_test": "Robust optimization in general (Adam's effective per-parameter normalization is spiritually the same). Financial models (normalize returns before optimizing). Strategic planning across markets with very different scales — normalize KPIs to comparable ranges before optimizing strategy. Comparative team performance reviews (normalize scope before judging).",
+  "verdict": "foundational",
+  "one_sentence_compression": "Train an RSSM world model + actor-critic in its imagination, made robust across domains via symlog losses, free bits, percentile-normalized returns, and categorical-binned critics that decouple gradient scale from target magnitude.",
+  "thesis_id": null,
+  "revision_of": null,
+  "entity_mentions": [],
+  "framework_alignment": []
+}

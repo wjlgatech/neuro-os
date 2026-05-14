@@ -1,0 +1,19 @@
+{
+  "system": "Ours_minus_review",
+  "paper_id": "rt2-brohan-2023",
+  "paper_title": "RT-2: Vision-Language-Action Models Transfer Web Knowledge to Robotic Control",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "RT-2 co-fine-tunes a pretrained vision-language model (VLM) on robot trajectory data by tokenizing continuous actions as discrete text tokens, placing them in the same vocabulary and training stream as natural language. The VLM's weights\u2014already encoding web-scale visual and semantic knowledge\u2014are updated jointly on VQA and action prediction objectives. Because actions and language share the same token representation, the model's semantic priors (object categories, spatial relations, reasoning chains) transfer directly into the action-generation pathway without architectural surgery.",
+  "invariant": "Emergent generalization scales with the size and diversity of the pretrained VLM backbone, not with the volume of robot data. Across model sizes and task variants, improvement on novel or semantically complex tasks is always traceable to web-pretrained representations, not to in-domain robotic experience.",
+  "prediction": "RT-2 should succeed on object-manipulation tasks whose targets never appear in the robot dataset (e.g., placing onto a printed number or icon) at rates far above a robot-only baseline, proportional to how well the VLM backbone recognizes those targets from web data. A VLM backbone with degraded semantic representations should correspondingly lose emergent task performance.",
+  "failure_mode": "Co-fine-tuning on robot trajectories causes catastrophic forgetting of VLM capabilities (confirmed in paper: RT-2 scores drop on standard VQA benchmarks relative to the base VLM). If the pretraining distribution is far from the deployment visual domain, or if the action discretization introduces large quantization error for high-precision tasks, the token-sharing mechanism breaks down.",
+  "source_excerpt": "we propose a simple, general recipe to achieve this goal: in order to fit both natural language responses and robotic actions into the same format, we express the actions as text tokens and incorporate them directly into the training set of the model in the same way as natural language tokens.",
+  "has_schema": true,
+  "pinned_provenance": true,
+  "review_gate_passed": false,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 2197,
+  "llm_tokens_out": 446,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-no-review"
+}

@@ -1,0 +1,19 @@
+{
+  "system": "Ours_minus_review",
+  "paper_id": "progressive-networks-rusu-2016",
+  "paper_title": "Progressive Neural Networks",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "Each new task instantiates a fresh neural network column with randomly initialized weights. Prior columns are frozen, preventing any modification of previously learned representations. The new column receives input from its own previous layer AND from the previous layers of all prior frozen columns via lateral connections (adapter matrices U). Gradient flow updates only the new column's weights plus lateral adapters, so prior task functions are structurally preserved while the new column learns to selectively route and recombine prior features alongside new computations.",
+  "invariant": "Previously learned columns are always frozen upon task switch. No matter how many tasks are learned sequentially, the functional mapping of any column k to its task k is never modified. Transfer is always read-only from the perspective of prior columns.",
+  "prediction": "Performance on task 1 remains identical before and after training on tasks 2..K, because column 1's weights are frozen. Lateral connections will show task-specific sensitivity patterns: perturbations to lateral weights from source columns with similar low-level features will degrade target-column performance more than perturbations from dissimilar columns.",
+  "failure_mode": "The architecture grows linearly in parameters with each new task, and lateral connections grow quadratically in the number of columns times layers. For long task sequences this becomes computationally and memory intractable. Additionally, if tasks are adversarially dissimilar, lateral connections provide no useful signal yet still consume capacity, potentially hindering learning in the new column.",
+  "source_excerpt": "When switching to a second task, the parameters \u0398(1) are 'frozen' and a new column with parameters \u0398(2) is instantiated (with random initialization), where layer h(2)_i receives input from both h(2)_{i\u22121} and h(1)_{i\u22121} via lateral connections.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 1983,
+  "llm_tokens_out": 416,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-no-review"
+}

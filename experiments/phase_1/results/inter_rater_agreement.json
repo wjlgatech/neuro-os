@@ -1,0 +1,358 @@
+{
+  "config": {
+    "n_papers": 10,
+    "fields": [
+      "mechanism",
+      "invariant",
+      "prediction",
+      "failure_mode"
+    ],
+    "model": "claude-sonnet-4-6",
+    "annotator_A": "human (Paul) \u2014 gold cards in tests/fixtures/research/gold/",
+    "annotator_B": "LLM (claude-sonnet-4-6 via Ours_full_loop)"
+  },
+  "jaccard_per_field": {
+    "mechanism": {
+      "mean": 0.21105831725609345,
+      "min": 0.12087912087912088,
+      "max": 0.3787878787878788,
+      "values": [
+        0.17582417582417584,
+        0.3787878787878788,
+        0.25316455696202533,
+        0.16470588235294117,
+        0.2222222222222222,
+        0.16091954022988506,
+        0.12087912087912088,
+        0.23376623376623376,
+        0.19101123595505617,
+        0.20930232558139536
+      ]
+    },
+    "invariant": {
+      "mean": 0.09843620360038756,
+      "min": 0.05263157894736842,
+      "max": 0.2127659574468085,
+      "values": [
+        0.07142857142857142,
+        0.2127659574468085,
+        0.16279069767441862,
+        0.07692307692307693,
+        0.12,
+        0.05263157894736842,
+        0.07017543859649122,
+        0.057692307692307696,
+        0.05357142857142857,
+        0.10638297872340426
+      ]
+    },
+    "prediction": {
+      "mean": 0.1029459472649398,
+      "min": 0.03333333333333333,
+      "max": 0.1836734693877551,
+      "values": [
+        0.07547169811320754,
+        0.16981132075471697,
+        0.13559322033898305,
+        0.11320754716981132,
+        0.03333333333333333,
+        0.07462686567164178,
+        0.09259259259259259,
+        0.034482758620689655,
+        0.11666666666666667,
+        0.1836734693877551
+      ]
+    },
+    "failure_mode": {
+      "mean": 0.12761577719527806,
+      "min": 0.05405405405405406,
+      "max": 0.32075471698113206,
+      "values": [
+        0.05405405405405406,
+        0.32075471698113206,
+        0.17857142857142858,
+        0.07017543859649122,
+        0.07936507936507936,
+        0.06666666666666667,
+        0.08196721311475409,
+        0.1746031746031746,
+        0.1,
+        0.15
+      ]
+    }
+  },
+  "judge_per_paper": [
+    {
+      "paper_id": "dreamer-v3-hafner-2023",
+      "mechanism": {
+        "agreement": "strong",
+        "note": "Both describe the same RSSM architecture with actor-critic in imagination, and both highlight symlog, free bits, and percentile normalization as the key stabilization mechanisms; A adds categorical critic and uniform mixing details that B omits, but the core causal structure is identical."
+      },
+      "invariant": {
+        "agreement": "strong",
+        "note": "Both converge on the same invariant: unbounded scale variation across domains is the destabilizing force, and making losses/gradients invariant to absolute signal scale is the solution enabling a single hyperparameter config."
+      },
+      "prediction": {
+        "agreement": "weak",
+        "note": "A predicts broad empirical success (150+ tasks, diamond collection) as the paper's main claim; B instead offers a falsifiable ablation prediction about what happens when normalization is removed \u2014 these are substantively different types of predictions."
+      },
+      "failure_mode": {
+        "agreement": "partial",
+        "note": "A focuses on sample efficiency and the ad hoc nature of the stabilization tricks; B focuses on long-horizon sparse-reward failure due to imagination horizon limits \u2014 overlapping in spirit (world model limitations) but each identifies a distinct failure axis the other omits."
+      },
+      "_tokens_in": 975,
+      "_tokens_out": 285
+    },
+    {
+      "paper_id": "ewc-kirkpatrick-2017",
+      "mechanism": {
+        "agreement": "strong",
+        "note": "Both describe the same Fisher-diagonal quadratic penalty anchoring weights to task-A values, with identical causal framing of differential plasticity via local curvature."
+      },
+      "invariant": {
+        "agreement": "strong",
+        "note": "Both identify the same core invariant: a small subset of parameters disproportionately determines task performance, and curvature-based identification (not magnitude/recency) is the key."
+      },
+      "prediction": {
+        "agreement": "partial",
+        "note": "Both reference Fisher-direction perturbation experiments (Fig 3C), but A explicitly states EWC retains performance proportional to Fisher accuracy and cites the nullspace result, while B frames it as a standalone ablation test without mentioning EWC retention across tasks."
+      },
+      "failure_mode": {
+        "agreement": "strong",
+        "note": "Both identify the same two failure modes: Laplace overconfidence causing mis-allocation of stiffness, and distributional shift causing EWC to devolve toward disjoint sub-networks."
+      },
+      "_tokens_in": 944,
+      "_tokens_out": 249
+    },
+    {
+      "paper_id": "gem-lopez-paz-2017",
+      "mechanism": {
+        "agreement": "strong",
+        "note": "Both describe episodic memory per task, gradient feasibility check via inner products, QP projection when constraints violated, and backward transfer preservation; wording differs but causal structure is identical."
+      },
+      "invariant": {
+        "agreement": "partial",
+        "note": "Both identify non-negative inner product with past-task gradients as the key constraint, but B frames it as a general architectural-agnostic principle while A emphasizes the convex cone geometry; B omits the convex cone framing that A includes."
+      },
+      "prediction": {
+        "agreement": "partial",
+        "note": "Both predict positive backward transfer and superiority over EWC; A adds specific benchmarks (permuted MNIST, rotated MNIST, incremental CIFAR-100, iCaRL comparison) while B adds a mechanistic condition (alignment without projection) and held-out task sequences framing."
+      },
+      "failure_mode": {
+        "agreement": "partial",
+        "note": "Both identify QP cost scaling with tasks and noisy/small memory issues; A additionally flags raw example storage cost and naive sampling representativeness, while B explicitly notes over-constraining forward transfer from small memory, which A omits."
+      },
+      "_tokens_in": 928,
+      "_tokens_out": 284
+    },
+    {
+      "paper_id": "helm-liang-2022",
+      "mechanism": {
+        "agreement": "strong",
+        "note": "Both describe the same cross-product (scenarios \u00d7 metrics \u00d7 models) structure with standardized adaptation, forced dense coverage, and explicit enumeration; A adds concrete numbers while B emphasizes the causal logic of why density matters, but the core mechanism is identical."
+      },
+      "invariant": {
+        "agreement": "strong",
+        "note": "Both assert that broad/dense multi-metric standardized co-evaluation is necessary to surface trade-offs hidden by selective benchmarking; A frames it as three conditions for holism, B as a causal invariant about sparse vs. dense coverage \u2014 same underlying claim."
+      },
+      "prediction": {
+        "agreement": "partial",
+        "note": "Both predict that accuracy rankings will diverge from fairness/calibration/toxicity rankings; A provides the concrete empirical statistic (17.9%\u219296% scenario overlap) while B frames it as a Pareto-dominance/rank-correlation prediction \u2014 overlapping but A's is grounded in measured data and B's is mor"
+      },
+      "failure_mode": {
+        "agreement": "partial",
+        "note": "Both identify incomplete scenario/taxonomy coverage and the risk of false confidence in holism; A additionally flags English-centrism, compute cost, and governance drift over time, which B does not address, while B articulates the 'false confidence' framing more sharply."
+      },
+      "_tokens_in": 937,
+      "_tokens_out": 319
+    },
+    {
+      "paper_id": "iris-micheli-2023",
+      "mechanism": {
+        "agreement": "strong",
+        "note": "Both describe the same two-component design: discrete VQ-based autoencoder tokenizing frames plus a causal Transformer operating on interleaved token/action sequences, with policy trained purely in imagination and real env used only for world-model data collection."
+      },
+      "invariant": {
+        "agreement": "partial",
+        "note": "Both highlight that discrete tokenization enables sequence modeling; A focuses on unlocking Transformer scaling properties, while B emphasizes that the discrete bottleneck controls compounding error \u2014 related but distinct emphases."
+      },
+      "prediction": {
+        "agreement": "weak",
+        "note": "A gives the concrete empirical result (1.046 human-normalized score on Atari 100k, superhuman on 10/26 games); B makes a comparative/ablation prediction about Transformer vs. LSTM degradation with rollout length \u2014 entirely different claims."
+      },
+      "failure_mode": {
+        "agreement": "partial",
+        "note": "Both identify discrete codebook/tokenizer failure as a core risk; A additionally flags quadratic Transformer cost, chicken-and-egg early training, and lack of cross-game transfer, which B omits, but B's codebook coverage framing is more precise than A's on this specific failure."
+      },
+      "_tokens_in": 958,
+      "_tokens_out": 296
+    },
+    {
+      "paper_id": "latent-replay-pellegrini-2019",
+      "mechanism": {
+        "agreement": "strong",
+        "note": "Both describe storing intermediate activations, concatenating into mini-batches, bypassing lower layers, and freezing/slowing lower layers to prevent drift; A adds Batch Renormalization detail but core causal structure matches."
+      },
+      "invariant": {
+        "agreement": "weak",
+        "note": "A frames the invariant as a tunable compression-fidelity tradeoff (replay layer choice as a budget dial), while B frames it as representational stability being sufficient for replay equivalence \u2014 different causal principles."
+      },
+      "prediction": {
+        "agreement": "partial",
+        "note": "Both predict compute savings scale with replay layer depth and that allowing lower layers to update freely degrades accuracy; A adds specific empirical claims (5% gap, sweet spot at conv5_4/dw) that B omits."
+      },
+      "failure_mode": {
+        "agreement": "partial",
+        "note": "A focuses on the aging-effect failure at too-deep replay layers and the cost of freezing representation adaptation; B focuses on domain mismatch in pretraining and memory accumulation at scale \u2014 overlapping only on the aging/staleness mechanism, missing each other's primary failure modes."
+      },
+      "_tokens_in": 992,
+      "_tokens_out": 280
+    },
+    {
+      "paper_id": "open-x-embodiment-2023",
+      "mechanism": {
+        "agreement": "partial",
+        "note": "Both identify cross-embodiment dataset aggregation + RT-X training as the mechanism, but A emphasizes the dataset construction (OXE, RLDS format, scale) while B emphasizes the learned generalization through behavioral diversity; A also includes RT-1/RT-2 architecture specifics that B omits."
+      },
+      "invariant": {
+        "agreement": "partial",
+        "note": "Both assert that cross-embodiment diversity enables positive transfer of manipulation primitives, but A grounds this in analogy to NLP/vision scaling laws while B frames it as breadth > depth regardless of morphology\u2014related but distinct emphases."
+      },
+      "prediction": {
+        "agreement": "partial",
+        "note": "Both predict RT-X outperforms single-robot baselines, but B adds a specific correlation prediction (performance gap ~ underrepresentation in own dataset) and focuses on zero-shot/light fine-tuning scenarios, while A additionally predicts emergent skills and institutional force-multiplier effects."
+      },
+      "failure_mode": {
+        "agreement": "partial",
+        "note": "Both identify uneven/negative transfer as a failure mode, but B pinpoints the specific mechanism (conflicting action distributions from heterogeneous data causing negative transfer in specialized tasks) while A focuses more on the coordination/standardization effort and heterogeneous action spaces a"
+      },
+      "_tokens_in": 928,
+      "_tokens_out": 316
+    },
+    {
+      "paper_id": "progressive-networks-rusu-2016",
+      "mechanism": {
+        "agreement": "strong",
+        "note": "Both describe frozen prior columns, new column per task, lateral adapter connections from prior layers, and no catastrophic forgetting by construction\u2014same causal structure throughout."
+      },
+      "invariant": {
+        "agreement": "strong",
+        "note": "Both identify that freezing prior capacity while adding new capacity resolves the forgetting-plasticity tradeoff structurally rather than via regularization, with A noting linear parameter cost and B generalizing more broadly."
+      },
+      "prediction": {
+        "agreement": "partial",
+        "note": "Both cite AFS/Fisher sensitivity revealing mid-layer transfer; B adds a specific counterfactual prediction (zeroing lateral weights degrades convergence) that A does not, while A includes empirical benchmark results (Atari, 3D maze) that B omits."
+      },
+      "failure_mode": {
+        "agreement": "strong",
+        "note": "Both identify linear parameter growth as the primary failure mode; B adds incompatible-task lateral noise and A adds task-label requirement at inference, but the core shared failure is identical and well-covered by both."
+      },
+      "_tokens_in": 907,
+      "_tokens_out": 258
+    },
+    {
+      "paper_id": "rt2-brohan-2023",
+      "mechanism": {
+        "agreement": "strong",
+        "note": "Both identify co-fine-tuning a pretrained VLM by encoding robot actions as discrete text tokens in the same vocabulary, preserving web knowledge through a shared token interface; B elaborates on gradient-level transfer while A adds model-size and mixed-batch details."
+      },
+      "invariant": {
+        "agreement": "partial",
+        "note": "Both capture the shared token space as the key transfer mechanism, but A emphasizes the mixed-objective fine-tuning preserving both grounding and reasoning, while B frames it as a general principle about common representational substrates \u2014 slightly different levels of abstraction."
+      },
+      "prediction": {
+        "agreement": "strong",
+        "note": "Both predict RT-2 outperforms robot-only baselines on novel semantic reasoning tasks (e.g., improvised tools, novel concepts), with the robot-only baseline near chance; A adds quantitative detail (6k trials, emergent semantic-location picking)."
+      },
+      "failure_mode": {
+        "agreement": "partial",
+        "note": "B focuses specifically on catastrophic forgetting of VL representations as the primary failure mode, while A identifies multiple distinct failure modes (data distribution limits, inference latency, frozen deployment, fine-tuning bandwidth); B's catastrophic forgetting concern is present but underdev"
+      },
+      "_tokens_in": 963,
+      "_tokens_out": 306
+    },
+    {
+      "paper_id": "world-models-ha-schmidhuber-2018",
+      "mechanism": {
+        "agreement": "strong",
+        "note": "Both describe the same VAE\u2192MDN-RNN\u2192small linear controller pipeline with the same rationale (compressed latent space reduces controller's credit-assignment problem), though A adds specific numbers (32-D, 867 params, CMA-ES, temperature \u03c4) that B omits."
+      },
+      "invariant": {
+        "agreement": "partial",
+        "note": "Both agree on decoupling world model from policy, but A emphasizes the compression-then-predict-then-train-in-compressed-space sequence, while B frames it more abstractly as 'world model absorbs representational burden'; B adds a caveat about the separation holding 'whenever bottleneck is perception"
+      },
+      "prediction": {
+        "agreement": "partial",
+        "note": "Both predict dream-trained agents transfer to reality; A provides concrete benchmark results (CarRacing 906\u00b121, VizDoom >750) as evidence, while B frames it as a conditional hypothesis and adds that transfer failure implicates world-model bias rather than policy failure\u2014a diagnostic nuance A omits."
+      },
+      "failure_mode": {
+        "agreement": "strong",
+        "note": "Both identify the same adversarial exploitation of world-model imperfections during dream training causing real-world failure; A additionally notes temperature \u03c4 as a partial mitigation and stale V/M under environment shift, which B omits, but the core causal structure is the same."
+      },
+      "_tokens_in": 973,
+      "_tokens_out": 345
+    }
+  ],
+  "kappa_per_field": {
+    "mechanism": {
+      "n": 10,
+      "distribution": {
+        "strong": 9,
+        "partial": 1
+      },
+      "kappa_binary_strong": 0.8,
+      "pct_strong": 0.9,
+      "pct_partial": 0.1,
+      "pct_weak": 0.0
+    },
+    "invariant": {
+      "n": 10,
+      "distribution": {
+        "strong": 4,
+        "partial": 5,
+        "weak": 1
+      },
+      "kappa_binary_strong": -0.19999999999999996,
+      "pct_strong": 0.4,
+      "pct_partial": 0.5,
+      "pct_weak": 0.1
+    },
+    "prediction": {
+      "n": 10,
+      "distribution": {
+        "weak": 2,
+        "partial": 7,
+        "strong": 1
+      },
+      "kappa_binary_strong": -0.8,
+      "pct_strong": 0.1,
+      "pct_partial": 0.7,
+      "pct_weak": 0.2
+    },
+    "failure_mode": {
+      "n": 10,
+      "distribution": {
+        "partial": 7,
+        "strong": 3
+      },
+      "kappa_binary_strong": -0.4,
+      "pct_strong": 0.3,
+      "pct_partial": 0.7,
+      "pct_weak": 0.0
+    }
+  },
+  "overall_agreement": {
+    "n": 40,
+    "distribution": {
+      "strong": 17,
+      "weak": 3,
+      "partial": 20
+    },
+    "pct_strong": 0.425,
+    "pct_partial": 0.5,
+    "pct_weak": 0.075,
+    "kappa_binary_strong": -0.15000000000000002
+  },
+  "llm_tokens_in_total": 9505,
+  "llm_tokens_out_total": 2938
+}

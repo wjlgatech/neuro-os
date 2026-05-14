@@ -1,0 +1,19 @@
+{
+  "system": "B4_single_shot_mechanism_card",
+  "paper_id": "open-x-embodiment-2023",
+  "paper_title": "Open X-Embodiment: Robotic Learning Datasets and RT-X Models",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "Training large, high-capacity transformer-based robotic policies (RT-X) on a diverse, multi-embodiment, multi-institution dataset (Open X-Embodiment) causes the model to learn transferable representations and action distributions that generalize across robot morphologies and tasks. The diversity of embodiments, environments, and behaviors forces the model to extract task-relevant abstractions rather than embodiment-specific shortcuts, enabling positive transfer to new robots and settings.",
+  "invariant": "Across all robot embodiments, environments, and institutions in the dataset, the policy architecture and training objective remain fixed. The causal claim is that scale and diversity of training data\u2014not model architecture changes\u2014drive the generalization improvements observed.",
+  "prediction": "A model trained on the full diverse Open X-Embodiment dataset should outperform a model trained only on single-embodiment or single-institution data when evaluated on held-out robots or tasks, even when the single-source dataset is larger in volume.",
+  "failure_mode": "If the action spaces or observation modalities across embodiments are too heterogeneous to be aligned into a common representation, the cross-embodiment transfer signal becomes noise rather than signal, and joint training degrades rather than improves performance on individual embodiments.",
+  "source_excerpt": "Large, high-capacity models trained on diverse datasets have... The dataset represents diverse behaviors, robot embodiments and environments, and enables learning generalized robotic policies.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 3046,
+  "llm_tokens_out": 330,
+  "extraction_method": "llm-claude-sonnet-4-6-single-shot"
+}

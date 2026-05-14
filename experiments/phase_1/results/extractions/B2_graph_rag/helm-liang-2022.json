@@ -1,0 +1,23 @@
+{
+  "system": "B2_graph_rag",
+  "paper_id": "helm-liang-2022",
+  "paper_title": "Holistic Evaluation of Language Models (HELM)",
+  "free_text_output": "[intro/motivation community]: We found major\nmodels such as T5 (11B) and Anthropic-LM v4-s3 (52B) were not evaluated on a single dataset in common in\n\n\n                                                                                  4\n\fPublished in Transactions on Machine Learning Research (08/2023)\n\n\n\n\n                                                                                                                                                                    Previous work\n                                                                                                                                                  \n\n[method/mechanism community]: BBQ - BBQ (ambiguous)                                   BBQ - BBQ (unambiguous)\n                               text-davinci-002                                            davinci (175B)\n                                TNLG v2 (530B)                         Cohere large v20220720 (13.1B)\n                                      T0pp (11B)                                                UL2 (20B)\n                                       UL2 (20B)                       Cohere small v20220720 (410M)\n              Cohere small v20220720 (410M)                                               TNLG v2 (6.7B)\n\n\n[results/discussion community]: The output is result of the substitution according\n\n\n                                                                                      145\n\fPublished in Transactions on Machine Learning Research (08/2023)\n\n\n\n\n                            Relation ID        Relation Name                                      Prompt\n                            Art\n                            P136               genre                                              The genre of [X] is a/an\n                            P1303              instrument                                         The musical instrument [X] pl",
+  "retrieved_chunks": [
+    "[intro/motivation community]: We found major\nmodels such as T5 (11B) and Anthropic-LM v4-s3 (52B) were not evaluated on a single dataset in common in\n\n\n                                                                                  4\n\fPublished in Transactions on Machine Learning Research (08/2023)\n\n\n\n\n                                                                                                                                                                    Previous work\n                                                                                                                                                  ",
+    "[method/mechanism community]: BBQ - BBQ (ambiguous)                                   BBQ - BBQ (unambiguous)\n                               text-davinci-002                                            davinci (175B)\n                                TNLG v2 (530B)                         Cohere large v20220720 (13.1B)\n                                      T0pp (11B)                                                UL2 (20B)\n                                       UL2 (20B)                       Cohere small v20220720 (410M)\n              Cohere small v20220720 (410M)                                               TNLG v2 (6.7B)\n",
+    "[results/discussion community]: The output is result of the substitution according\n\n\n                                                                                      145\n\fPublished in Transactions on Machine Learning Research (08/2023)\n\n\n\n\n                            Relation ID        Relation Name                                      Prompt\n                            Art\n                            P136               genre                                              The genre of [X] is a/an\n                            P1303              instrument                                         The musical instrument [X] pl"
+  ],
+  "mechanism": "",
+  "invariant": "",
+  "prediction": "",
+  "failure_mode": "",
+  "source_excerpt": "",
+  "has_schema": false,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 0,
+  "llm_tokens_out": 0,
+  "extraction_method": "heuristic-positional-communities"
+}

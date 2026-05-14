@@ -1,0 +1,19 @@
+{
+  "system": "Ours_minus_review",
+  "paper_id": "open-x-embodiment-2023",
+  "paper_title": "Open X-Embodiment: Robotic Learning Datasets and RT-X Models",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "Aggregating demonstration data across 22 robot embodiments and 21 institutions into a single corpus, then co-training a high-capacity transformer policy (RT-2 or RT-1 backbone) on that heterogeneous mixture, causes the model to learn action representations that transfer across embodiments. The shared visual-semantic structure in diverse observations acts as a binding scaffold: weights trained on one robot's visual experience regularize representations for others, producing emergent cross-embodiment generalization that no single-embodiment dataset could induce.",
+  "invariant": "Diversity of embodiments and tasks in the training corpus is the operative variable: across all ablations and model scales, broader data mixtures improve generalization to held-out robots and scenarios, regardless of which backbone architecture is used or how the action spaces are tokenized.",
+  "prediction": "An RT-X model co-trained on the full multi-embodiment dataset will succeed on novel tasks at a target robot more often than the best single-institution model trained only on that robot's own data, even when the target robot contributes a minority of training episodes \u2014 falsifiable by the per-embodiment success-rate comparisons in the evaluation tables.",
+  "failure_mode": "When the target embodiment's action space or morphology is sufficiently dissimilar from all training embodiments (e.g., a novel dexterous hand with no analog in the corpus), the shared representation provides no useful transfer and co-training may even hurt by diluting in-distribution gradient signal \u2014 the binding scaffold requires at least partial observational or task overlap.",
+  "source_excerpt": "We demonstrate that a model trained on this dataset, which we call RT-X, exhibits positive transfer and improves the success rate of multiple models, achieving better performance than 7 of the 9 policies trained on data from individual institutions. This suggests that the robot learning community stands to benefit substantially from an open exchange of robotic learning datasets and models.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 3439,
+  "llm_tokens_out": 437,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-no-review"
+}

@@ -1,0 +1,19 @@
+{
+  "system": "B5_reviewed_mechanism_card",
+  "paper_id": "ewc-kirkpatrick-2017",
+  "paper_title": "Overcoming catastrophic forgetting in neural networks",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "EWC prevents catastrophic forgetting by computing the Fisher information matrix diagonal as a per-weight importance score for a previously learned task. A quadratic penalty term added to the loss function during new-task training scales each weight's effective learning rate inversely to its importance: weights critical to task A are constrained near their task-A optimal values, while low-importance weights remain plastic. This selectively partitions the parameter space into stable (task-protecting) and plastic (task-acquiring) subsets without retaining prior task data.",
+  "invariant": "The stability-plasticity trade-off is governed by weight-specific importance scores derived from prior task geometry: high-importance weights are protected, low-importance weights remain free\u2014this principle transfers across task domains, network architectures, and learning paradigms (supervised and reinforcement learning).",
+  "prediction": "Replacing Fisher-based importance scores with uniform penalties of equivalent magnitude will produce strictly worse retention of prior tasks than EWC while also degrading new-task performance less selectively, because uniform regularization cannot distinguish task-critical from task-irrelevant weights.",
+  "failure_mode": "When two sequential tasks require large overlapping subsets of weights with similar high importance scores, EWC cannot find a low-penalty region satisfying both tasks simultaneously, causing the quadratic constraint to either fail to protect task A or prevent adequate learning of task B.",
+  "source_excerpt": "Our approach remembers old tasks by selectively slowing down learning on the weights important for those tasks.",
+  "has_schema": true,
+  "pinned_provenance": true,
+  "review_gate_passed": true,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 1846,
+  "llm_tokens_out": 846,
+  "extraction_method": "llm-claude-sonnet-4-6-self-reviewed"
+}

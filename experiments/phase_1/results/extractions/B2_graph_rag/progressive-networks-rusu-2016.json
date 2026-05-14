@@ -1,0 +1,23 @@
+{
+  "system": "B2_graph_rag",
+  "paper_id": "progressive-networks-rusu-2016",
+  "paper_title": "Progressive Neural Networks",
+  "free_text_output": "[intro/motivation community]: Rabinowitz*, Guillaume Desjardins*, Hubert Soyer,\n                                                   James Kirkpatrick, Koray Kavukcuoglu, Razvan Pascanu, Raia Hadsell\n                                                                      * These authors contributed equally to this work\n                                                                                    Google DeepMind\n                                                                                      London, UK\n\n\n\n\narXiv:1606.04671v4 [cs.LG] 22 Oct 2022\n                                             {andreirusu, ncr, gdesjardin\n\n[method/mechanism community]: Pong Soup                      Atari                     Labyrinth\n                       Mean (%) Median (%)          Mean (%) Median (%)          Mean (%) Median (%)\n   Baseline 1                 100            100          100             100          100               100\n   Baseline 2                  35              7           41              21           88                85\n   Baseline 3                 181            160          133             110          235               112\n   Baseline 4                 134            131           96              95          185               \n\n[results/discussion community]: 2\n\f                      Target game: alien                                   Target game: asterix                                        Target game: boxing\n                                                                                                                   100\n         2500\n                                                            10000\n                                                                                                                   80\n         2000\n                                                            8000\n                                              ",
+  "retrieved_chunks": [
+    "[intro/motivation community]: Rabinowitz*, Guillaume Desjardins*, Hubert Soyer,\n                                                   James Kirkpatrick, Koray Kavukcuoglu, Razvan Pascanu, Raia Hadsell\n                                                                      * These authors contributed equally to this work\n                                                                                    Google DeepMind\n                                                                                      London, UK\n\n\n\n\narXiv:1606.04671v4 [cs.LG] 22 Oct 2022\n                                             {andreirusu, ncr, gdesjardin",
+    "[method/mechanism community]: Pong Soup                      Atari                     Labyrinth\n                       Mean (%) Median (%)          Mean (%) Median (%)          Mean (%) Median (%)\n   Baseline 1                 100            100          100             100          100               100\n   Baseline 2                  35              7           41              21           88                85\n   Baseline 3                 181            160          133             110          235               112\n   Baseline 4                 134            131           96              95          185               ",
+    "[results/discussion community]: 2\n\f                      Target game: alien                                   Target game: asterix                                        Target game: boxing\n                                                                                                                   100\n         2500\n                                                            10000\n                                                                                                                   80\n         2000\n                                                            8000\n                                              "
+  ],
+  "mechanism": "",
+  "invariant": "",
+  "prediction": "",
+  "failure_mode": "",
+  "source_excerpt": "",
+  "has_schema": false,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 0,
+  "llm_tokens_out": 0,
+  "extraction_method": "heuristic-positional-communities"
+}

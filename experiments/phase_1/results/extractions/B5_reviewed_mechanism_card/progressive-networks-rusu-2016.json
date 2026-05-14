@@ -1,0 +1,19 @@
+{
+  "system": "B5_reviewed_mechanism_card",
+  "paper_id": "progressive-networks-rusu-2016",
+  "paper_title": "Progressive Neural Networks",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "Progressive networks prevent catastrophic forgetting by instantiating a separate neural network column per task and freezing all prior columns' parameters. New columns receive lateral connections from every prior column at each layer, allowing selective reuse of previously learned features. Architectural separation structurally preserves old task knowledge while new capacity enables new learning; lateral connections provide a learned routing of prior representations into new computations at every layer of the feature hierarchy.",
+  "invariant": "Frozen prior columns exactly preserve previous task knowledge regardless of how many subsequent tasks are learned; lateral connections always flow unidirectionally from prior columns to newer columns, never modifying prior parameters during new-task training.",
+  "prediction": "Transfer benefit is localized to specific layers: blocking lateral connections at high-sensitivity layers (identified via Fisher Information or perturbation analysis) should degrade new-task performance significantly more than blocking connections at low-sensitivity layers.",
+  "failure_mode": "When tasks are highly dissimilar, lateral connections yield no useful transferred features, yet the column pool still grows linearly with the number of tasks, making the approach computationally and memory-prohibitive without any transfer benefit to justify the cost.",
+  "source_excerpt": "catastrophic forgetting is prevented by instantiating a new neural network (a column) for each task being solved, while transfer is enabled via lateral connections to features of previously learned columns.",
+  "has_schema": true,
+  "pinned_provenance": true,
+  "review_gate_passed": true,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 1704,
+  "llm_tokens_out": 728,
+  "extraction_method": "llm-claude-sonnet-4-6-self-reviewed"
+}

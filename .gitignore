@@ -3,6 +3,13 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# Corpus PDFs are large binaries (~44 MB total) and reproducible from
+# the URLs in research_practice/PAPERS_MANIFEST.md and
+# research_practice/download-starter-papers.sh. We track the pdftotext
+# extractions (research_practice/inbox/*.txt) instead — that's what
+# the extractor harness actually reads.
+research_practice/inbox/*.pdf
+
 # Neuro-OS runtime artifacts (per-machine state — registry log,
 # primitive-feedback log, ontology snapshots written by examples/UI).
 # Tests redirect these to tempdirs; demos and the Streamlit app default

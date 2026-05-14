@@ -1,0 +1,19 @@
+{
+  "id": "latent-replay-pellegrini-2019",
+  "ts": "2026-05-12T00:00:00+00:00",
+  "paper_title": "Latent Replay for Real-Time Continual Learning",
+  "paper_source": "arXiv:1912.01100 ; Pellegrini, Graffieti, Lomonaco, Maltoni 2019 ; IROS 2020",
+  "mechanism": "Store activations at an intermediate layer (e.g. conv5_4/dw in MobileNetV1) from old tasks instead of raw inputs. During new-task training, concatenate replay activations with current batch activations at the replay layer; forward computation for replay patterns starts at that layer, skipping the lower network; backprop is stopped at the replay layer for replay patterns. Slow learning on layers below the replay layer (freeze + use Batch Renormalization for adaptive stats) bounds the 'aging effect' — drift between stored activations and what the current encoder would now produce.",
+  "invariant": "Compression is not just a runtime optimization — it is a way to trade fidelity-of-replay for cost-of-replay along a tunable axis. The choice of replay layer is the choice of how much computational + storage budget you spend on remembering vs how much accuracy you sacrifice. Memory of past tasks doesn't have to be lossless; it has to be sufficient.",
+  "prediction": "Latent replay enables real-time continual learning on CPU-only edge devices (Android smartphone demo) at ~5% gap from the cumulative upper bound on CORe50 NICv2-391. There exists a sweet spot in the choice of replay layer (deeper = more compute and storage saved, but more aging effect — conv5_4/dw is the empirical sweet spot for MobileNetV1).",
+  "failure_mode": "Push the replay layer too deep and the aging effect dominates: stored activations drift from what the current encoder would produce, and accuracy degrades (Table 1: ~17% drop from conv5_4/dw to pool6). The slow-learning trick also has a cost: freezing the lower network removes the representation-adaptation benefit that continual learning was supposed to provide.",
+  "first_principle": "Lossy memory is a feature, not a bug, when paired with explicit knobs that control the loss. Compression should be a first-class design parameter, not an afterthought; surface the trade-off, don't hide it. Generalizes beyond neural networks to any memory system with cost/fidelity dimensions — databases, caches, organizational archives, personal notes.",
+  "anti_pattern": "Treating latent replay as a strict generalization of native rehearsal — assuming deeper replay layers are always better. The paper's Table 1 disproves this: there's a sweet spot past which the aging effect dominates. The deeper trap: treating 'freeze the lower network' as cost-free, when it actually costs ~17% accuracy at the pool6 extreme.",
+  "transferability_test": "LLM continual learning: store mid-layer hidden states from old training data, not raw tokens. Vector databases with product quantization are the same lossy-stored-representation trade. Personal knowledge management — store summaries (mid-layer), not raw papers (input) nor only outcomes (final). Organizational memory: store decision rationales, not raw meeting transcripts.",
+  "verdict": "foundational",
+  "one_sentence_compression": "Store mid-network activations instead of raw inputs for replay-based continual learning — works as long as you slow learning on layers below the storage point, and breaks gracefully (the aging effect) so the speed/memory/accuracy knob is explicit.",
+  "thesis_id": null,
+  "revision_of": null,
+  "entity_mentions": [],
+  "framework_alignment": []
+}

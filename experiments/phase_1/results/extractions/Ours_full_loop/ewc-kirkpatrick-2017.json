@@ -1,0 +1,19 @@
+{
+  "system": "Ours_full_loop",
+  "paper_id": "ewc-kirkpatrick-2017",
+  "paper_title": "Overcoming catastrophic forgetting in neural networks",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "EWC adds a quadratic penalty term to the loss for task B, anchoring each weight to its task-A value with a stiffness equal to the diagonal of the Fisher information matrix computed at the task-A solution. The Fisher diagonal measures how sharply the task-A loss curves around each weight \u2014 i.e., how much each weight causally determines task-A performance. High-Fisher weights receive strong elastic springs resisting displacement; low-Fisher weights remain plastic. This differential stiffness prevents task-B gradients from overwriting the small subset of weights that carry task-A knowledge.",
+  "invariant": "In any learned system trained sequentially, a small subset of parameters disproportionately determines prior-task performance. Protecting exactly those parameters \u2014 identified by local curvature of the prior loss, not by weight magnitude or recency \u2014 is sufficient to prevent catastrophic forgetting without freezing the entire network.",
+  "prediction": "Perturbations applied in the low-Fisher (flat-curvature) directions of parameter space should degrade task-A performance far less than equal-magnitude perturbations in high-Fisher directions, even without EWC active \u2014 directly testable by ablating weights along Fisher eigenvectors (analogous to paper Fig 3C).",
+  "failure_mode": "When the Fisher diagonal is a poor proxy for true parameter importance \u2014 e.g., the Laplace point-estimate is overconfident and assigns near-zero Fisher to weights that actually lie in a task-A null-space \u2014 EWC over-freezes irrelevant weights and under-protects critical ones, devolving toward disjoint sub-networks under severe task distribution shift.",
+  "source_excerpt": "This algorithm slows down learning on certain weights based on how important they are to previously seen tasks.",
+  "has_schema": true,
+  "pinned_provenance": true,
+  "review_gate_passed": true,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 2317,
+  "llm_tokens_out": 412,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-reviewed"
+}

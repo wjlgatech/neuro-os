@@ -1,0 +1,328 @@
+{
+  "per_system": {
+    "B1_vanilla_rag": {
+      "H1_survival": {
+        "survival_rate_cards": 0.8,
+        "survival_rate_citations": 0.26,
+        "surviving_cards": 8,
+        "total_cards": 10,
+        "successful_citations": 13,
+        "total_citations": 50
+      },
+      "H2_override_trajectory": {
+        "weeks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "override_rates": [
+          0.5008064254000784,
+          0.5507794450204819,
+          0.4986533971326426,
+          0.5106905271941796,
+          0.6089504522103817,
+          0.5672323093703018
+        ],
+        "slope_per_week": 0.014819416328067238,
+        "is_decreasing": false,
+        "mean_rate": 0.539518759388011
+      },
+      "calibration_brier": {
+        "applicable": false,
+        "reason": "system has no prediction field; calibration N/A"
+      },
+      "H3_transferability": {
+        "applicable": true,
+        "native_success_rate": 0.3142857142857143,
+        "cross_vertical_success_rate": 0.13333333333333333,
+        "transferability_lift_ratio": 0.42424242424242425,
+        "n_native": 35,
+        "n_cross": 15
+      },
+      "H4_provenance": {
+        "n_total": 10,
+        "n_with_excerpt_attempt": 0,
+        "n_verified_in_paper": 0,
+        "audit_pass_rate": 0.0,
+        "audit_strict_pass_rate": 0.0
+      },
+      "extraction_count": 10
+    },
+    "B2_graph_rag": {
+      "H1_survival": {
+        "survival_rate_cards": 0.8,
+        "survival_rate_citations": 0.42,
+        "surviving_cards": 8,
+        "total_cards": 10,
+        "successful_citations": 21,
+        "total_citations": 50
+      },
+      "H2_override_trajectory": {
+        "weeks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "override_rates": [
+          0.430407027611509,
+          0.41935037715081125,
+          0.48012363852374257,
+          0.5208410410825164,
+          0.4480824234038591,
+          0.5429836867377162
+        ],
+        "slope_per_week": 0.019708481055684388,
+        "is_decreasing": false,
+        "mean_rate": 0.4736313657516924
+      },
+      "calibration_brier": {
+        "applicable": false,
+        "reason": "system has no prediction field; calibration N/A"
+      },
+      "H3_transferability": {
+        "applicable": true,
+        "native_success_rate": 0.37142857142857144,
+        "cross_vertical_success_rate": 0.5333333333333333,
+        "transferability_lift_ratio": 1.435897435897436,
+        "n_native": 35,
+        "n_cross": 15
+      },
+      "H4_provenance": {
+        "n_total": 10,
+        "n_with_excerpt_attempt": 0,
+        "n_verified_in_paper": 0,
+        "audit_pass_rate": 0.0,
+        "audit_strict_pass_rate": 0.0
+      },
+      "extraction_count": 10
+    },
+    "B3_summary": {
+      "H1_survival": {
+        "survival_rate_cards": 0.7,
+        "survival_rate_citations": 0.28,
+        "surviving_cards": 7,
+        "total_cards": 10,
+        "successful_citations": 14,
+        "total_citations": 50
+      },
+      "H2_override_trajectory": {
+        "weeks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "override_rates": [
+          0.514685732452199,
+          0.5631406803941355,
+          0.6142983767157422,
+          0.6231800743658097,
+          0.6521263795346023,
+          0.6392559370025992
+        ],
+        "slope_per_week": 0.025676851937813407,
+        "is_decreasing": false,
+        "mean_rate": 0.6011145300775146
+      },
+      "calibration_brier": {
+        "applicable": false,
+        "reason": "system has no prediction field; calibration N/A"
+      },
+      "H3_transferability": {
+        "applicable": true,
+        "native_success_rate": 0.2571428571428571,
+        "cross_vertical_success_rate": 0.3333333333333333,
+        "transferability_lift_ratio": 1.2962962962962963,
+        "n_native": 35,
+        "n_cross": 15
+      },
+      "H4_provenance": {
+        "n_total": 10,
+        "n_with_excerpt_attempt": 0,
+        "n_verified_in_paper": 0,
+        "audit_pass_rate": 0.0,
+        "audit_strict_pass_rate": 0.0
+      },
+      "extraction_count": 10
+    },
+    "B4_single_shot_mechanism_card": {
+      "H1_survival": {
+        "survival_rate_cards": 1.0,
+        "survival_rate_citations": 0.58,
+        "surviving_cards": 10,
+        "total_cards": 10,
+        "successful_citations": 29,
+        "total_citations": 50
+      },
+      "H2_override_trajectory": {
+        "weeks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "override_rates": [
+          0.2867822752892971,
+          0.3313071268238127,
+          0.3041570182330906,
+          0.31203332843258974,
+          0.30768969243392347,
+          0.33025963727384805
+        ],
+        "slope_per_week": 0.004411737627216746,
+        "is_decreasing": false,
+        "mean_rate": 0.31203817974776027
+      },
+      "calibration_brier": {
+        "applicable": true,
+        "n": 50,
+        "expected_p": 0.5,
+        "observed_p": 0.58,
+        "abs_calibration_error": 0.07999999999999996,
+        "brier": 0.25
+      },
+      "H3_transferability": {
+        "applicable": true,
+        "native_success_rate": 0.6285714285714286,
+        "cross_vertical_success_rate": 0.4666666666666667,
+        "transferability_lift_ratio": 0.7424242424242424,
+        "n_native": 35,
+        "n_cross": 15
+      },
+      "H4_provenance": {
+        "n_total": 10,
+        "n_with_excerpt_attempt": 10,
+        "n_verified_in_paper": 2,
+        "audit_pass_rate": 0.2,
+        "audit_strict_pass_rate": 0.2
+      },
+      "extraction_count": 10
+    },
+    "B5_reviewed_mechanism_card": {
+      "H1_survival": {
+        "survival_rate_cards": 1.0,
+        "survival_rate_citations": 0.7,
+        "surviving_cards": 10,
+        "total_cards": 10,
+        "successful_citations": 35,
+        "total_citations": 50
+      },
+      "H2_override_trajectory": {
+        "weeks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "override_rates": [
+          0.2737244174443185,
+          0.2572505359426141,
+          0.21749019713699816,
+          0.25056930652260784,
+          0.2596739256680012,
+          0.2128489942289889
+        ],
+        "slope_per_week": -0.007543652500425064,
+        "is_decreasing": true,
+        "mean_rate": 0.24525956282392145
+      },
+      "calibration_brier": {
+        "applicable": true,
+        "n": 50,
+        "expected_p": 0.6,
+        "observed_p": 0.7,
+        "abs_calibration_error": 0.09999999999999998,
+        "brier": 0.22
+      },
+      "H3_transferability": {
+        "applicable": true,
+        "native_success_rate": 0.6285714285714286,
+        "cross_vertical_success_rate": 0.8666666666666667,
+        "transferability_lift_ratio": 1.378787878787879,
+        "n_native": 35,
+        "n_cross": 15
+      },
+      "H4_provenance": {
+        "n_total": 10,
+        "n_with_excerpt_attempt": 10,
+        "n_verified_in_paper": 5,
+        "audit_pass_rate": 0.5,
+        "audit_strict_pass_rate": 0.5
+      },
+      "extraction_count": 10
+    },
+    "Ours_full_loop": {
+      "H1_survival": {
+        "survival_rate_cards": 1.0,
+        "survival_rate_citations": 0.78,
+        "surviving_cards": 10,
+        "total_cards": 10,
+        "successful_citations": 39,
+        "total_citations": 50
+      },
+      "H2_override_trajectory": {
+        "weeks": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ],
+        "override_rates": [
+          0.16300390773452816,
+          0.18507035227213056,
+          0.1218451267052442,
+          0.10501791706401854,
+          0.06612239057943226,
+          0.09305431076325477
+        ],
+        "slope_per_week": -0.020669116559305357,
+        "is_decreasing": true,
+        "mean_rate": 0.12235233418643475
+      },
+      "calibration_brier": {
+        "applicable": true,
+        "n": 50,
+        "expected_p": 0.75,
+        "observed_p": 0.78,
+        "abs_calibration_error": 0.030000000000000027,
+        "brier": 0.1725
+      },
+      "H3_transferability": {
+        "applicable": true,
+        "native_success_rate": 0.8,
+        "cross_vertical_success_rate": 0.7333333333333333,
+        "transferability_lift_ratio": 0.9166666666666665,
+        "n_native": 35,
+        "n_cross": 15
+      },
+      "H4_provenance": {
+        "n_total": 10,
+        "n_with_excerpt_attempt": 10,
+        "n_verified_in_paper": 5,
+        "audit_pass_rate": 0.5,
+        "audit_strict_pass_rate": 0.5
+      },
+      "extraction_count": 10
+    }
+  },
+  "config": {
+    "n_decisions": 50,
+    "n_papers": 10,
+    "model": "claude-sonnet-4-6",
+    "seed": 42
+  }
+}

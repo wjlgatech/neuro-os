@@ -1,0 +1,23 @@
+{
+  "system": "B2_graph_rag",
+  "paper_id": "latent-replay-pellegrini-2019",
+  "paper_title": "Latent Replay for Real-Time Continual Learning",
+  "free_text_output": "[intro/motivation community]: Latent Replay for Real-Time Continual Learning\n\n                                                         Lorenzo Pellegrini, Gabriele Graffieti, Vincenzo Lomonaco, Davide Maltoni\n                                                                                    University of Bologna\n                                                                             Via dell\u2019Universit\u00e0, 50, Cesena, Italy\n                                                  {l.pellegrini, gabriele.graffieti, vincenzo.lomonaco, davide.maltoni}@unibo.it\n                                                                      \n\n[method/mechanism community]: Computation %                                                        \u2206 Accuracy %\n             Layer                                           Pattern Size       Final Accuracy %\n                                   vs Native Rehearsal                                                  vs Native Rehearsal\n\n             Images                     100.00%                 49152                77.30%                    0.00%\n             conv5_1/dw                 59.261%                 32768                72.82%                    -4.49%\n             conv5_2/dw                 50.101%              \n\n[results/discussion community]: conv2_1/sep       262144       8650752         2112\n conv2_2/dw         65536        655360          640\n                                                                                           Used libraries\n conv2_2/sep       131072       8519680         8320\n conv3_1/dw        131072       1310720         1280                                  Library                  Version\n conv3_1/sep       131072      16908288        16512                          Caffe (BVLC)                          Mar, 2\n conv3_2/dw         32768        327680         1280                          OpenBLAS        ",
+  "retrieved_chunks": [
+    "[intro/motivation community]: Latent Replay for Real-Time Continual Learning\n\n                                                         Lorenzo Pellegrini, Gabriele Graffieti, Vincenzo Lomonaco, Davide Maltoni\n                                                                                    University of Bologna\n                                                                             Via dell\u2019Universit\u00e0, 50, Cesena, Italy\n                                                  {l.pellegrini, gabriele.graffieti, vincenzo.lomonaco, davide.maltoni}@unibo.it\n                                                                      ",
+    "[method/mechanism community]: Computation %                                                        \u2206 Accuracy %\n             Layer                                           Pattern Size       Final Accuracy %\n                                   vs Native Rehearsal                                                  vs Native Rehearsal\n\n             Images                     100.00%                 49152                77.30%                    0.00%\n             conv5_1/dw                 59.261%                 32768                72.82%                    -4.49%\n             conv5_2/dw                 50.101%              ",
+    "[results/discussion community]: conv2_1/sep       262144       8650752         2112\n conv2_2/dw         65536        655360          640\n                                                                                           Used libraries\n conv2_2/sep       131072       8519680         8320\n conv3_1/dw        131072       1310720         1280                                  Library                  Version\n conv3_1/sep       131072      16908288        16512                          Caffe (BVLC)                          Mar, 2\n conv3_2/dw         32768        327680         1280                          OpenBLAS        "
+  ],
+  "mechanism": "",
+  "invariant": "",
+  "prediction": "",
+  "failure_mode": "",
+  "source_excerpt": "",
+  "has_schema": false,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 0,
+  "llm_tokens_out": 0,
+  "extraction_method": "heuristic-positional-communities"
+}

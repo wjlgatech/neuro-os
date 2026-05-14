@@ -1,0 +1,19 @@
+{
+  "system": "Ours_full_loop",
+  "paper_id": "gem-lopez-paz-2017",
+  "paper_title": "Gradient Episodic Memory for Continual Learning",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "GEM stores a small episodic memory of examples from each past task. When computing a gradient update for the current task, GEM projects that gradient onto the intersection of half-spaces defined by the constraint that the new gradient must not increase the loss on any past task's memory batch. If the raw gradient already satisfies all constraints (no forgetting), it is used as-is; otherwise, a quadratic program finds the closest feasible gradient. This projection causally prevents interference with past tasks while allowing beneficial backward transfer.",
+  "invariant": "Gradient directions, not parameter values, encode task interference. Constraining the sign of the inner product between the new update and past-task gradients is sufficient to prevent forgetting, regardless of network architecture or task content.",
+  "prediction": "GEM will exhibit backward transfer (improvement on old tasks after new task training) whenever the current-task gradient and past-task gradients are positively aligned without projection. Models lacking episodic memory constraints cannot produce this effect, so GEM's backward transfer should exceed EWC and fine-tuning baselines even on held-out task sequences.",
+  "failure_mode": "As the number of tasks grows, the number of QP constraints grows linearly, making the projection increasingly expensive and potentially infeasible. When episodic memory per task is too small to represent the true past-task gradient, the constraints become noisy and the projection may over-constrain useful updates, degrading forward transfer.",
+  "source_excerpt": "GEM treats the loss of the episodic memory of task t as an inequality constraint to the loss of the current task t. In particular, GEM requires that the proposed gradient update does not increase the loss on the episodic memory of any of the previous tasks.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": true,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 2434,
+  "llm_tokens_out": 397,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-reviewed"
+}

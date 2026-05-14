@@ -1,0 +1,26 @@
+{
+  "system": "Ours_v2_with_bias_check",
+  "paper_id": "gem-lopez-paz-2017",
+  "paper_title": "Gradient Episodic Memory for Continual Learning",
+  "free_text_output": "",
+  "retrieved_chunks": [],
+  "mechanism": "When computing a gradient update for the current task, GEM checks whether that gradient vector would increase the loss on any previously seen task (stored as a small episodic memory buffer per task). If the inner product between the proposed gradient and any past-task gradient is negative \u2014 meaning the update conflicts \u2014 GEM projects the proposed gradient to the nearest vector (in L2 sense) that is non-conflicting with all past gradients simultaneously. Non-conflicting updates are applied unchanged. Constraint enforcement is a quadratic program solved per step.",
+  "invariant": "Gradient direction, not parameter magnitude or recency, determines whether a weight update is harmful. Protecting past performance requires ensuring updates do not point away from past-task optima in gradient space \u2014 a condition detectable without replaying full past data, only a small representative memory.",
+  "prediction": "GEM should exhibit zero or negative backward transfer only when episodic memory is too small to span the relevant gradient subspace of past tasks; with sufficient memory, backward transfer approaches zero and forward transfer remains positive. Ablating the projection (allowing conflicting gradients) should recover catastrophic forgetting.",
+  "failure_mode": "When episodic memory buffers are too small or unrepresentative (e.g., only one sample per task), the stored gradients poorly approximate the true past-task gradient subspace, the QP constraints become vacuous, and GEM degrades toward fine-tuning with forgetting. Also fails when task boundaries are unavailable at inference, since projection requires knowing which memory belongs to which past task.",
+  "source_excerpt": "GEM that alleviates forgetting, while allowing beneficial transfer of knowledge to previous tasks. Our experiments on variants of the MNIST and CIFAR-100 datasets demonstrate the strong performance of GEM when compared to the state-of-the-art.",
+  "has_schema": true,
+  "pinned_provenance": false,
+  "review_gate_passed": true,
+  "skillify_prior_used": true,
+  "llm_tokens_in": 2992,
+  "llm_tokens_out": 497,
+  "extraction_method": "llm-claude-sonnet-4-6-skillify-reviewed-bias-checked",
+  "bias_annotation": {
+    "authority_bias": 0,
+    "recency_bias": 0,
+    "novelty_bias": 1,
+    "confirmation_bias": 1,
+    "assumption_note": "Minor flags: card accurately notes failure modes but omits QP computational cost scaling and sensitivity to task-boundary assumptions documented in the paper's own limitations."
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "system": "B2_graph_rag",
+  "paper_id": "open-x-embodiment-2023",
+  "paper_title": "Open X-Embodiment: Robotic Learning Datasets and RT-X Models",
+  "free_text_output": "[intro/motivation community]: Unlike most of these\n\f                                                                                                                                Google\n                                                                                Franka                                          Robot\n\n                                                                     Google\n                                                                                                                 xArm                  Franka\n                                                                     Robot\n\n\n             \n\n[method/mechanism community]: Row   Model   Size History Length             Dataset             Co-Trained w/ Web Initial Checkpoint Emergent Skills Evaluation RT-2 Generalization Evaluation\n (1)    RT-2 55B         none           Google Robot action               Yes           Web-pretrained            27.3%                         62%\n (2)   RT-2-X 55B        none               Robotics data                 Yes           Web-pretrained            75.8%                         61%\n (3)   RT-2-X 55B        none        Robotics data except Bridge          Yes           Web-pretrained            42.8%                        \n\n[results/discussion community]: Dillmann, \u201cThe kit object             Fei, \u201cScaling robot supervision to hundreds of hours\n     models database: An object model database for object            with RoboTurk: Robotic manipulation dataset through\n     recognition, localization and manipulation in service           human reasoning and dexterity,\u201d in 2019 IEEE/RSJ\n     robotics,\u201d The International Journal of Robotics Re-            International Conference on Intelligent Robots and\n     search, vol.",
+  "retrieved_chunks": [
+    "[intro/motivation community]: Unlike most of these\n\f                                                                                                                                Google\n                                                                                Franka                                          Robot\n\n                                                                     Google\n                                                                                                                 xArm                  Franka\n                                                                     Robot\n\n\n             ",
+    "[method/mechanism community]: Row   Model   Size History Length             Dataset             Co-Trained w/ Web Initial Checkpoint Emergent Skills Evaluation RT-2 Generalization Evaluation\n (1)    RT-2 55B         none           Google Robot action               Yes           Web-pretrained            27.3%                         62%\n (2)   RT-2-X 55B        none               Robotics data                 Yes           Web-pretrained            75.8%                         61%\n (3)   RT-2-X 55B        none        Robotics data except Bridge          Yes           Web-pretrained            42.8%                        ",
+    "[results/discussion community]: Dillmann, \u201cThe kit object             Fei, \u201cScaling robot supervision to hundreds of hours\n     models database: An object model database for object            with RoboTurk: Robotic manipulation dataset through\n     recognition, localization and manipulation in service           human reasoning and dexterity,\u201d in 2019 IEEE/RSJ\n     robotics,\u201d The International Journal of Robotics Re-            International Conference on Intelligent Robots and\n     search, vol."
+  ],
+  "mechanism": "",
+  "invariant": "",
+  "prediction": "",
+  "failure_mode": "",
+  "source_excerpt": "",
+  "has_schema": false,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 0,
+  "llm_tokens_out": 0,
+  "extraction_method": "heuristic-positional-communities"
+}

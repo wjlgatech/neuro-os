@@ -1,0 +1,23 @@
+{
+  "system": "B2_graph_rag",
+  "paper_id": "world-models-ha-schmidhuber-2018",
+  "paper_title": "World Models",
+  "free_text_output": "[intro/motivation community]: et al., 1996; Sutton & Barto, 1998; Wiering & van Otterlo,\n                                                                        Although there is a large body of research relating to model-\n2012), an artificial agent also benefits from having a good\n                                                                        based reinforcement learning, this article is not meant to be\nrepresentation of past and present states, and a good pre-\n                                                                        a review (Arulkumaran et al., 2017; Schmidhuber, 2015b) of\ndictive model of the fu\n\n[method/mechanism community]: The benefit of imple-\n                                                                   menting the world model as a fully differentiable recurrent\nBefore the popularity of Deep RL methods (Mnih et al.,\n                                                                   computation graph also means that we may be able to train\n2013), evolution-based algorithms have been shown to be\n                                                                   our agents in the dream directly using the backpropagation\neffective at solving RL tasks (Stanley & Miikkulainen, 2002;\n                            \n\n[results/discussion community]: URL\n                                                                 Leinweber, Marcus, Ward, Daniel R., Sobczak, Jan M.,\n  http://www.sciencedirect.com/science/\n                                                                   Attinger, Alexander, and Keller, Georg B.",
+  "retrieved_chunks": [
+    "[intro/motivation community]: et al., 1996; Sutton & Barto, 1998; Wiering & van Otterlo,\n                                                                        Although there is a large body of research relating to model-\n2012), an artificial agent also benefits from having a good\n                                                                        based reinforcement learning, this article is not meant to be\nrepresentation of past and present states, and a good pre-\n                                                                        a review (Arulkumaran et al., 2017; Schmidhuber, 2015b) of\ndictive model of the fu",
+    "[method/mechanism community]: The benefit of imple-\n                                                                   menting the world model as a fully differentiable recurrent\nBefore the popularity of Deep RL methods (Mnih et al.,\n                                                                   computation graph also means that we may be able to train\n2013), evolution-based algorithms have been shown to be\n                                                                   our agents in the dream directly using the backpropagation\neffective at solving RL tasks (Stanley & Miikkulainen, 2002;\n                            ",
+    "[results/discussion community]: URL\n                                                                 Leinweber, Marcus, Ward, Daniel R., Sobczak, Jan M.,\n  http://www.sciencedirect.com/science/\n                                                                   Attinger, Alexander, and Keller, Georg B."
+  ],
+  "mechanism": "",
+  "invariant": "",
+  "prediction": "",
+  "failure_mode": "",
+  "source_excerpt": "",
+  "has_schema": false,
+  "pinned_provenance": false,
+  "review_gate_passed": false,
+  "skillify_prior_used": false,
+  "llm_tokens_in": 0,
+  "llm_tokens_out": 0,
+  "extraction_method": "heuristic-positional-communities"
+}
