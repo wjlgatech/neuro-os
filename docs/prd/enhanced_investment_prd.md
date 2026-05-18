@@ -1,3 +1,8 @@
+---
+status: parked
+parent: invest
+reason: "Foundational PRD for the invest vertical. Commit message says 'will not merge to main' — kept as reference draft. Partially shipped via agent/investment/ (catalog, ontology, cost_of_living, trade, dashboard); remainder un-parks when invest vertical gets its next slice."
+---
 
 # Neuro-OS Investment Branch PRD (Enhanced)
 

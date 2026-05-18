@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-05-18 (auto-generated)
 
-**Last commit at update:** `edaf224` (2026-05-14 — Phase 1 paper: harness, position paper, world-os v0 demo, research-os fold-in)
+**Last commit at update:** `84c08b1` (2026-05-18 — Auto-sync pipeline: STATUS.md generated from plan stamps + git log)
 
 
 > Single-page "where am I" snapshot. **Auto-generated** by `scripts/sync_status.py` from frontmatter stamps on each plan file + recent git log + a small north-star config. Do NOT hand-edit this file — edit the stamps on individual plan files; the pre-commit hook re-renders this on every commit.
@@ -21,40 +21,45 @@ Neuro-os is a four-vertical AI substrate (`founder_loop` / `research` / `investm
 
 | Date | SHA | Subject |
 |---|---|---|
+| 2026-05-18 | `84c08b1` | Auto-sync pipeline: STATUS.md generated from plan stamps + git log |
 | 2026-05-14 | `edaf224` | Phase 1 paper: harness, position paper, world-os v0 demo, research-os fold-in |
 | 2026-05-12 | `ef1e703` | Phase-1 invest workflow: cost-of-living + trade log + sleeve + dashboard |
-| 2026-05-07 | `e341b3d` | Draft PRDs (will not merge to main) |
 
 
 ## Active this week
 
 | Parent | Plan | Acceptance | Last touched |
 |---|---|---|---|
-| Phase 1 — mechanism-survival paper | [Phase 1 — Co-Author Outreach Plan](plans/phase-1-coauthor-outreach.md) | 3 shortlisted emails sent (Wk 1: May 12–18, 2026); first 1–2 positive responses accepted by EOD Wk 2 (May 25). Fall back to solo + paid annotator if zero responses. | 2026-05-14 |
-| Phase 1 — mechanism-survival paper | [Phase 1 — Mechanism Survival: A Closed-Loop System for Research as Predictive Compression](plans/phase-1-mechanism-survival-paper.md) | arXiv submission July 2026 with: (1) reproducible harness + position paper draft v2 (shipped 5/14 in commit edaf224), (2) real-data corpus swap completed (Wk 14–20, Q3 2026), (3) inter-rater study results, (4) ≥1 co-author secured. | 2026-05-14 |
-| Phase 1 — mechanism-survival paper | [Phase 1 — OSF Pre-Registration Draft](plans/phase-1-osf-prereg.md) | Pre-registration submitted to osf.io/prereg/ with DOI before Wk 4 experiment runs begin. Must happen before any survival/calibration numbers are computed on real corpus. | 2026-05-14 |
-| Substrate / infra | [Roadmap](roadmap.md) | Feature-tier SHIPPED / NEXT / LATER table per lane, refreshed when a PR lands. Different scope from docs/STATUS.md (north-star + active focus); both files coexist by design. | 2026-05-12 |
+| Phase 1 — mechanism-survival paper | [Phase 1 — Co-Author Outreach Plan](plans/phase-1-coauthor-outreach.md) | 3 shortlisted emails sent (Wk 1: May 12–18, 2026); first 1–2 positive responses accepted by EOD Wk 2 (May 25). Fall back to solo + paid annotator if zero responses. | 2026-05-18 |
+| Phase 1 — mechanism-survival paper | [Phase 1 — Mechanism Survival: A Closed-Loop System for Research as Predictive Compression](plans/phase-1-mechanism-survival-paper.md) | arXiv submission July 2026 with: (1) reproducible harness + position paper draft v2 (shipped 5/14 in commit edaf224), (2) real-data corpus swap completed (Wk 14–20, Q3 2026), (3) inter-rater study results, (4) ≥1 co-author secured. | 2026-05-18 |
+| Phase 1 — mechanism-survival paper | [Phase 1 — OSF Pre-Registration Draft](plans/phase-1-osf-prereg.md) | Pre-registration submitted to osf.io/prereg/ with DOI before Wk 4 experiment runs begin. Must happen before any survival/calibration numbers are computed on real corpus. | 2026-05-18 |
+| Substrate / infra | [Roadmap](roadmap.md) | Feature-tier SHIPPED / NEXT / LATER table per lane, refreshed when a PR lands. Different scope from docs/STATUS.md (north-star + active focus); both files coexist by design. | 2026-05-18 |
 
 
 ## Parked but real (not abandoned)
 
 **Phase 1 — mechanism-survival paper**
 - [Phase 1 — NeurIPS 2026 Workshop Targets](plans/phase-1-workshop-targets.md) — NeurIPS 2026 workshop list not yet published. Re-check official accepted-workshops page in Wk 12 (early August 2026); applications close 2026-06-06.
+- [Neuro-OS Research Branch PRD (Enhanced)](prd/enhanced_research_prd.md) — Foundational PRD for the research vertical (epistemic primitives that the Phase-1 mechanism-survival paper writes about). Commit message says 'will not merge to main' — kept as reference draft. Un-parks if a future paper needs cited spec.
 
 **Phase 3 — NeurIPS 2027 moonshot**
 - [NeurIPS 2027 Moonshot Outline — Continual World Models for Embodied Agents on Construction Sites](plans/neurips-2027-moonshot-outline.md) — Phase 3 depends on Phase 1 paper acceptance signal. Un-parks when phase-1-mechanism-survival-paper goes to arXiv (target July 2026).
+
+**Investment vertical**
+- [Neuro-OS Investment Branch PRD (Enhanced)](prd/enhanced_investment_prd.md) — Foundational PRD for the invest vertical. Commit message says 'will not merge to main' — kept as reference draft. Partially shipped via agent/investment/ (catalog, ontology, cost_of_living, trade, dashboard); remainder un-parks when invest vertical gets its next slice.
 
 **Substrate / infra**
 - [Plan — 40-day trial dashboard (Lane 5)](plans/40-day-trial-dashboard.md) — Design doc only, no code shipped. Un-parks when Lane 5 dashboard becomes the active focus again — currently blocked by Phase-1 paper push.
 - [Plan — gbrain as upstream sensor (Plan B for NEXT #2)](plans/gbrain-as-upstream-sensor.md) — Plan B alternative to research-graphrag-sensor (Plan A). Both parked while Phase-1 paper is the active focus. Un-parks when Paul picks one of the two.
 - [Plan — Research-vertical GraphRAG-style ingestion sensor + Yang walkthrough](plans/research-graphrag-sensor.md) — Plan A alternative to gbrain-as-upstream-sensor (Plan B). Both parked while Phase-1 paper push is active. Un-parks when Paul chooses one or the other after Phase-1 ships.
 - [Plan — `founder_loop`: a daily reward-economy + sublimation loop, built on what's shipped](plans/understand-the-code-base-fancy-phoenix.md) — Long-form design doc for the founder_loop vertical. Un-parks when Paul returns to substrate work after Phase-1 paper push.
+- [Neuro-OS Startup Branch PRD (Enhanced)](prd/enhanced_startup_prd.md) — Foundational PRD for the startup vertical. Commit message says 'will not merge to main' — kept as reference draft. Un-parks when Paul returns to substrate work on the startup vertical (currently lowest-priority of the 4 verticals).
 
 
 ## Done this cycle
 
 **Investment vertical**
-- [Phase-1 invest workflow — design + implementation plan](plans/phase-1-invest-workflow.md) — last touched 2026-05-12
+- [Phase-1 invest workflow — design + implementation plan](plans/phase-1-invest-workflow.md) — last touched 2026-05-18
 
 
 ## What's actively NOT happening (don't reopen by accident)
@@ -71,17 +76,20 @@ Every stamped plan, grouped by parent. `status` tells you what's active/parked/d
 
 | Parent | Plan | Status | Last touched |
 |---|---|---|---|
-| Phase 1 — mechanism-survival paper | [Phase 1 — Co-Author Outreach Plan](plans/phase-1-coauthor-outreach.md) | `active` | 2026-05-14 |
-| Phase 1 — mechanism-survival paper | [Phase 1 — Mechanism Survival: A Closed-Loop System for Research as Predictive Compression](plans/phase-1-mechanism-survival-paper.md) | `active` | 2026-05-14 |
-| Phase 1 — mechanism-survival paper | [Phase 1 — OSF Pre-Registration Draft](plans/phase-1-osf-prereg.md) | `active` | 2026-05-14 |
-| Phase 1 — mechanism-survival paper | [Phase 1 — NeurIPS 2026 Workshop Targets](plans/phase-1-workshop-targets.md) | `parked` | 2026-05-14 |
-| Phase 3 — NeurIPS 2027 moonshot | [NeurIPS 2027 Moonshot Outline — Continual World Models for Embodied Agents on Construction Sites](plans/neurips-2027-moonshot-outline.md) | `parked` | 2026-05-14 |
-| Investment vertical | [Phase-1 invest workflow — design + implementation plan](plans/phase-1-invest-workflow.md) | `done` | 2026-05-12 |
-| Substrate / infra | [Plan — 40-day trial dashboard (Lane 5)](plans/40-day-trial-dashboard.md) | `parked` | 2026-05-09 |
-| Substrate / infra | [Plan — gbrain as upstream sensor (Plan B for NEXT #2)](plans/gbrain-as-upstream-sensor.md) | `parked` | 2026-05-09 |
-| Substrate / infra | [Plan — Research-vertical GraphRAG-style ingestion sensor + Yang walkthrough](plans/research-graphrag-sensor.md) | `parked` | 2026-05-09 |
-| Substrate / infra | [Plan — `founder_loop`: a daily reward-economy + sublimation loop, built on what's shipped](plans/understand-the-code-base-fancy-phoenix.md) | `parked` | 2026-05-09 |
-| Substrate / infra | [Roadmap](roadmap.md) | `active` | 2026-05-12 |
+| Phase 1 — mechanism-survival paper | [Phase 1 — Co-Author Outreach Plan](plans/phase-1-coauthor-outreach.md) | `active` | 2026-05-18 |
+| Phase 1 — mechanism-survival paper | [Phase 1 — Mechanism Survival: A Closed-Loop System for Research as Predictive Compression](plans/phase-1-mechanism-survival-paper.md) | `active` | 2026-05-18 |
+| Phase 1 — mechanism-survival paper | [Phase 1 — OSF Pre-Registration Draft](plans/phase-1-osf-prereg.md) | `active` | 2026-05-18 |
+| Phase 1 — mechanism-survival paper | [Phase 1 — NeurIPS 2026 Workshop Targets](plans/phase-1-workshop-targets.md) | `parked` | 2026-05-18 |
+| Phase 1 — mechanism-survival paper | [Neuro-OS Research Branch PRD (Enhanced)](prd/enhanced_research_prd.md) | `parked` | 2026-05-07 |
+| Phase 3 — NeurIPS 2027 moonshot | [NeurIPS 2027 Moonshot Outline — Continual World Models for Embodied Agents on Construction Sites](plans/neurips-2027-moonshot-outline.md) | `parked` | 2026-05-18 |
+| Investment vertical | [Phase-1 invest workflow — design + implementation plan](plans/phase-1-invest-workflow.md) | `done` | 2026-05-18 |
+| Investment vertical | [Neuro-OS Investment Branch PRD (Enhanced)](prd/enhanced_investment_prd.md) | `parked` | 2026-05-07 |
+| Substrate / infra | [Plan — 40-day trial dashboard (Lane 5)](plans/40-day-trial-dashboard.md) | `parked` | 2026-05-18 |
+| Substrate / infra | [Plan — gbrain as upstream sensor (Plan B for NEXT #2)](plans/gbrain-as-upstream-sensor.md) | `parked` | 2026-05-18 |
+| Substrate / infra | [Plan — Research-vertical GraphRAG-style ingestion sensor + Yang walkthrough](plans/research-graphrag-sensor.md) | `parked` | 2026-05-18 |
+| Substrate / infra | [Plan — `founder_loop`: a daily reward-economy + sublimation loop, built on what's shipped](plans/understand-the-code-base-fancy-phoenix.md) | `parked` | 2026-05-18 |
+| Substrate / infra | [Neuro-OS Startup Branch PRD (Enhanced)](prd/enhanced_startup_prd.md) | `parked` | 2026-05-07 |
+| Substrate / infra | [Roadmap](roadmap.md) | `active` | 2026-05-18 |
 
 **Reference docs** (not stamped — load-bearing background):
 

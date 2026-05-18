@@ -1,3 +1,8 @@
+---
+status: parked
+parent: phase-1-paper
+reason: "Foundational PRD for the research vertical (epistemic primitives that the Phase-1 mechanism-survival paper writes about). Commit message says 'will not merge to main' — kept as reference draft. Un-parks if a future paper needs cited spec."
+---
 
 # Neuro-OS Research Branch PRD (Enhanced)
 

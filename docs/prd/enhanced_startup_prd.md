@@ -1,3 +1,8 @@
+---
+status: parked
+parent: infra
+reason: "Foundational PRD for the startup vertical. Commit message says 'will not merge to main' — kept as reference draft. Un-parks when Paul returns to substrate work on the startup vertical (currently lowest-priority of the 4 verticals)."
+---
 
 # Neuro-OS Startup Branch PRD (Enhanced)
 
