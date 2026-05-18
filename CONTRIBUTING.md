@@ -31,9 +31,11 @@ All three must be green before you push.
 
 ## Pick something to work on
 
-Open [`docs/roadmap.md`](./docs/roadmap.md) and look at the **NEXT** column. Each entry has a "Days" estimate and a design pointer. Items in `LATER` are intentionally deferred — don't pick those without raising an issue first. Items in `SHIPPED` are done; PRs that "improve" shipped items should justify the regression risk.
+**Start with [`docs/STATUS.md`](./docs/STATUS.md)** — the auto-generated kitchen whiteboard. It tells you in one screen: what's active this week, what's parked, what just shipped, and which plans are currently being worked. Also runnable as `neuro-os status`.
 
-If you have a new idea that isn't on the roadmap, open an issue describing the failure mode you're addressing before writing code. The roadmap is the single source of truth for what's planned, in flight, and done.
+For feature-tier detail (SHIPPED / NEXT / LATER per lane with day estimates), open [`docs/roadmap.md`](./docs/roadmap.md). Items in `LATER` are intentionally deferred — don't pick those without raising an issue first. Items in `SHIPPED` are done; PRs that "improve" shipped items should justify the regression risk.
+
+If you have a new idea that isn't on `STATUS.md` or the roadmap, open an issue describing the failure mode you're addressing before writing code. STATUS.md is the source of truth for the *north-star + active focus*; `docs/roadmap.md` is the source of truth for *feature-tier execution*.
 
 ## Where to put new code
 

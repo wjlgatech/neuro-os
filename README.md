@@ -35,6 +35,12 @@ The cross-vertical interface (`agent/cross_vertical.py`) lets one vertical read 
 
 Start here. All detailed docs live behind these links:
 
+### Start here (returning after time away, or first visit)
+
+| Doc | For whom | What's in it |
+|---|---|---|
+| [**STATUS**](./docs/STATUS.md) | Paul, Claude, anyone re-orienting | Auto-generated kitchen whiteboard: one-sentence north-star, the 3 most recent ships, what's active this week, what's parked but real, link table to every plan. Run `neuro-os status` to print it in your terminal. Regenerated on every commit by the pre-commit hook — staleness is structurally impossible. |
+
 ### For Founder Loop users (the daily product)
 
 | Doc | For whom | What's in it |
@@ -42,7 +48,7 @@ Start here. All detailed docs live behind these links:
 | [**What is this?**](./docs/what-is-this.md) | Anyone curious | The metaphor stack — the deal, the score, the reward, the underlying needs. Plain English, ~800 words. |
 | [**How to use it**](./docs/how-to-use-it.md) | Daily users | Five moments — start your day, check in, when you're tempted, look back, tweak the rules. With sketches. |
 | [**How it works**](./docs/how-it-works.md) | Curious + contributors | Five-box architecture (sensors → brain → contract → carrot/stick → memory) in plain language. One diagram. |
-| [**Roadmap**](./docs/roadmap.md) | Anyone | Three honest columns: SHIPPED / NEXT / LATER. No vapor. |
+| [**Roadmap**](./docs/roadmap.md) | Anyone | Feature-tier SHIPPED / NEXT / LATER per lane. Different scope from STATUS.md (north-star + active focus); both coexist by design. |
 
 ### For contributors and integrators
 
