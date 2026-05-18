@@ -1,3 +1,9 @@
+---
+status: done
+parent: invest
+reason: "Shipped 2026-05-12 (commit ef1e703): cost-of-living set + trade log + sleeve field + dashboard --window. Next slice (TradeOutcome calibration loop) is its own plan when needed."
+---
+
 # Phase-1 invest workflow — design + implementation plan
 
 **Status:** Plan locked, ready to implement.

@@ -1,3 +1,9 @@
+---
+status: parked
+parent: infra
+reason: "Plan A alternative to gbrain-as-upstream-sensor (Plan B). Both parked while Phase-1 paper push is active. Un-parks when Paul chooses one or the other after Phase-1 ships."
+---
+
 # Plan — Research-vertical GraphRAG-style ingestion sensor + Yang walkthrough
 
 ## Context

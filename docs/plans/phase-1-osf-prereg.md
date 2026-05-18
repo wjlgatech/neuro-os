@@ -1,3 +1,9 @@
+---
+status: active
+parent: phase-1-paper
+acceptance: "Pre-registration submitted to osf.io/prereg/ with DOI before Wk 4 experiment runs begin. Must happen before any survival/calibration numbers are computed on real corpus."
+---
+
 # Phase 1 — OSF Pre-Registration Draft
 
 > **Purpose:** Paste this into [OSF pre-registration](https://osf.io/prereg/) before any results are computed (target: Wk 1, before Wk 4–5 experiment runs). Pre-reg DOI/link must be cited in the ICLR 2027 submission to defend against post-hoc-tuning reviewer challenges.

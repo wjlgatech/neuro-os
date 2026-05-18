@@ -1,3 +1,9 @@
+---
+status: parked
+parent: phase-1-paper
+reason: "NeurIPS 2026 workshop list not yet published. Re-check official accepted-workshops page in Wk 12 (early August 2026); applications close 2026-06-06."
+---
+
 # Phase 1 — NeurIPS 2026 Workshop Targets
 
 > **Status as of 2026-05-12:** NeurIPS 2026 workshop applications close 2026-06-06. Accepted workshop list typically announced **August 2026**. We can't submit yet — we can only identify *likely* targets based on NeurIPS 2025 precedent and topic fit. Re-check the official accepted-workshops page in Wk 12 (early August) when the list publishes.

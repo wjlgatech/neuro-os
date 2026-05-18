@@ -5,6 +5,21 @@
 > [`docs/AI_NATIVE_ENGINEERING_PRINCIPLES.md`](docs/AI_NATIVE_ENGINEERING_PRINCIPLES.md).
 > The deterministic gate is `tests/test_engineering_principles.py`.
 
+## Returning after time away? Start here.
+
+If you (or a Claude instance) haven't touched this repo in days or weeks and need to reconstruct **what / why / where / what's next**, read this one file first:
+
+→ **[`docs/STATUS.md`](docs/STATUS.md)** — the single page that answers:
+- What is this project, in one sentence?
+- What phase are we in, and what shipped most recently?
+- What's actively being worked on this week, and what does "done" look like for each?
+- What's parked but real (not abandoned)?
+- Where do the detailed plans / PRDs / roadmap live? (link table)
+
+`STATUS.md` is the kitchen whiteboard. Keep it short (~150 lines). Update it on Sundays. **If it's more than 14 days stale, the project is drifting — that's the bug to fix before any code change.**
+
+Detailed *feature-tier* status (SHIPPED / NEXT / LATER per lane) stays in [`docs/roadmap.md`](docs/roadmap.md); `STATUS.md` links down to it.
+
 ## Audience
 
 This codebase is currently authored by **one human (Paul) plus AI assistants**. Enforcement is calibrated for that case: prompt-time guidance + structural tests + runtime allowlists. When (if) the audience expands to multiple humans or open-source contributors, the enforcement strictness needs to ratchet up — see the "Roadmap" section in `docs/AI_NATIVE_ENGINEERING_PRINCIPLES.md`.

@@ -1,3 +1,9 @@
+---
+status: parked
+parent: infra
+reason: "Plan B alternative to research-graphrag-sensor (Plan A). Both parked while Phase-1 paper is the active focus. Un-parks when Paul picks one of the two."
+---
+
 # Plan — gbrain as upstream sensor (Plan B for NEXT #2)
 
 > **Status:** design doc only. No code shipped. Pairs with [`research-graphrag-sensor.md`](research-graphrag-sensor.md) (Plan A — build the ingestion sensor natively in Python).

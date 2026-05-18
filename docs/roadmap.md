@@ -1,3 +1,9 @@
+---
+status: active
+parent: infra
+acceptance: "Feature-tier SHIPPED / NEXT / LATER table per lane, refreshed when a PR lands. Different scope from docs/STATUS.md (north-star + active focus); both files coexist by design."
+---
+
 # Roadmap
 
 Three columns. Honest.

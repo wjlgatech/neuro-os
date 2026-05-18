@@ -692,6 +692,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     _add_skillify_subcommands(sub)
     _add_cross_vertical_subcommands(sub)
+    _add_status_subcommands(sub)
 
     return p
 
@@ -1816,6 +1817,67 @@ def _invest_dashboard_handler(args: argparse.Namespace) -> int:
         print(summary.model_dump_json(indent=2))
     else:
         print(render_invest_dashboard(summary))
+    return 0
+
+
+# ---------------------------------------------------------------------------
+# Status CLI subtree — kitchen-whiteboard view of docs/STATUS.md.
+# `status` prints STATUS.md; `status --sync` regenerates first.
+# ---------------------------------------------------------------------------
+
+
+def _add_status_subcommands(sub: "argparse._SubParsersAction") -> None:
+    """Top-level `status` command — print docs/STATUS.md (optionally
+    regenerating it first via the sync_status pipeline)."""
+    top = sub.add_parser(
+        "status",
+        help="print docs/STATUS.md (auto-generated kitchen-whiteboard)",
+    )
+    top.add_argument(
+        "--sync", action="store_true",
+        help="regenerate docs/STATUS.md from plan stamps before printing",
+    )
+    top.add_argument(
+        "--repo-root", default=None,
+        help="repo root (default: cwd)",
+    )
+    top.set_defaults(func=_status_handler)
+
+
+def _status_handler(args: argparse.Namespace) -> int:
+    repo_root = Path(args.repo_root).expanduser() if args.repo_root else Path.cwd()
+    status_path = repo_root / "docs" / "STATUS.md"
+
+    if args.sync:
+        # Run the sync pipeline. Import lazily so the CLI starts fast
+        # for users who never touch `status`.
+        from agent.status import (
+            build_status_markdown,
+            get_recent_ships,
+            walk_stamped_plans,
+        )
+        from agent.status.render import DEFAULT_CONFIG
+
+        docs_root = repo_root / "docs"
+        plans = walk_stamped_plans(docs_root, quiet=True)
+        recent = get_recent_ships(cwd=repo_root, limit=3)
+        new_content = build_status_markdown(
+            plans=plans,
+            recent=recent,
+            config=DEFAULT_CONFIG,
+            docs_root=docs_root,
+        )
+        status_path.parent.mkdir(parents=True, exist_ok=True)
+        status_path.write_text(new_content, encoding="utf-8")
+
+    if not status_path.exists():
+        print(
+            f"error: {status_path} does not exist. Run `neuro-os status "
+            "--sync` to generate it.",
+            file=sys.stderr,
+        )
+        return 2
+    print(status_path.read_text(encoding="utf-8"), end="")
     return 0
 
 

@@ -1,3 +1,9 @@
+---
+status: parked
+parent: infra
+reason: "Long-form design doc for the founder_loop vertical. Un-parks when Paul returns to substrate work after Phase-1 paper push."
+---
+
 # Plan — `founder_loop`: a daily reward-economy + sublimation loop, built on what's shipped
 
 ## Context

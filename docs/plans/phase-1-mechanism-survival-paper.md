@@ -1,3 +1,9 @@
+---
+status: active
+parent: phase-1-paper
+acceptance: "arXiv submission July 2026 with: (1) reproducible harness + position paper draft v2 (shipped 5/14 in commit edaf224), (2) real-data corpus swap completed (Wk 14–20, Q3 2026), (3) inter-rater study results, (4) ≥1 co-author secured."
+---
+
 # Phase 1 — Mechanism Survival: A Closed-Loop System for Research as Predictive Compression
 
 > Working draft. Author: Paul Wu (wjlgatech) + 1–2 academic co-authors TBD. Companion repo: `neuro-os` (this repo, includes the personal reading practice in `research_practice/` — folded in on 2026-05-14, was originally a sibling project `research-os/`). Phase 1 of a two-phase arc; Phase 3 lives in `neurips-2027-moonshot-outline.md`.

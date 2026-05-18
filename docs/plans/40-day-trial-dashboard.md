@@ -1,3 +1,9 @@
+---
+status: parked
+parent: infra
+reason: "Design doc only, no code shipped. Un-parks when Lane 5 dashboard becomes the active focus again — currently blocked by Phase-1 paper push."
+---
+
 # Plan — 40-day trial dashboard (Lane 5)
 
 > **Status:** design doc only. No code shipped.

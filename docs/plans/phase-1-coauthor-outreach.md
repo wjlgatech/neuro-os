@@ -1,3 +1,9 @@
+---
+status: active
+parent: phase-1-paper
+acceptance: "3 shortlisted emails sent (Wk 1: May 12–18, 2026); first 1–2 positive responses accepted by EOD Wk 2 (May 25). Fall back to solo + paid annotator if zero responses."
+---
+
 # Phase 1 — Co-Author Outreach Plan
 
 > **Goal:** Recruit 1–2 academic co-authors for the Phase 1 mechanism-survival paper. Pitch is bounded — they contribute inter-rater annotation + one related-work section for second-author credit. Send outreach in Wk 1 (May 12–18, 2026); accept first 1–2 positive responses by EOD Wk 2 (May 25); fall back to solo + paid annotator if zero responses.

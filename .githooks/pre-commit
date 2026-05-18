@@ -38,4 +38,18 @@ EOF
     exit 1
 fi
 
+# Auto-sync docs/STATUS.md from frontmatter stamps on plan files.
+# Regenerate + re-stage so the committed STATUS.md matches the stamps.
+# This makes staleness structurally impossible: any commit that touches
+# a plan file's stamp triggers a STATUS.md update in the same commit.
+echo "pre-commit: syncing docs/STATUS.md from plan stamps..." >&2
+if python scripts/sync_status.py --write --quiet 2>&1; then
+    if [ -f docs/STATUS.md ]; then
+        git add docs/STATUS.md
+    fi
+else
+    echo "pre-commit: sync_status.py failed; commit aborted" >&2
+    exit 1
+fi
+
 exit 0

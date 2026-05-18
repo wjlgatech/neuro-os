@@ -1,3 +1,9 @@
+---
+status: parked
+parent: phase-3-moonshot
+reason: "Phase 3 depends on Phase 1 paper acceptance signal. Un-parks when phase-1-mechanism-survival-paper goes to arXiv (target July 2026)."
+---
+
 # NeurIPS 2027 Moonshot Outline — Continual World Models for Embodied Agents on Construction Sites
 
 > Phase 3 of a two-phase arc. Phase 1 = `phase-1-mechanism-survival-paper.md` (mechanism-survival eval, 5-month plan, ICLR 2027 primary + arXiv-first + NeurIPS 2026 workshop side tracks). Phase 3 = this doc — the methods paper targeting **NeurIPS 2027 main track, Best Paper consideration**.
