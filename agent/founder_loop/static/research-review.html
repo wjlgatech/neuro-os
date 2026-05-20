@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Research review — accept / reject proposals</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --panel-2: #21262d;
+      --panel-3: #2d333b;
+      --border: #30363d;
+      --border-strong: #484f58;
+      --text: #e6edf3;
+      --text-dim: #8b949e;
+      --text-faint: #6e7681;
+      --accent: #58a6ff;
+      --green: #56d364;
+      --green-bg: rgba(46, 160, 67, 0.10);
+      --amber: #d29922;
+      --red: #f85149;
+      --red-bg: rgba(248, 81, 73, 0.10);
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      font-size: 14px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-rows: 56px 1fr;
+      height: 100vh;
+    }
+
+    header.top {
+      display: flex; align-items: center;
+      padding: 0 22px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+      gap: 18px;
+    }
+    header.top h1 { font-size: 16px; font-weight: 500; margin: 0; }
+    header.top .sub { color: var(--text-dim); font-size: 12px; }
+    header.top .pill {
+      margin-left: auto;
+      font-size: 11px; padding: 4px 10px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text-dim);
+    }
+    header.top .pill.green { color: var(--green); border-color: var(--green); }
+    header.top .pill.amber { color: var(--amber); border-color: var(--amber); }
+    header.top .pill.red { color: var(--red); border-color: var(--red); }
+    header.top .help-link {
+      margin-left: 8px;
+      font-size: 14px;
+      color: var(--text-faint);
+      text-decoration: none;
+      width: 22px; height: 22px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+    }
+    header.top .help-link:hover { color: var(--text); border-color: var(--accent); }
+
+    main {
+      overflow: auto;
+      padding: 22px 26px 60px 26px;
+      max-width: 980px; margin: 0 auto; width: 100%;
+    }
+
+    .empty {
+      max-width: 480px; margin: 80px auto;
+      text-align: center; color: var(--text-dim);
+    }
+    .empty h2 { color: var(--text); font-weight: 500; font-size: 18px; }
+    .empty code {
+      background: var(--panel-2); padding: 2px 6px; border-radius: 4px;
+      font-size: 13px;
+    }
+
+    .legend {
+      font-size: 11.5px; color: var(--text-dim);
+      margin-bottom: 16px;
+      padding: 8px 12px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      line-height: 1.6;
+    }
+    .legend code {
+      background: var(--panel-2); padding: 1px 5px; border-radius: 3px;
+      font-size: 11px; color: var(--text);
+    }
+
+    h2.section {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.6px;
+      color: var(--text-dim); text-transform: uppercase;
+      margin: 24px 0 10px 0;
+    }
+
+    .proposal-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px 16px;
+      margin-bottom: 10px;
+    }
+    .proposal-card:hover { border-color: var(--border-strong); }
+    .proposal-card.expanded { border-color: var(--accent); }
+
+    .proposal-head {
+      display: flex; align-items: flex-start;
+      gap: 12px; cursor: pointer;
+    }
+    .proposal-head .title {
+      flex: 1; min-width: 0;
+    }
+    .proposal-head .meta-line {
+      font-size: 11px; color: var(--text-faint);
+      margin-bottom: 4px;
+    }
+    .proposal-head .paper-title {
+      font-size: 14px; font-weight: 500;
+      line-height: 1.35;
+    }
+    .proposal-head .one-sentence {
+      font-size: 12.5px; color: var(--text-dim);
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+    .proposal-head .verdict-badge {
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 8px;
+      background: var(--panel-2);
+      color: var(--text-faint);
+      align-self: flex-start;
+    }
+    .proposal-head .verdict-badge.foundational { background: var(--green-bg); color: var(--green); }
+    .proposal-head .verdict-badge.useful { background: rgba(88, 166, 255, 0.10); color: var(--accent); }
+    .proposal-head .verdict-badge.misleading,
+    .proposal-head .verdict-badge.skip { background: var(--red-bg); color: var(--red); }
+    .proposal-head .confidence {
+      font-size: 10px;
+      color: var(--text-faint);
+    }
+
+    .proposal-body {
+      display: none;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px dashed var(--border);
+    }
+    .proposal-card.expanded .proposal-body { display: block; }
+
+    .detail-row {
+      margin-bottom: 11px;
+      font-size: 12.5px; line-height: 1.5;
+    }
+    .detail-row .k {
+      font-size: 10px; letter-spacing: 0.4px;
+      color: var(--text-faint); text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+    .detail-row .v { color: var(--text); word-break: break-word; }
+    .detail-row .v.faint { color: var(--text-dim); font-style: italic; }
+    .detail-row .v code {
+      background: var(--panel-2); padding: 1px 5px; border-radius: 3px;
+      font-size: 11.5px;
+    }
+    .excerpt {
+      background: var(--panel-2);
+      padding: 10px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      color: var(--text-dim);
+      line-height: 1.5;
+      white-space: pre-wrap;
+      max-height: 180px;
+      overflow-y: auto;
+    }
+
+    .action-row {
+      display: flex; gap: 8px; align-items: center;
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px dashed var(--border);
+    }
+    .action-row input {
+      flex: 1;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font: inherit; font-size: 12.5px;
+      padding: 8px 11px; border-radius: 5px; outline: none;
+    }
+    .action-row input:focus { border-color: var(--accent); }
+    .action-row .field-help {
+      font-size: 11px; color: var(--text-faint); margin-top: 4px;
+    }
+    .entity-field {
+      flex: 1;
+    }
+    .entity-field .label {
+      font-size: 10px; letter-spacing: 0.4px;
+      color: var(--text-faint); text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+
+    .btn {
+      background: var(--accent); border: none; color: white;
+      border-radius: 5px; padding: 8px 16px;
+      font: inherit; font-size: 13px;
+      cursor: pointer;
+    }
+    .btn.accept { background: var(--green); color: #051a08; }
+    .btn.accept:hover { background: #6be07d; }
+    .btn.reject {
+      background: transparent;
+      color: var(--red); border: 1px solid var(--red);
+    }
+    .btn.reject:hover { background: var(--red-bg); }
+    .btn:disabled {
+      background: var(--panel-2);
+      color: var(--text-faint);
+      cursor: not-allowed;
+    }
+
+    .err {
+      background: var(--red-bg);
+      border: 1px solid var(--red);
+      color: var(--red);
+      padding: 10px 12px; border-radius: 5px;
+      font-size: 12.5px;
+      margin: 10px 0;
+    }
+
+    .resolved-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 9px 12px;
+      margin-bottom: 6px;
+      font-size: 12px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .resolved-card .pid {
+      color: var(--text-faint); font-size: 11px;
+      font-family: ui-monospace, "SF Mono", Menlo, Monaco, monospace;
+    }
+    .resolved-card .ptitle {
+      flex: 1; color: var(--text-dim);
+    }
+    .resolved-card.accepted { border-left: 3px solid var(--green); }
+    .resolved-card.rejected { border-left: 3px solid var(--red); }
+
+    /* Undo banner */
+    .undo-banner {
+      position: fixed;
+      bottom: 18px; left: 50%; transform: translateX(-50%);
+      background: var(--panel-2);
+      border: 1px solid var(--border-strong);
+      border-radius: 6px;
+      padding: 10px 16px;
+      display: none; align-items: center; gap: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      z-index: 200;
+      font-size: 13px;
+    }
+    .undo-banner.open { display: flex; }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <header class="top">
+      <h1>Research review</h1>
+      <div class="sub" id="counts">loading…</div>
+      <div class="pill" id="api-pill">checking…</div>
+      <a class="help-link" href="/how-to-use#layer-2--cluster-by-mechanism-not-topic"
+         target="_blank" rel="noopener" title="Open the user guide for the research vertical">?</a>
+    </header>
+
+    <main id="root">
+      <div class="empty"><h2>loading…</h2></div>
+    </main>
+
+    <div class="undo-banner" id="undo-banner">
+      <span id="undo-label">…</span>
+      <button id="undo-btn">Got it</button>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      pending: [],
+      recentlyAccepted: [],
+      recentlyRejected: [],
+      hasApiKey: false,
+    };
+
+    async function init() {
+      try {
+        const r = await fetch("/healthz");
+        const h = await r.json();
+        state.hasApiKey = h.has_api_key;
+        const pill = document.getElementById("api-pill");
+        if (h.has_api_key) {
+          pill.textContent = "LLM ready";
+          pill.classList.add("green");
+          pill.title = "Anthropic key configured.";
+        } else {
+          pill.textContent = "no API key";
+          pill.classList.add("amber");
+          pill.title = "Review still works without an API key. The CLI ingest pipeline used the regex heuristic for low-confidence proposals.";
+        }
+      } catch (_) {
+        const pill = document.getElementById("api-pill");
+        pill.textContent = "daemon offline";
+        pill.classList.add("red");
+      }
+      await reload();
+    }
+
+    async function reload() {
+      const r = await fetch("/research/review/data");
+      const data = await r.json();
+      state.pending = data.pending || [];
+      state.recentlyAccepted = data.recently_accepted || [];
+      state.recentlyRejected = data.recently_rejected || [];
+      renderCounts();
+      render();
+    }
+
+    function renderCounts() {
+      const c = document.getElementById("counts");
+      const pending = state.pending.length;
+      const accepted = state.recentlyAccepted.length;
+      const rejected = state.recentlyRejected.length;
+      c.textContent = `${pending} pending · ${accepted} accepted (last 20) · ${rejected} rejected (last 20)`;
+    }
+
+    function render() {
+      const root = document.getElementById("root");
+      root.innerHTML = "";
+
+      // Legend
+      const legend = document.createElement("div");
+      legend.className = "legend";
+      legend.innerHTML = `
+        <strong>Accept</strong> writes a frozen MechanismCard to the research home and moves the proposal to <code>accepted/</code>.
+        <strong>Reject</strong> moves it to <code>rejected/</code> (no card written).
+        Entity mentions (comma-separated kebab slugs) propagate via the cross-vertical store with default-PRIVATE visibility.
+        Source: <code>~/.neuro_os_research/proposals/{pending,accepted,rejected}/</code>.
+      `;
+      root.appendChild(legend);
+
+      // Pending section
+      const pendingHeader = document.createElement("h2");
+      pendingHeader.className = "section";
+      pendingHeader.textContent = `Pending (${state.pending.length})`;
+      root.appendChild(pendingHeader);
+
+      if (state.pending.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.innerHTML = `
+          <h2>No pending proposals</h2>
+          <p>Ingest sources via the CLI:</p>
+          <p><code>neuro-os research ingest --prefer local --source-dir ~/papers/</code></p>
+        `;
+        root.appendChild(empty);
+      } else {
+        for (const p of state.pending) {
+          root.appendChild(buildProposalCard(p));
+        }
+      }
+
+      // Recently accepted
+      if (state.recentlyAccepted.length) {
+        const h = document.createElement("h2");
+        h.className = "section";
+        h.textContent = `Recently accepted (${state.recentlyAccepted.length})`;
+        root.appendChild(h);
+        for (const p of state.recentlyAccepted) {
+          root.appendChild(buildResolvedCard(p, "accepted"));
+        }
+      }
+
+      // Recently rejected
+      if (state.recentlyRejected.length) {
+        const h = document.createElement("h2");
+        h.className = "section";
+        h.textContent = `Recently rejected (${state.recentlyRejected.length})`;
+        root.appendChild(h);
+        for (const p of state.recentlyRejected) {
+          root.appendChild(buildResolvedCard(p, "rejected"));
+        }
+      }
+    }
+
+    function buildProposalCard(p) {
+      const card = document.createElement("div");
+      card.className = "proposal-card";
+      const verdictBadge = p.verdict
+        ? `<span class="verdict-badge ${escapeHtml(p.verdict)}">${escapeHtml(p.verdict)}</span>`
+        : `<span class="verdict-badge">unrated</span>`;
+      card.innerHTML = `
+        <div class="proposal-head">
+          <div class="title">
+            <div class="meta-line">
+              <span class="confidence">conf=${escapeHtml(p.confidence || "?")}</span>
+              ·
+              <code>${escapeHtml(p.proposal_id)}</code>
+              ·
+              source: <code>${escapeHtml(p.source_id || p.paper_source || "?")}</code>
+            </div>
+            <div class="paper-title"></div>
+            <div class="one-sentence" id="one-sentence-${escapeHtml(p.proposal_id)}"></div>
+          </div>
+          ${verdictBadge}
+        </div>
+        <div class="proposal-body">
+          <div class="detail-row"><div class="k">Mechanism</div><div class="v" id="d-mechanism"></div></div>
+          <div class="detail-row"><div class="k">Invariant</div><div class="v" id="d-invariant"></div></div>
+          <div class="detail-row"><div class="k">Prediction</div><div class="v" id="d-prediction"></div></div>
+          <div class="detail-row"><div class="k">Failure mode</div><div class="v" id="d-failure"></div></div>
+          ${p.first_principle ? `<div class="detail-row"><div class="k">First principle</div><div class="v" id="d-fp"></div></div>` : ""}
+          ${p.anti_pattern ? `<div class="detail-row"><div class="k">Anti-pattern</div><div class="v" id="d-ap"></div></div>` : ""}
+          ${p.transferability_test ? `<div class="detail-row"><div class="k">Transferability test</div><div class="v" id="d-tt"></div></div>` : ""}
+          ${p.reasoning ? `<div class="detail-row"><div class="k">Extractor reasoning</div><div class="v faint" id="d-reasoning"></div></div>` : ""}
+          <div class="detail-row">
+            <div class="k">Source excerpt</div>
+            <div class="excerpt" id="d-excerpt"></div>
+          </div>
+          <div class="action-row">
+            <div class="entity-field">
+              <div class="label">Entity mentions (optional)</div>
+              <input type="text" placeholder="kebab-case-slugs, comma separated" class="entity-input">
+              <div class="field-help">e.g. <code>nicholas-yang, value-investing</code> — propagated to the cross-vertical store, default-PRIVATE to research.</div>
+            </div>
+          </div>
+          <div class="action-row" style="justify-content: flex-end">
+            <button class="btn reject">Reject</button>
+            <button class="btn accept">Accept</button>
+          </div>
+        </div>
+      `;
+      // Fill in dynamic content with textContent (no XSS)
+      card.querySelector(".paper-title").textContent = p.paper_title || "(untitled)";
+      const oneSentence = card.querySelector(".one-sentence");
+      if (p.one_sentence_compression) {
+        oneSentence.textContent = p.one_sentence_compression;
+      } else {
+        oneSentence.textContent = (p.mechanism || "").slice(0, 200);
+      }
+      card.querySelector("#d-mechanism").textContent = p.mechanism || "";
+      card.querySelector("#d-invariant").textContent = p.invariant || "";
+      card.querySelector("#d-prediction").textContent = p.prediction || "";
+      card.querySelector("#d-failure").textContent = p.failure_mode || "";
+      if (p.first_principle) card.querySelector("#d-fp").textContent = p.first_principle;
+      if (p.anti_pattern) card.querySelector("#d-ap").textContent = p.anti_pattern;
+      if (p.transferability_test) card.querySelector("#d-tt").textContent = p.transferability_test;
+      if (p.reasoning) card.querySelector("#d-reasoning").textContent = p.reasoning;
+      card.querySelector("#d-excerpt").textContent = p.source_excerpt || "(no excerpt)";
+
+      // Click-to-expand
+      card.querySelector(".proposal-head").addEventListener("click", () => {
+        card.classList.toggle("expanded");
+      });
+
+      // Accept handler
+      card.querySelector(".btn.accept").addEventListener("click", async () => {
+        const input = card.querySelector(".entity-input");
+        const mentions = input.value
+          .split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+        const acceptBtn = card.querySelector(".btn.accept");
+        const rejectBtn = card.querySelector(".btn.reject");
+        acceptBtn.disabled = true;
+        rejectBtn.disabled = true;
+        try {
+          const r = await fetch("/research/review/accept", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              proposal_id: p.proposal_id,
+              entity_mentions: mentions,
+            }),
+          });
+          const data = await r.json();
+          if (data.error) {
+            showError(card, data.error);
+            acceptBtn.disabled = false;
+            rejectBtn.disabled = false;
+            return;
+          }
+          showBanner(`Accepted ${p.proposal_id} → card ${data.card_id}${mentions.length ? ` (entities: ${mentions.join(", ")})` : ""}`);
+          await reload();
+        } catch (err) {
+          showError(card, err.message || String(err));
+          acceptBtn.disabled = false;
+          rejectBtn.disabled = false;
+        }
+      });
+
+      // Reject handler
+      card.querySelector(".btn.reject").addEventListener("click", async () => {
+        if (!confirm(`Reject "${p.paper_title}"? This moves the proposal to rejected/.`)) return;
+        const acceptBtn = card.querySelector(".btn.accept");
+        const rejectBtn = card.querySelector(".btn.reject");
+        acceptBtn.disabled = true;
+        rejectBtn.disabled = true;
+        try {
+          const r = await fetch("/research/review/reject", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ proposal_id: p.proposal_id }),
+          });
+          const data = await r.json();
+          if (data.error) {
+            showError(card, data.error);
+            acceptBtn.disabled = false;
+            rejectBtn.disabled = false;
+            return;
+          }
+          showBanner(`Rejected ${p.proposal_id}`);
+          await reload();
+        } catch (err) {
+          showError(card, err.message || String(err));
+          acceptBtn.disabled = false;
+          rejectBtn.disabled = false;
+        }
+      });
+
+      return card;
+    }
+
+    function buildResolvedCard(p, status) {
+      const div = document.createElement("div");
+      div.className = `resolved-card ${status}`;
+      div.innerHTML = `
+        <span class="pid"></span>
+        <span class="ptitle"></span>
+      `;
+      div.querySelector(".pid").textContent = p.proposal_id;
+      div.querySelector(".ptitle").textContent = p.paper_title || "(untitled)";
+      return div;
+    }
+
+    function showError(card, message) {
+      let el = card.querySelector(".err");
+      if (!el) {
+        el = document.createElement("div");
+        el.className = "err";
+        card.querySelector(".proposal-body").appendChild(el);
+      }
+      el.textContent = "error: " + message;
+    }
+
+    function showBanner(text) {
+      const banner = document.getElementById("undo-banner");
+      document.getElementById("undo-label").textContent = text;
+      banner.classList.add("open");
+      setTimeout(() => banner.classList.remove("open"), 4000);
+    }
+    document.getElementById("undo-btn").addEventListener("click", () =>
+      document.getElementById("undo-banner").classList.remove("open")
+    );
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c]);
+    }
+
+    init();
+  </script>
+</body>
+</html>
