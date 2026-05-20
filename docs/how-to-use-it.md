@@ -405,6 +405,22 @@ A REPL: shows each pending proposal with its `mechanism / invariant / prediction
 
 If you have no API key (`ANTHROPIC_API_KEY` unset) or want zero LLM cost, add `--no-llm`. The extractor falls back to a regex heuristic and emits low-confidence proposals.
 
+**Browser surface (preferred for batches of 10+ proposals):** with the
+daemon running (`neuro-os start` or `neuro-os loop serve`), open
+
+```
+http://127.0.0.1:8765/research/review
+```
+
+What you see: pending proposals as expandable cards (paper title +
+one-sentence + verdict badge + confidence). Click a card to expand and
+see the full extraction (mechanism / invariant / prediction / failure
+mode + Layer-1 deepening fields + extractor reasoning + source excerpt).
+Each card has a comma-separated entity-mentions input and **Accept** /
+**Reject** buttons. Recently-resolved proposals show in collapsed
+strips at the bottom. The CLI REPL still works — both surfaces share
+the same on-disk proposal store.
+
 **Onboard** (every morning, ~2 min). Write today's priorities into a
 JSON file:
 
@@ -1007,6 +1023,32 @@ Sections:
     (perfect-foresight failure mode).
   - `options_loss_concentration` — ≥20 closed trades AND realized PNL
     negative (the "high win-rate but losing money" failure mode).
+
+#### Browser surface — `/invest/dashboard`
+
+The CLI prints text. For glance-value (morning coffee, while
+deciding the day's invest move), the daemon now serves a browser
+view of the same rollup:
+
+```
+http://127.0.0.1:8765/invest/dashboard
+```
+
+What you see:
+
+- Three top-row stat cards: cost-of-living coverage (with a progress
+  bar), options net PnL with sign, thesis correct rate.
+- Options strategy breakdown table.
+- Mega-trend sleeve allocation bars — concentrated sleeves (>40% of
+  capital) highlighted in amber, with a warning line listing them by
+  name.
+- System health flags as a list with severity colors (amber / red)
+  and an inline rationale string per flag (so the user doesn't need
+  to remember what `phase1_income_gap_unmet` means).
+- Window selector in the header (7 / 30 / 60 / 90 / 180 days).
+- **Advisory-only** pill in the header. The anti-goal (no broker
+  integration, no trade execution) is unchanged. The browser surface
+  is read-only — every mutation still goes through the CLI / MCP.
 
 ### How this fits with money-os
 
