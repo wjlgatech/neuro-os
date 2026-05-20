@@ -4,6 +4,108 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic
 Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] — Design-audit round-trip: polish + safety pass, research review, invest dashboard
+
+Three PRs (#37, #38, #39) close all 10 fixes from the `/design-consultation`
+structural audit against the 5 axes (consistency, completeness, simplicity,
+simplicity-of-clarity, efficiency, safety). 722 tests pass after the
+round-trip, up from 687 before.
+
+### Added — design-audit polish + safety pass (#37; fixes 2-7, 9, 10)
+
+- **Living Knowledge UI (`/research/living-knowledge`)**:
+  - L0/L1/L2 legend at the top of the tree explains the hierarchy in
+    one line (was opaque to first-time users).
+  - Modality dropdown options carry `title=` tooltips + a live `.help`
+    text under the dropdown that updates on change — each of the 7
+    modalities now has a one-line explanation of what it reveals.
+  - Delete button on the expression-detail modal: `confirm()` →
+    `POST /research/living-knowledge/delete` → 30-second undo banner
+    anchored to the page; clicking Undo calls
+    `POST /research/living-knowledge/restore`. Deletes move the file
+    to `expressions/_trash/` (soft-delete), so even after the undo
+    window closes the file is recoverable manually.
+  - `?` help-link in the header deep-links to `/how-to-use` anchored
+    at the Layer 4 + 5 section.
+- **Chat surfaces (`/onboard` / `/review` / `/queues`)**:
+  - API-key pill in the header matching the Living Knowledge page
+    (green = LLM ready, amber = fallback mode, red = daemon offline).
+    Trust signal: the user always knows whether their content goes to
+    Anthropic.
+  - `?` help-link deep-linking to `/how-to-use` anchored per kind
+    (morning / review / queues).
+  - **Sign-overwrite confirmation**: when today's contract is already
+    bound, the first Sign click shows a red warning banner; only the
+    second click actually overwrites. Prevents misclick regret.
+  - **Queue-mutation undo**: the `/queues` chat snapshots the queue
+    state via `GET /queues-state` before each AI turn that might
+    mutate, then surfaces a 30-second undo banner if mutations
+    happened. Clicking Undo posts the snapshot back via a new
+    `POST /queues-restore` route that overwrites the queue files
+    atomically.
+- **Browser extension popup + newtab**:
+  - Static tank-percentage legend explaining the reward economy in
+    plain English with a link to `/how-it-works`. Static HTML so the
+    explanation is visible even before the popup's JS modules load.
+- **New server routes** (all on the founder_loop daemon, inheriting
+  the daemon's CORS hardening from PR #34):
+  - `POST /research/living-knowledge/delete` (soft-delete expression)
+  - `POST /research/living-knowledge/restore` (move from _trash/ back)
+  - `POST /queues-restore` (rewrite queue JSON files from snapshot)
+- **New module helpers** in `agent/research/expression.py`:
+  `soft_delete_expression`, `restore_expression`, `trash_dir`.
+
+### Added — research-review browser surface (#38; audit Fix 1)
+
+- New daemon route at `/research/review` mirroring `research review --cli`
+  1:1 with a browser-friendly UI. 4 routes total:
+  - `GET /research/review` — HTML page
+  - `GET /research/review/data` — JSON with `pending` + `recently_accepted` + `recently_rejected`
+  - `POST /research/review/accept` — builds frozen MechanismCard, transitions proposal to accepted, upserts entity mentions
+  - `POST /research/review/reject` — transitions proposal to rejected
+- UI shows pending proposals as expandable cards (paper title +
+  one-sentence + verdict badge + confidence). Expanding reveals the
+  full extraction (mechanism / invariant / prediction / failure_mode +
+  Layer-1 deepening + extractor reasoning + source excerpt + entity
+  mentions input).
+- Entity mentions normalize on accept: lowercase + strip + drop empty.
+- CLI and browser surface share the same on-disk proposal store —
+  writes via either surface are visible to the other.
+
+### Added — invest dashboard browser view (#39; audit Fix 8)
+
+- New daemon route at `/invest/dashboard` rendering the
+  `InvestmentDashboardSummary` as a one-glance read. 2 routes:
+  - `GET /invest/dashboard` — HTML page
+  - `GET /invest/dashboard/data?window=N` — JSON rollup (window clamped to [1, 365])
+- 3 stat cards (cost-of-living coverage with bar, options PnL with
+  sign, thesis correct rate), options strategy breakdown table,
+  mega-trend sleeve allocation bars (concentrated sleeves >40%
+  highlighted in amber), system-health-flags list with severity
+  colors + inline rationale for each of the 5 flags.
+- **Advisory-only** pill in the header. The anti-goal (no broker
+  integration, no trade execution) is unchanged.
+
+### Tests
+
+- 34 new tests across the three PRs:
+  - `tests/test_living_knowledge_ui.py` — +9 (delete + restore + queues-restore + their CORS regression)
+  - `tests/test_research_expression.py` — +5 (soft_delete + restore unit tests)
+  - `tests/test_research_review_ui.py` — +13 (new file)
+  - `tests/test_invest_dashboard_ui.py` — +7 (new file)
+- Full suite: **722 passed**, 1 deselected (pre-existing Anthropic
+  API quota failure, unrelated). Engineering principles (Laws 1-9)
+  all green.
+
+### Honest gap flagged (out of scope)
+
+The browser extension's `popup.html` and `newtab.html` reference
+`lib/api.js` and `lib/card.js` that don't exist in the repo. The
+`FounderLoopUI` global the JS modules expect is therefore undefined —
+the dynamic tank widget is pre-existing-broken. The static
+tank-percentage legend added in #37 works regardless. Worth a
+separate investigation.
+
 ## [0.9.0] — Living Knowledge UI: spatial hierarchy + chat-assist
 
 Browser UI for Layer 4 + Layer 5 of the research vertical. The founder_loop

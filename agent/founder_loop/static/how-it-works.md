@@ -458,20 +458,37 @@ verticals; promotion is per-vertical and gated.
 
 ## How the UIs fit in
 
-Today the **browser/chat surfaces ship for Founder Loop only**. The
-other three verticals are CLI-only in v0 (their browser surfaces are
-roadmapped). All four use the same Python engine.
+**Founder Loop** has the deepest UI (browser extension + tray app + 3 chat
+surfaces). **Research** now has 2 browser surfaces too (review + the
+Living Knowledge spatial tree). **Investment** has a read-only browser
+dashboard. **Startup** is still CLI-only. All surfaces use the same
+Python engine.
 
-**Three UI surfaces ship for Founder Loop, plus a Streamlit lens on the engine itself:**
+**The full UI surface set:**
 
-| Surface | What it shows | Read more |
-|---|---|---|
-| **Browser extension** (Manifest V3) | Toolbar badge + popup + new-tab dashboard + sublimation overlay on 8 distraction hosts (YouTube, Twitter/X, Reddit, HN, Instagram, TikTok, Facebook, Discord). Polls `/tank` every 5 min; calls `/tick` when you visit a distraction host; mounts the Sublimation Card if the diagnosis fires. | [`ui/browser_extension/README.md`](../ui/browser_extension/README.md) |
-| **System tray app** | Cross-platform menu-bar gauge (Linux / macOS / Windows). Polls the daemon every 60s; renders tank %; click for tick / show contract / quit. | [`ui/tray_app/README.md`](../ui/tray_app/README.md) |
-| **Chat surfaces** | `/onboard` (morning ritual), `/review` (nightly), `/queues` (curate bookmarks/social/rubber-duck). Each is a chat page that talks back; falls back to a state-machine without an Anthropic key. | [`docs/how-to-use-it.md`](how-to-use-it.md#founder-loop--the-5-moments) (the "5 moments" walkthrough) |
-| **Streamlit app** (engine only) | Five tabs: Try It / Watch It Learn / Self-Repair / Readiness / About. NOT the daily-product surface; this is for understanding the engine itself in 60 seconds. | [`ui/README.md`](../ui/README.md) |
+| Surface | Vertical | What it shows | Read more |
+|---|---|---|---|
+| **Browser extension** (Manifest V3) | Founder Loop | Toolbar badge + popup + new-tab dashboard + sublimation overlay on 8 distraction hosts. Polls `/tank` every 5 min; calls `/tick` when you visit a distraction host; mounts the Sublimation Card if the diagnosis fires. | [`ui/browser_extension/README.md`](../ui/browser_extension/README.md) |
+| **System tray app** | Founder Loop | Cross-platform menu-bar gauge (Linux / macOS / Windows). Polls the daemon every 60s; renders tank %; click for tick / show contract / quit. | [`ui/tray_app/README.md`](../ui/tray_app/README.md) |
+| **`/onboard` chat** | Founder Loop | Morning ritual: chat through today's priorities, sign the contract. Falls back to state-machine without an Anthropic key. | [how-to-use § Moment 1](how-to-use-it.md#moment-1--start-your-day) |
+| **`/review` chat** | Founder Loop | Nightly review: chat through what happened, sign tomorrow's contract. | [how-to-use § Moment 4](how-to-use-it.md#moment-4--look-back) |
+| **`/queues` chat** | Founder Loop | Curate bookmarks/social/rubber-duck queues. 30-second undo banner on AI-driven mutations. | [how-to-use § Moment 5](how-to-use-it.md#moment-5--tweak-the-rules) |
+| **`/research/living-knowledge`** | Research | Spatial 3-level tree (L0 cores → L1 clusters → L2 cards), expression modals, single-turn chat-assist (brainstorm + interview). | [how-to-use § Browser UI for Layer 4+5](how-to-use-it.md#browser-ui--researchliving-knowledge) |
+| **`/research/review`** | Research | Front-door for accepting / rejecting `MechanismCardProposal` rows. Expandable cards, entity-mention input, recently-resolved section. | [how-to-use § Research](how-to-use-it.md#research--for-a-researcher-building-a-world-model) |
+| **`/invest/dashboard`** | Investment | Read-only rollup: cost-of-living coverage, options PnL, thesis correct rate, sleeve allocation bars, health-flags list with rationale. | [how-to-use § Investment dashboard](how-to-use-it.md#investment-dashboard) |
+| **Streamlit app** (engine only) | (substrate) | Five tabs: Try It / Watch It Learn / Self-Repair / Readiness / About. NOT the daily-product surface; this is for understanding the engine itself in 60 seconds. | [`ui/README.md`](../ui/README.md) |
 
-The CLI surface (`neuro-os ...`) is the universal fallback — every operation a chat surface or browser extension does, the CLI does too. The three CLI-only verticals (Research / Investment / Startup) ship today with this surface only; their chat surfaces are roadmapped.
+The CLI surface (`neuro-os ...`) is the universal fallback — every
+operation a browser surface does, the CLI does too. The Startup
+vertical is still CLI-only; its browser surfaces are roadmapped.
+
+**Cross-origin security inheritance:** every browser surface above
+goes through the same daemon dispatcher that PR #34 hardened. The
+daemon refuses cross-origin browser requests (origin allowlist +
+`Sec-Fetch-Site` check) before reaching any handler. A malicious
+webpage cannot read or mutate any neuro-os state — research,
+investment, or founder_loop — via the daemon, even while the daemon
+is running.
 
 ```
        Browser extension                  System tray app                  Chat surfaces
