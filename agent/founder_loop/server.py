@@ -56,6 +56,16 @@ _DOC_ROUTES: Dict[str, tuple[str, str]] = {
     "/roadmap": ("roadmap.md", "Roadmap"),
 }
 
+# Cross-origin defense. Loopback binding alone does NOT stop a browser
+# script on attacker.com from issuing fetch('http://127.0.0.1:8765/...')
+# — the browser will deliver the request, and a wildcard CORS response
+# lets the attacker read it. We reject browser cross-origin requests at
+# the dispatcher and echo (not wildcard) CORS for allowed ones.
+_ALLOWED_ORIGIN_SCHEMES: Tuple[str, ...] = (
+    "chrome-extension://",
+    "moz-extension://",
+)
+
 log = logging.getLogger("founder_loop.server")
 
 
@@ -114,22 +124,67 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
     """One handler instance per request (stdlib semantics)."""
 
     config: _Config  # set on the class by ``serve()``
+    # Set by ``serve()``: the set of HTTP origins that map to the
+    # daemon's own host:port (e.g. ``http://127.0.0.1:8765``). Browser
+    # extension origins are matched by scheme prefix, not by exact set.
+    allowed_exact_origins: frozenset = frozenset()
 
     # ------------------------------------------------------------------
     # Wire-level helpers
     # ------------------------------------------------------------------
+
+    @classmethod
+    def _is_origin_allowed(cls, origin: str) -> bool:
+        if not origin:
+            return False
+        if origin in cls.allowed_exact_origins:
+            return True
+        return any(origin.startswith(s) for s in _ALLOWED_ORIGIN_SCHEMES)
+
+    def _origin_check_passes(self) -> bool:
+        """Reject browser cross-origin requests; allow same-origin,
+        extensions, and non-browser clients (curl, tray app).
+
+        Rule:
+        - ``Sec-Fetch-Site: cross-site`` (modern browsers): reject.
+        - ``Origin`` present but not allowlisted: reject.
+        - Otherwise (same-origin, extension, or no Origin at all): allow.
+        """
+        if self.headers.get("Sec-Fetch-Site", "") == "cross-site":
+            return False
+        origin = self.headers.get("Origin", "")
+        if origin and not self._is_origin_allowed(origin):
+            return False
+        return True
+
+    def _reject_cross_origin(self) -> bool:
+        """Send 403 and return True if the request is cross-origin from
+        a non-allowlisted source. Caller must return immediately on True."""
+        if self._origin_check_passes():
+            return False
+        self.send_response(403)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        return True
 
     def _send_json(self, status: int, payload: Any) -> None:
         body = json.dumps(payload, default=_json_default).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
-        # CORS — localhost-only daemon, browser extension origin is
-        # ``chrome-extension://...`` / ``moz-extension://...``. Wildcard
-        # is fine since we bind to 127.0.0.1.
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        # CORS — echo the validated Origin (never wildcard). Wildcard
+        # would let any browser script read responses to its
+        # cross-origin fetch on 127.0.0.1, defeating the loopback
+        # boundary. Cross-origin requests are rejected upstream by
+        # ``_reject_cross_origin``; this just labels responses for the
+        # allowed cases (same-origin daemon page, browser extension).
+        origin = self.headers.get("Origin", "")
+        if self._is_origin_allowed(origin):
+            self.send_header("Access-Control-Allow-Origin", origin)
+            self.send_header("Vary", "Origin")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
         self.wfile.write(body)
 
@@ -152,9 +207,13 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
     # ------------------------------------------------------------------
 
     def do_OPTIONS(self) -> None:  # noqa: N802
+        if self._reject_cross_origin():
+            return
         self._send_json(204, {})
 
     def do_GET(self) -> None:  # noqa: N802
+        if self._reject_cross_origin():
+            return
         try:
             self._dispatch_get()
         except _BadRequest as exc:
@@ -166,6 +225,8 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             self._send_json(500, {"error": repr(exc)})
 
     def do_POST(self) -> None:  # noqa: N802
+        if self._reject_cross_origin():
+            return
         try:
             self._dispatch_post()
         except _BadRequest as exc:
@@ -605,7 +666,16 @@ def serve(
     )
     FounderLoopHandler.config = cfg
     server = ThreadingHTTPServer((host, port), FounderLoopHandler)
-    log.info("founder_loop daemon listening on http://%s:%d", host, port)
+    # ThreadingHTTPServer resolves port=0 to an actual OS-assigned port;
+    # read it back so the same-origin allowlist matches what the browser
+    # sees in its address bar.
+    bound_port = server.server_address[1]
+    FounderLoopHandler.allowed_exact_origins = frozenset({
+        f"http://127.0.0.1:{bound_port}",
+        f"http://localhost:{bound_port}",
+        f"http://[::1]:{bound_port}",
+    })
+    log.info("founder_loop daemon listening on http://%s:%d", host, bound_port)
 
     stop_scheduler = threading.Event()
     if tick_interval_min and tick_interval_min > 0:
