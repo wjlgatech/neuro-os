@@ -4,6 +4,24 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic
 Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.1] — API-key help modal on chat surfaces
+
+The API-key pill on the chat surfaces (`/onboard` / `/review` / `/queues`)
+is now clickable when in fallback mode. Clicking opens a small help
+modal that explains where to get an Anthropic key, how to export
+`ANTHROPIC_API_KEY` in the shell, and how to restart the daemon so the
+new key takes effect. Documentation only — no in-app credential paste,
+no new daemon route accepting credentials. The env var stays the
+canonical mechanism, which keeps the daemon's HTTP surface
+credential-free (no POST endpoint to attack even with CORS hardening).
+
+Closes the audit gap surfaced after the audit closed: the pill said
+"no API key — fallback mode" with no path forward for the user.
+
+Single file: `agent/founder_loop/static/onboard.html`. No server
+changes. No new tests (existing 721-pass suite confirms no
+regression).
+
 ## [0.10.0] — Design-audit round-trip: polish + safety pass, research review, invest dashboard
 
 Three PRs (#37, #38, #39) close all 10 fixes from the `/design-consultation`
