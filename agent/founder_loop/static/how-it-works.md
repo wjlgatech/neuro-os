@@ -359,9 +359,9 @@ Outputs (frozen `DashboardSummary`):
 
 *Code: `agent/research/dashboard.py`. Tests: `tests/test_research_dashboard.py`, `tests/test_research_three_layer.py`.*
 
-### Layer 1 / 2 / 3 — Three-Layer Research OS (research vertical)
+### Layer 1 / 2 / 3 / 4 / 5 — Five-Layer Research OS (research vertical)
 
-Lane 1 (above) is the per-paper extraction. The Three-Layer extension turns accumulated cards into decision-grade output:
+Lane 1 (above) is the per-paper extraction. The Three-Layer extension turns accumulated cards into decision-grade output; Layers 4 and 5 close the **compression → expression → refine** loop from the TRUE-E3 Living Knowledge Framework, so a compressed principle isn't just a static summary — it can be re-expanded into new forms, and what each form reveals feeds back into the schema:
 
 - **Layer 1 deepening.** `MechanismCardProposal` and `MechanismCard` gained five optional fields beyond the original 4-tuple (`mechanism / invariant / prediction / failure_mode`): `first_principle`, `anti_pattern`, `transferability_test`, `verdict ∈ {foundational, useful, misleading, skip}`, `one_sentence_compression`. Plus a generic `framework_alignment: list[FrameworkAxisNote]` where the user's framework axes — supplied by hand in `~/.neuro_os_research/framework.json` — flow through unchanged. **The substrate refuses to hard-code a framework**; a Physical-AI reader uses {Observation, Evaluation, Control, Continual}; a value investor uses {Moat, Distribution, Unit economics}; the schema is the same.
 
@@ -371,7 +371,17 @@ Lane 1 (above) is the per-paper extraction. The Three-Layer extension turns accu
 
 - **Checkpoint — `agent/research/checkpoints.py`.** After each synthesis cycle, two binary signals: `brief_produced` AND `mental_model_clearer`. Either-NO twice in a row → dashboard prints `system_not_converging`. This is the falsifiability gate the Research OS uses on itself; without it, the system can become a beautiful trap.
 
-*Code: `agent/research/{framework,synthesis,briefs,checkpoints}.py`. Tests: `tests/test_research_three_layer.py`.*
+- **Layer 4 — `agent/research/compress.py`.** Builds a 3-level hierarchy from a `SynthesisRun`. **Level 0** is the core schema (3–5 nodes, highest abstraction); **Level 1** is one node per `MechanismCluster` (≤30); **Level 2** is one node per accepted `MechanismCard`. Each level points at its children; Level 1 nodes carry their parent_id (an L0 node), Level 2 nodes carry theirs (an L1 node). When >5 clusters exist, the L0 rollup groups them by overlapping `framework_axes_touched`, then merges smallest pairs until ≤5. Frozen `HierarchicalCompression`; persists at `~/.neuro_os_research/compressions/<id>.json`. Pure function — re-running on the same synthesis input produces identical structure (modulo `compression_id` and `created_at`).
+
+- **Layer 5 — `agent/research/expression.py`.** Records that a compressed node was instantiated in one of 7 modalities (`visual / musical / physical / organizational / game / biological / narrative`). Content is text only — a prompt, code, pseudocode, or markdown spec — plus a `tool_hint` naming the external renderer (Tone.js, p5.js, Isaac Sim, etc.). Then a separate `reveal_expression` call closes the feedback loop: attach the insight the expression surfaced, optionally point at a node in the same compression to refine. **The reveal is the load-bearing claim**: without it, expression is decoration; with it, the cycle is generative. Validates that the source node and feedback target actually exist in the named compression so revealings can't dangle. Persists at `~/.neuro_os_research/expressions/<id>.json`.
+
+*Code: `agent/research/{framework,synthesis,briefs,checkpoints,compress,expression}.py`. Tests: `tests/test_research_three_layer.py`, `tests/test_research_compress.py`, `tests/test_research_expression.py`.*
+
+What the Five-Layer Research OS is NOT (intentional scope):
+
+- *Not VR or embodied (E1 in TRUE-E3).* Walking the compressed graph in 3D space is a heavy lift with no near-term Phase-1 paper payoff; deferred.
+- *Not interactive parameter dashboards (E2 in TRUE-E3).* Streamlit is in the repo but isn't wired to compressed principles.
+- *Not a rendering engine.* The expression layer stores text + a tool hint. If you want a Tone.js track, an Isaac Sim scene, or a p5.js animation, you pipe the `content` field to the named tool yourself — neuro-os is the schema-keeper, rendering lives at the edges. This is deliberate: it lets the schema evolve without dragging multimedia deps into the core.
 
 ---
 

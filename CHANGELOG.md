@@ -4,6 +4,45 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic
 Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] — Living-knowledge MVP: compression + expression + feedback loop
+
+PR #35. The research vertical's Three-Layer Research OS (ingest →
+synthesize → brief) gets two new layers that close the
+compression → expression → refine loop from the TRUE-E3 framework:
+
+- **Layer 4 — Compression.** `agent/research/compress.py` builds a
+  3-level hierarchy from a synthesis run: Level 0 (3–5 core nodes),
+  Level 1 (≤30 cluster nodes), Level 2 (all accepted cards). Frozen
+  Pydantic, atomic disk writes under
+  `~/.neuro_os_research/compressions/`. CLI: `neuro-os research
+  compress [--from <synth-id>] [--list] [--show <id>] [--json]`.
+- **Layer 5 — Expression + feedback.** `agent/research/expression.py`
+  records that a compressed node was instantiated in one of 7
+  modalities (visual / musical / physical / organizational / game /
+  biological / narrative), then a separate `--reveal` step attaches
+  the insight that the expression surfaced, optionally pointing at a
+  node to refine. Content is text only (prompt / code / pseudocode /
+  markdown); a `tool_hint` field names the renderer. neuro-os is the
+  schema-keeper; rendering plugs in externally (Tone.js, p5.js,
+  markdown, etc.). CLI: `neuro-os research express ...` (record /
+  `--list` / `--show` / `--reveal`).
+
+**Deliberately deferred** (heavy lifts with no near-term Phase-1
+paper payoff): E1 embodied/VR (3d-force-graph-vr, Isaac Sim) and E2
+interactive parameter dashboards (Streamlit wiring).
+
+35 new tests; full suite 671 pass (1 deselected: a pre-existing
+Anthropic-API-quota failure unrelated to this slice). `ruff` clean.
+Engineering principles (Laws 1–9) all green; Law 5 satisfied — every
+new export is a frozen Pydantic model.
+
+End-to-end demo (run against `TRUE-E3-Living-Knowledge-Framework.md`
+as the seed corpus): 4 MechanismCards → 4 clusters → 3-level
+compression → narrative expression of the feedback-closure principle
+→ reveal recorded against the source L0 node. The loop is closed on
+disk; the next synthesis cycle can incorporate the reveal as a
+refinement signal.
+
 ## [0.7.0] — Five compounding mechanisms + Paul-week unblockers
 
 Eight PRs (#18 through #25) shipped in one delivery cycle. The

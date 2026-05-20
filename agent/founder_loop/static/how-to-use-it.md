@@ -617,6 +617,100 @@ Prints the 4-metric summary as JSON:
 - prediction-log entries
 - assumption-map updates
 
+### Layer 4 + 5 — compress + express (living-knowledge MVP)
+
+After enough cards have stacked up and you've run synthesis a few
+times, the next move is to **compress** the synthesis output into a
+3-level hierarchy and then **express** one of those compressed nodes
+in some other modality — narrative, music, art, an organizational
+structure, a game mechanic. The point isn't the artifact; it's that
+each modality reveals something the text version hid, and that
+revelation feeds back to refine the schema.
+
+**Layer 4 — compress** (build the hierarchy from the latest synthesis):
+
+```bash
+neuro-os research compress
+# Or compress a specific synthesis run:
+neuro-os research compress --from synth-abc123
+# Or list / show:
+neuro-os research compress --list
+neuro-os research compress --show cmp-xyz789
+```
+
+Output is a 3-level tree:
+
+```
+Level 0 — core schema (3-5 nodes)
+  [l0-00] <core principle>
+  [l0-01] <core principle>
+  ...
+Level 1 — decomposition (one node per cluster)
+  [l1-c1] <cluster> (under l0-00)
+  [l1-c2] <cluster> (under l0-00)
+  ...
+Level 2 — full detail (one node per accepted card)
+  [l2-card-xxx] (under l1-c1)
+  ...
+```
+
+Each compression is frozen on disk at
+`~/.neuro_os_research/compressions/<id>.json`. The same synthesis
+input produces the same structure (modulo `compression_id` /
+`created_at`) — re-running is a no-op for the graph shape.
+
+**Layer 5 — express** (instantiate a compressed node in a modality):
+
+```bash
+neuro-os research express \
+  --compression cmp-xyz789 \
+  --node l0-00 \
+  --modality narrative \
+  --title "The Librarian Who Forgets Selectively" \
+  --content "Every night the library burns the day's newest books..."
+```
+
+Seven modalities are valid: `visual / musical / physical /
+organizational / game / biological / narrative`. The content is
+text-only — a prompt, code, pseudocode, or markdown spec. Use
+`--content @path/to/file.md` to read content from a file. Optional
+`--tool-hint` names the renderer (e.g. `p5.js`, `Tone.js`,
+`markdown`, `Isaac Sim`) so a downstream tool can take the content
+and produce the actual artifact. neuro-os doesn't render; it
+schema-keeps.
+
+**Close the loop — reveal what the expression taught you:**
+
+```bash
+neuro-os research express \
+  --reveal exp-78e3f44ef3 \
+  --insight "The narrative form reveals an emotional asymmetry the compression missed: cost felt at dawn, decision made at night." \
+  --feeds-back-to l0-00
+```
+
+The reveal step is the load-bearing claim of the framework. Without
+it, every expression is decoration; with it, the system is generative.
+The reveal is rewritten in place on the same expression record (frozen
+schema, atomic write), and the optional `--feeds-back-to` argument
+points at the compressed node the insight should refine on the next
+synthesis cycle.
+
+**List + show** (browse expressions):
+
+```bash
+neuro-os research express --list                          # newest first
+neuro-os research express --list --modality narrative     # filter by modality
+neuro-os research express --list --compression cmp-xxx    # filter by compression
+neuro-os research express --show exp-78e3f44ef3           # full record
+```
+
+This implements the aligned subset of the
+[TRUE-E3 Living Knowledge Framework](../research_practice/TRUE-E3.md):
+the compression and expression directions. The embodied (VR / 3D
+walk-through) and interactive-experiment (parameter sliders) layers
+from TRUE-E3 are deliberately deferred until they earn a place in a
+specific use case.
+
 ## MCP server — drive neuro-os from any AI agent
 
 The same surfaces above are also exposed as **Model Context Protocol
