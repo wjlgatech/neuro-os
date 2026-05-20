@@ -273,6 +273,10 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             self._serve_research_review_page()
         elif path == "/research/review/data":
             self._research_review_data()
+        elif path in ("/invest/dashboard", "/invest/dashboard/"):
+            self._serve_invest_dashboard_page()
+        elif path == "/invest/dashboard/data":
+            self._invest_dashboard_data(query)
         elif path in _DOC_ROUTES:
             md_name, title = _DOC_ROUTES[path]
             self._serve_doc(md_name, title)
@@ -896,6 +900,56 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
         self.wfile.write(body)
+
+    def _serve_invest_dashboard_page(self) -> None:
+        path = STATIC_DIR / "invest-dashboard.html"
+        if not path.is_file():
+            self._send_json(500, {"error": "invest-dashboard.html missing"})
+            return
+        body = path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _invest_dashboard_data(self, query: Dict[str, str]) -> None:
+        """Read-only rollup of the investment vertical, mirroring the CLI's
+        `invest dashboard`. ``window`` defaults to 30 days; query param
+        ``window`` clamps to [1, 365]."""
+        from agent.investment.config import read_position_theses
+        from agent.investment.dashboard import build_dashboard_summary
+
+        try:
+            window = int(query.get("window", "30"))
+        except ValueError:
+            self._send_json(400, {"error": "window must be an integer"})
+            return
+        if not 1 <= window <= 365:
+            self._send_json(400, {"error": "window must be between 1 and 365"})
+            return
+
+        # Investment data lives at ~/.neuro_os_investment/ by default.
+        # The daemon doesn't yet expose --invest-home; for v0 use the default.
+        home: Optional[Path] = None
+        try:
+            theses = [
+                t for t in read_position_theses(home=home)
+                if t.status == "active"
+            ]
+        except Exception:
+            theses = []
+        try:
+            summary = build_dashboard_summary(
+                theses=theses, home=home, window_days=window,
+            )
+        except Exception as e:  # pragma: no cover — defensive
+            self._send_json(500, {"error": f"dashboard build failed: {e}"})
+            return
+        self._send_json(200, {
+            "summary": json.loads(summary.model_dump_json()),
+        })
 
     def _research_review_data(self) -> None:
         """Return pending + recently-resolved (accepted/rejected, last 20)
