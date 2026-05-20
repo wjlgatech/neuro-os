@@ -262,6 +262,13 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
         elif path.startswith("/onboard/"):
             asset = path[len("/onboard/"):]
             self._serve_static(asset, _guess_mime(asset))
+        elif path in (
+            "/research/living-knowledge",
+            "/research/living-knowledge/",
+        ):
+            self._serve_living_knowledge_page()
+        elif path == "/research/living-knowledge/data":
+            self._living_knowledge_data()
         elif path in _DOC_ROUTES:
             md_name, title = _DOC_ROUTES[path]
             self._serve_doc(md_name, title)
@@ -354,6 +361,12 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             self._chat()
         elif path == "/sign":
             self._sign()
+        elif path == "/research/living-knowledge/express":
+            self._living_knowledge_express()
+        elif path == "/research/living-knowledge/reveal":
+            self._living_knowledge_reveal()
+        elif path == "/research/living-knowledge/chat":
+            self._living_knowledge_chat()
         else:
             self._send_json(404, {"error": f"unknown route: {path}"})
 
@@ -553,6 +566,276 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
         self.wfile.write(body)
+
+    # ------------------------------------------------------------------
+    # Living Knowledge (research vertical) — Layer 4 + 5 UI
+    # ------------------------------------------------------------------
+
+    def _research_home(self) -> Optional[Path]:
+        """Return the research home dir or None to use the default
+        ``~/.neuro_os_research``. The daemon doesn't currently take a
+        --research-home flag; that's a follow-up if the user wants to
+        run multiple research homes side-by-side."""
+        return None
+
+    def _serve_living_knowledge_page(self) -> None:
+        path = STATIC_DIR / "research-living-knowledge.html"
+        if not path.is_file():
+            self._send_json(500, {"error": "living-knowledge.html missing"})
+            return
+        body = path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _living_knowledge_data(self) -> None:
+        """Read the latest compression and all its expressions."""
+        from agent.research.compress import latest_compression
+        from agent.research.expression import list_expressions
+
+        home = self._research_home()
+        compression = latest_compression(home=home)
+        if compression is None:
+            self._send_json(200, {
+                "compression": None,
+                "expressions": [],
+                "reason": (
+                    "no compression yet — run `neuro-os research compress` "
+                    "after a synthesis run to populate this view"
+                ),
+            })
+            return
+        expressions = list_expressions(
+            home=home, compression_id=compression.compression_id,
+        )
+        self._send_json(200, {
+            "compression": json.loads(compression.model_dump_json()),
+            "expressions": [
+                json.loads(e.model_dump_json()) for e in expressions
+            ],
+        })
+
+    def _living_knowledge_express(self) -> None:
+        from agent.research.expression import record_expression
+
+        body = self._read_json_body()
+        required = ("compression_id", "source_node_id", "modality", "title", "content")
+        missing = [k for k in required if not body.get(k)]
+        if missing:
+            self._send_json(400, {"error": f"missing fields: {missing}"})
+            return
+        try:
+            expression = record_expression(
+                compression_id=body["compression_id"],
+                source_node_id=body["source_node_id"],
+                modality=body["modality"],
+                title=body["title"],
+                content=body["content"],
+                tool_hint=body.get("tool_hint") or None,
+                home=self._research_home(),
+            )
+        except (FileNotFoundError, ValueError) as e:
+            self._send_json(400, {"error": str(e)})
+            return
+        self._send_json(200, {"expression": json.loads(expression.model_dump_json())})
+
+    def _living_knowledge_reveal(self) -> None:
+        from agent.research.expression import reveal_expression
+
+        body = self._read_json_body()
+        expression_id = body.get("expression_id")
+        insight = body.get("insight") or body.get("reveals")
+        if not expression_id or not insight:
+            self._send_json(400, {
+                "error": "expression_id and insight are required",
+            })
+            return
+        try:
+            updated = reveal_expression(
+                expression_id=expression_id,
+                reveals=insight,
+                feeds_back_to_node_id=body.get("feeds_back_to_node_id") or None,
+                home=self._research_home(),
+            )
+        except (FileNotFoundError, ValueError) as e:
+            self._send_json(400, {"error": str(e)})
+            return
+        self._send_json(200, {"expression": json.loads(updated.model_dump_json())})
+
+    def _living_knowledge_chat(self) -> None:
+        """Single-turn assist: brainstorm (suggest expressions) OR
+        interview (probe what an expression revealed).
+
+        Falls back to a templated response without an API key. The
+        chat is stateless — the client sends all context every turn.
+        """
+        body = self._read_json_body()
+        kind = body.get("kind") or ""
+        if kind not in ("brainstorm", "interview"):
+            self._send_json(400, {
+                "error": "kind must be 'brainstorm' or 'interview'",
+            })
+            return
+
+        if kind == "brainstorm":
+            node_label = (body.get("node_label") or "").strip()[:300]
+            node_one_sentence = (body.get("node_one_sentence") or "").strip()[:600]
+            modality = (body.get("modality") or "").strip()[:40]
+            if not (node_label and node_one_sentence and modality):
+                self._send_json(400, {
+                    "error": "brainstorm requires node_label, node_one_sentence, modality",
+                })
+                return
+            reply = self._chat_brainstorm(
+                node_label=node_label,
+                node_one_sentence=node_one_sentence,
+                modality=modality,
+            )
+        else:  # interview
+            node_one_sentence = (body.get("node_one_sentence") or "").strip()[:600]
+            modality = (body.get("modality") or "").strip()[:40]
+            expression_content = (body.get("expression_content") or "").strip()[:2000]
+            user_observation = (body.get("user_observation") or "").strip()[:1000]
+            if not (node_one_sentence and modality and expression_content):
+                self._send_json(400, {
+                    "error": (
+                        "interview requires node_one_sentence, modality, "
+                        "expression_content (and optionally user_observation)"
+                    ),
+                })
+                return
+            reply = self._chat_interview(
+                node_one_sentence=node_one_sentence,
+                modality=modality,
+                expression_content=expression_content,
+                user_observation=user_observation,
+            )
+
+        self._send_json(200, {"reply": reply, "used_llm": bool(self.config.api_key)})
+
+    def _chat_brainstorm(
+        self, *, node_label: str, node_one_sentence: str, modality: str,
+    ) -> str:
+        """Suggest 3 ways to express the principle in the chosen modality."""
+        if not self.config.api_key:
+            return self._brainstorm_fallback(modality, node_one_sentence)
+        try:
+            import anthropic
+
+            client = anthropic.Anthropic(api_key=self.config.api_key)
+            resp = client.messages.create(
+                model="claude-haiku-4-5",
+                max_tokens=900,
+                system=(
+                    "You help a researcher express compressed principles in new "
+                    "modalities to surface insights the text missed. Be concrete, "
+                    "punchy, and structurally faithful to the principle's mechanism. "
+                    "Output exactly 3 suggestions, numbered, one paragraph each. No preamble."
+                ),
+                messages=[{
+                    "role": "user",
+                    "content": (
+                        f"Principle to express:\n"
+                        f"  label: {node_label}\n"
+                        f"  one_sentence: {node_one_sentence}\n\n"
+                        f"Modality: {modality}\n\n"
+                        f"Give 3 distinct ways to express this principle as {modality}. "
+                        f"Each should preserve the mechanism but reveal something the "
+                        f"text version hides."
+                    ),
+                }],
+            )
+            return "".join(
+                getattr(b, "text", "") for b in resp.content
+                if getattr(b, "type", None) == "text"
+            ).strip() or self._brainstorm_fallback(modality, node_one_sentence)
+        except Exception:
+            return self._brainstorm_fallback(modality, node_one_sentence)
+
+    def _chat_interview(
+        self,
+        *,
+        node_one_sentence: str,
+        modality: str,
+        expression_content: str,
+        user_observation: str,
+    ) -> str:
+        """Help the user crystallize what the expression revealed."""
+        if not self.config.api_key:
+            return self._interview_fallback(modality, user_observation)
+        try:
+            import anthropic
+
+            client = anthropic.Anthropic(api_key=self.config.api_key)
+            if not user_observation:
+                # First turn: ask a probing question.
+                user_msg = (
+                    f"Principle:\n  {node_one_sentence}\n\n"
+                    f"Just expressed as {modality}:\n\n"
+                    f"\"\"\"{expression_content}\"\"\"\n\n"
+                    f"Ask ONE probing question that helps the user notice what "
+                    f"this {modality} expression reveals about the principle "
+                    f"that the text version did not. One question, no preamble."
+                )
+            else:
+                # Second turn: crystallize the user's observation into a reveal sentence.
+                user_msg = (
+                    f"Principle:\n  {node_one_sentence}\n\n"
+                    f"Expressed as {modality}:\n\"\"\"{expression_content}\"\"\"\n\n"
+                    f"User's observation:\n\"\"\"{user_observation}\"\"\"\n\n"
+                    f"Crystallize the observation into a 1-3 sentence `reveals` "
+                    f"string suitable for the expression's reveal field. Be "
+                    f"specific about what the {modality} form surfaced that the "
+                    f"text version hid. No preamble; just the crystallized text."
+                )
+            resp = client.messages.create(
+                model="claude-haiku-4-5",
+                max_tokens=600,
+                system=(
+                    "You are a research-coach helping a writer extract insight "
+                    "from cross-modal expressions. Keep responses short, specific, "
+                    "and mechanism-focused. No flattery, no AI-vocabulary."
+                ),
+                messages=[{"role": "user", "content": user_msg}],
+            )
+            return "".join(
+                getattr(b, "text", "") for b in resp.content
+                if getattr(b, "type", None) == "text"
+            ).strip() or self._interview_fallback(modality, user_observation)
+        except Exception:
+            return self._interview_fallback(modality, user_observation)
+
+    @staticmethod
+    def _brainstorm_fallback(modality: str, one_sentence: str) -> str:
+        return (
+            f"(No ANTHROPIC_API_KEY — using a template.)\n\n"
+            f"Three angles to express \"{one_sentence}\" as {modality}:\n\n"
+            f"1. STRUCTURAL — instantiate the mechanism literally in the {modality} "
+            f"form (e.g., for narrative: write the principle as a character's "
+            f"decision rule; for musical: encode it as a recurring motif).\n\n"
+            f"2. INVERTED — show what the principle's FAILURE looks like in {modality}: "
+            f"what would the system do if the mechanism were absent or broken?\n\n"
+            f"3. STRESSED — push the principle to an extreme in {modality} space "
+            f"(maximum tempo / maximum scale / maximum conflict) and observe where "
+            f"it breaks."
+        )
+
+    @staticmethod
+    def _interview_fallback(modality: str, user_observation: str) -> str:
+        if not user_observation:
+            return (
+                f"(No ANTHROPIC_API_KEY — using a template question.)\n\n"
+                f"What does the {modality} form make visible that the text "
+                f"version of this principle did not? Look especially at: timing, "
+                f"emotional valence, embodied cost, or what happens at the edges."
+            )
+        return (
+            f"(No ANTHROPIC_API_KEY — using a template crystallization.)\n\n"
+            f"The {modality} expression reveals: {user_observation}"
+        )
 
     def _serve_chat_shell(self, *, kind: str) -> None:
         """Render onboard.html with the kind injected so the same SPA

@@ -4,6 +4,52 @@ All notable changes to this project are documented here. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and [Semantic
 Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] — Living Knowledge UI: spatial hierarchy + chat-assist
+
+Browser UI for Layer 4 + Layer 5 of the research vertical. The founder_loop
+daemon now serves a new route `/research/living-knowledge` (alongside the
+existing `/onboard` / `/review` / `/queues` chat surfaces) that renders the
+latest compression as a navigable 3-level tree, with chat-assist for two
+moments where conversation actually beats a form: brainstorming expression
+content, and crystallizing what an expression revealed.
+
+- **Daemon routes** (`agent/founder_loop/server.py`):
+  - `GET /research/living-knowledge` — serves the SPA HTML
+  - `GET /research/living-knowledge/data` — JSON: `{ compression, expressions[] }`
+  - `POST /research/living-knowledge/express` — record_expression
+  - `POST /research/living-knowledge/reveal` — reveal_expression (close the loop)
+  - `POST /research/living-knowledge/chat` — single-turn brainstorm or interview
+- **UI** (`agent/founder_loop/static/research-living-knowledge.html`): vanilla
+  HTML/CSS/JS, no external assets, no new deps. Same dark-mode aesthetic as
+  `onboard.html`. Spatial tree (L0 row → L1 region under selected L0 → L2
+  cards under selected L1), sidebar with detail + expressions tabs, three
+  modals (express, reveal, expression detail).
+- **Chat-assist** (single-turn, stateless):
+  - *Brainstorm* — given an L0/L1/L2 node + modality, suggests 3 ways to
+    instantiate the principle in that modality. Pre-fills nothing; just
+    surfaces angles.
+  - *Interview* — given the expression's content and modality, asks one
+    probing question, then crystallizes the user's observation into a
+    `reveals` string for the feedback loop.
+  - Both fall back to a deterministic templated reply when
+    `ANTHROPIC_API_KEY` is unset (so the UI is always functional).
+- **Security**: new routes inherit the daemon's CORS hardening (PR #34).
+  Cross-origin browser requests are rejected before reaching the handlers.
+  Tests pin both the `attacker.com` origin reject and the cross-site POST
+  reject specifically for the new routes.
+- **Tests**: 16 new daemon-UI tests in `tests/test_living_knowledge_ui.py`
+  spinning up the real daemon on a random port and exercising each route via
+  urllib. Tests pin: HTML served, data endpoint returns the compression,
+  express round-trip, reveal closes the loop, chat brainstorm/interview both
+  phases (probe + crystallize), modality validation, and the CORS regression.
+- **Total tests**: 687 pass, up from 672. No regressions.
+
+**Still deferred** (consistent with TRUE-E3's E1/E2 designations):
+- VR/embodied walk-through of the hierarchy
+- Interactive parameter dashboards for mechanism simulation
+- Multimodal rendering — content stays text; `tool_hint` names the renderer
+  the user pipes it through (Tone.js, p5.js, Isaac Sim, etc.)
+
 ## [0.8.0] — Living-knowledge MVP: compression + expression + feedback loop
 
 PR #35. The research vertical's Three-Layer Research OS (ingest →
