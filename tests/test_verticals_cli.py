@@ -223,3 +223,155 @@ def test_invest_tick_rejects_research_drift(home):
         "--dry-run",
     )
     assert rc != 0
+
+
+# ---------------------------------------------------------------------------
+# `research compress` + `research express` (living-knowledge MVP)
+# ---------------------------------------------------------------------------
+
+
+def _seed_synthesis(home, *, run_id="syn-cli-001"):
+    """Write a synthesis run to disk so `compress` has something to chew on."""
+    home.mkdir(parents=True, exist_ok=True)
+    from datetime import datetime, timezone
+
+    from agent.research.synthesis import (
+        MechanismCluster,
+        SynthesisRun,
+        write_synthesis_run,
+    )
+
+    cluster = MechanismCluster(
+        cluster_id="c1",
+        label="Replay buffer",
+        mechanism_summary="Selective rehearsal of past experience prevents forgetting.",
+        member_card_ids=("card-1", "card-2"),
+    )
+    run = SynthesisRun(
+        run_id=run_id,
+        generated_at=datetime.now(timezone.utc),
+        window_days=30,
+        min_cluster_size=2,
+        method="fallback-heuristic",
+        framework_name="(none)",
+        input_card_count=2,
+        clusters=(cluster,),
+        unclustered_card_ids=(),
+    )
+    write_synthesis_run(run, home=home)
+    return run
+
+
+def test_research_compress_builds_from_latest_synthesis(home):
+    _seed_synthesis(home)
+    rc, out, err = _run("research", "compress", "--home", str(home), "--json")
+    assert rc == 0, err
+    data = json.loads(out)
+    assert data["compression_id"].startswith("cmp-")
+    assert data["source_synthesis_id"] == "syn-cli-001"
+    assert len(data["level_0_nodes"]) == 1
+    assert len(data["level_1_nodes"]) == 1
+    assert len(data["level_2_nodes"]) == 2
+
+
+def test_research_compress_errors_when_no_synthesis(home):
+    home.mkdir(parents=True, exist_ok=True)
+    rc, _out, err = _run("research", "compress", "--home", str(home))
+    assert rc != 0
+    assert "no synthesis runs" in err
+
+
+def test_research_compress_list_after_build(home):
+    _seed_synthesis(home)
+    rc, _out, err = _run("research", "compress", "--home", str(home))
+    assert rc == 0, err
+    rc, out, err = _run("research", "compress", "--list", "--home", str(home))
+    assert rc == 0, err
+    assert "cmp-" in out
+    assert "L0=1" in out
+    assert "L1=1" in out
+    assert "L2=2" in out
+
+
+def test_research_express_record_and_list(home):
+    _seed_synthesis(home)
+    rc, out, err = _run("research", "compress", "--home", str(home), "--json")
+    assert rc == 0, err
+    compression = json.loads(out)
+    l0_id = compression["level_0_nodes"][0]["node_id"]
+
+    rc, out, err = _run(
+        "research", "express",
+        "--home", str(home),
+        "--compression", compression["compression_id"],
+        "--node", l0_id,
+        "--modality", "narrative",
+        "--title", "Cli smoke",
+        "--content", "A short story about a librarian who forgets selectively.",
+        "--json",
+    )
+    assert rc == 0, err
+    expression = json.loads(out)
+    assert expression["modality"] == "narrative"
+    assert expression["source_node_id"] == l0_id
+    assert expression["reveals"] is None
+
+    rc, out, err = _run("research", "express", "--list", "--home", str(home))
+    assert rc == 0, err
+    assert expression["expression_id"] in out
+    assert "narrative" in out
+
+
+def test_research_express_reveal_closes_feedback_loop(home):
+    _seed_synthesis(home)
+    rc, out, _ = _run("research", "compress", "--home", str(home), "--json")
+    compression = json.loads(out)
+    l0_id = compression["level_0_nodes"][0]["node_id"]
+
+    rc, out, _ = _run(
+        "research", "express",
+        "--home", str(home),
+        "--compression", compression["compression_id"],
+        "--node", l0_id,
+        "--modality", "musical",
+        "--title", "Replay harmony",
+        "--content", "Three voices that fade unless a fourth voice cues them.",
+        "--json",
+    )
+    expression = json.loads(out)
+
+    rc, out, err = _run(
+        "research", "express",
+        "--home", str(home),
+        "--reveal", expression["expression_id"],
+        "--insight", "Replay needs emotional safety to function in teams.",
+        "--feeds-back-to", l0_id,
+        "--json",
+    )
+    assert rc == 0, err
+    updated = json.loads(out)
+    assert updated["expression_id"] == expression["expression_id"]
+    assert "emotional safety" in (updated["reveals"] or "")
+    assert updated["feeds_back_to_node_id"] == l0_id
+
+
+def test_research_express_rejects_unknown_compression(home):
+    home.mkdir(parents=True, exist_ok=True)
+    rc, _out, err = _run(
+        "research", "express",
+        "--home", str(home),
+        "--compression", "cmp-nope",
+        "--node", "l0-00",
+        "--modality", "narrative",
+        "--title", "x",
+        "--content", "y",
+    )
+    assert rc != 0
+    assert "not found" in err.lower() or "no such" in err.lower()
+
+
+def test_research_express_list_when_empty(home):
+    home.mkdir(parents=True, exist_ok=True)
+    rc, out, err = _run("research", "express", "--list", "--home", str(home))
+    assert rc == 0, err
+    assert "no expressions yet" in out

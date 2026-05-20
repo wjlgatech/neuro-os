@@ -1071,6 +1071,110 @@ def _add_research_ingest_subcommands(top_sub: "argparse._SubParsersAction") -> N
     )
     chk.set_defaults(func=_research_checkpoint_handler)
 
+    # compress (living-knowledge MVP): build a 3-level hierarchy
+    # (core / decomposed / full) from a synthesis run. The compression
+    # is the input to the expression layer.
+    cmp_p = top_sub.add_parser(
+        "compress",
+        help="build a 3-level hierarchical compression from a synthesis run",
+    )
+    cmp_p.add_argument(
+        "--from", dest="from_synthesis_id", default=None,
+        help="compress this specific synthesis run (default: most recent)",
+    )
+    cmp_p.add_argument(
+        "--list", action="store_true",
+        help="list compressions instead of building one",
+    )
+    cmp_p.add_argument(
+        "--show", default=None,
+        help="show a specific compression by id (instead of building)",
+    )
+    cmp_p.add_argument(
+        "--max-level-0", type=int, default=5,
+        help="max nodes in the core schema (default 5)",
+    )
+    cmp_p.add_argument(
+        "--json", action="store_true",
+        help="emit HierarchicalCompression as JSON",
+    )
+    cmp_p.add_argument(
+        "--home", default=None,
+        help="vertical home dir (default: ~/.neuro_os_research/)",
+    )
+    cmp_p.set_defaults(func=_research_compress_handler)
+
+    # express (living-knowledge MVP): record an expression of a
+    # compressed node in a chosen modality, or reveal/list/show.
+    exp_p = top_sub.add_parser(
+        "express",
+        help="record an expression of a compressed principle (or reveal/list/show)",
+    )
+    # Mode flags — exactly one of {default record, --reveal, --list, --show}.
+    exp_p.add_argument(
+        "--list", action="store_true",
+        help="list expressions (newest first); optional --modality / --compression",
+    )
+    exp_p.add_argument(
+        "--show", default=None,
+        help="show a specific expression by id",
+    )
+    exp_p.add_argument(
+        "--reveal", default=None,
+        help="record what an expression revealed (close the feedback loop)",
+    )
+    # Record-mode args
+    exp_p.add_argument(
+        "--compression", default=None,
+        help="compression_id this expression refers to (required for record mode)",
+    )
+    exp_p.add_argument(
+        "--node", default=None,
+        help="source node_id within the compression (required for record mode)",
+    )
+    exp_p.add_argument(
+        "--modality", default=None,
+        choices=[
+            "visual", "musical", "physical", "organizational",
+            "game", "biological", "narrative",
+        ],
+        help="how this principle is expressed (required for record mode)",
+    )
+    exp_p.add_argument(
+        "--title", default=None,
+        help="short title of the expression (required for record mode)",
+    )
+    exp_p.add_argument(
+        "--content", default=None,
+        help=(
+            "the expression itself — prompt / code / pseudo-code / markdown "
+            "(required for record mode). Use @path/to/file to read from disk."
+        ),
+    )
+    exp_p.add_argument(
+        "--tool-hint", default=None,
+        help="optional renderer name (e.g. 'p5.js', 'Tone.js', 'markdown')",
+    )
+    # Reveal-mode args
+    exp_p.add_argument(
+        "--insight", default=None,
+        help="the insight the expression revealed (required with --reveal)",
+    )
+    exp_p.add_argument(
+        "--feeds-back-to", default=None,
+        help="optional node_id this insight refines",
+    )
+    # List-mode filters
+    exp_p.add_argument(
+        "--json", action="store_true",
+        help="emit as JSON (default: human-readable)",
+    )
+    exp_p.add_argument(
+        "--home", default=None,
+        help="vertical home dir (default: ~/.neuro_os_research/)",
+    )
+    exp_p.set_defaults(func=_research_express_handler)
+
 
 def _research_ingest_handler(args: argparse.Namespace) -> int:
     from agent.research.ingest_router import (
@@ -1518,6 +1622,240 @@ def _research_checkpoint_handler(args: argparse.Namespace) -> int:
             f"System not converting; redesign before adding more inputs."
         )
     return 0
+
+
+def _research_compress_handler(args: argparse.Namespace) -> int:
+    """compress: build / list / show 3-level hierarchical compressions."""
+    from agent.research.compress import (
+        compress_latest_synthesis,
+        compress_synthesis_by_id,
+        list_compressions,
+        read_compression,
+    )
+
+    home = Path(args.home).expanduser() if args.home else None
+
+    if args.list:
+        runs = list_compressions(home=home)
+        if not runs:
+            print("no compressions yet — run `research compress` to build one")
+            return 0
+        for c in runs:
+            print(
+                f"{c.compression_id}  {c.created_at.isoformat()}  "
+                f"from={c.source_synthesis_id}  "
+                f"L0={len(c.level_0_nodes)}  L1={len(c.level_1_nodes)}  "
+                f"L2={len(c.level_2_nodes)}"
+            )
+        return 0
+
+    if args.show:
+        try:
+            c = read_compression(args.show, home=home)
+        except FileNotFoundError:
+            print(f"error: compression {args.show!r} not found", file=sys.stderr)
+            return 2
+        if args.json:
+            print(c.model_dump_json(indent=2))
+        else:
+            _print_compression_human(c)
+        return 0
+
+    # Build mode
+    try:
+        if args.from_synthesis_id:
+            c = compress_synthesis_by_id(
+                args.from_synthesis_id, home=home, max_level_0=args.max_level_0,
+            )
+        else:
+            c = compress_latest_synthesis(
+                home=home, max_level_0=args.max_level_0,
+            )
+    except (FileNotFoundError, ValueError) as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+
+    if args.json:
+        print(c.model_dump_json(indent=2))
+    else:
+        _print_compression_human(c)
+    return 0
+
+
+def _print_compression_human(c) -> None:
+    print(f"compression: {c.compression_id}")
+    print(f"created:     {c.created_at.isoformat()}")
+    print(f"source:      synthesis {c.source_synthesis_id}")
+    print()
+    print(f"Level 0 — core schema ({len(c.level_0_nodes)} nodes)")
+    for n in c.level_0_nodes:
+        print(f"  [{n.node_id}] {n.label}")
+        print(f"    {n.one_sentence}")
+    print()
+    print(f"Level 1 — decomposition ({len(c.level_1_nodes)} nodes)")
+    for n in c.level_1_nodes:
+        parent = f" (under {n.parent_id})" if n.parent_id else ""
+        print(f"  [{n.node_id}] {n.label}{parent}")
+        print(f"    {n.one_sentence}")
+    print()
+    print(f"Level 2 — full detail ({len(c.level_2_nodes)} nodes)")
+    for n in c.level_2_nodes:
+        parent = f" (under {n.parent_id})" if n.parent_id else ""
+        print(f"  [{n.node_id}] {n.label}{parent}")
+    if c.note:
+        print()
+        print(c.note)
+
+
+def _research_express_handler(args: argparse.Namespace) -> int:
+    """express: record / reveal / list / show expressions of compressed nodes."""
+    from agent.research.expression import (
+        list_expressions,
+        read_expression,
+        record_expression,
+        reveal_expression,
+    )
+
+    home = Path(args.home).expanduser() if args.home else None
+
+    # Mode: show one
+    if args.show:
+        try:
+            e = read_expression(args.show, home=home)
+        except FileNotFoundError:
+            print(f"error: expression {args.show!r} not found", file=sys.stderr)
+            return 2
+        if args.json:
+            print(e.model_dump_json(indent=2))
+        else:
+            _print_expression_human(e)
+        return 0
+
+    # Mode: reveal (feedback loop)
+    if args.reveal:
+        if not args.insight:
+            print("error: --reveal requires --insight \"...\"", file=sys.stderr)
+            return 2
+        try:
+            updated = reveal_expression(
+                expression_id=args.reveal,
+                reveals=args.insight,
+                feeds_back_to_node_id=args.feeds_back_to,
+                home=home,
+            )
+        except (FileNotFoundError, ValueError) as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 2
+        if args.json:
+            print(updated.model_dump_json(indent=2))
+        else:
+            print(f"revealed: {updated.expression_id}")
+            print(f"  insight: {updated.reveals}")
+            if updated.feeds_back_to_node_id:
+                print(f"  feeds back to: {updated.feeds_back_to_node_id}")
+        return 0
+
+    # Mode: list (also the default when no mode flags + no record args)
+    record_args_present = any([args.compression, args.node, args.modality,
+                                args.title, args.content])
+    if args.list or not record_args_present:
+        results = list_expressions(
+            home=home,
+            modality=args.modality,
+            compression_id=args.compression,
+        )
+        if not results:
+            print("no expressions yet — record one with "
+                  "`research express --compression <id> --node <node_id> "
+                  "--modality <m> --title \"...\" --content \"...\"`")
+            return 0
+        if args.json:
+            import json as _json
+            print(_json.dumps([e.model_dump(mode="json") for e in results], indent=2))
+        else:
+            for e in results:
+                revealed = " [revealed]" if e.reveals else ""
+                print(
+                    f"{e.expression_id}  {e.created_at.isoformat()}  "
+                    f"{e.modality:14s}  node={e.source_node_id}{revealed}"
+                )
+                print(f"    {e.title}")
+        return 0
+
+    # Mode: record (the dominant write path)
+    missing = [
+        flag for flag, val in (
+            ("--compression", args.compression),
+            ("--node", args.node),
+            ("--modality", args.modality),
+            ("--title", args.title),
+            ("--content", args.content),
+        )
+        if not val
+    ]
+    if missing:
+        print(
+            f"error: record mode requires {', '.join(missing)}",
+            file=sys.stderr,
+        )
+        return 2
+
+    # Allow --content @path/to/file
+    content = args.content
+    if content.startswith("@"):
+        try:
+            content = Path(content[1:]).expanduser().read_text(encoding="utf-8")
+        except OSError as e:
+            print(f"error: cannot read content file: {e}", file=sys.stderr)
+            return 2
+
+    try:
+        e = record_expression(
+            compression_id=args.compression,
+            source_node_id=args.node,
+            modality=args.modality,
+            title=args.title,
+            content=content,
+            tool_hint=args.tool_hint,
+            home=home,
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+    if args.json:
+        print(e.model_dump_json(indent=2))
+    else:
+        print(f"expression recorded: {e.expression_id}")
+        print(f"  modality: {e.modality}")
+        print(f"  node:     {e.source_node_id}")
+        print(f"  title:    {e.title}")
+        print(
+            f"\nTo add the feedback insight later:\n"
+            f"  neuro-os research express --reveal {e.expression_id} "
+            f"--insight \"...\""
+        )
+    return 0
+
+
+def _print_expression_human(e) -> None:
+    print(f"expression: {e.expression_id}")
+    print(f"created:    {e.created_at.isoformat()}")
+    print(f"modality:   {e.modality}")
+    print(f"compression: {e.compression_id}")
+    print(f"node:       {e.source_node_id}")
+    print(f"title:      {e.title}")
+    if e.tool_hint:
+        print(f"tool_hint:  {e.tool_hint}")
+    print()
+    print("content:")
+    print(e.content)
+    if e.reveals:
+        print()
+        print("reveals:")
+        print(e.reveals)
+        if e.feeds_back_to_node_id:
+            print(f"feeds back to: {e.feeds_back_to_node_id}")
 
 
 def _make_anthropic_cluster_fn():

@@ -84,6 +84,24 @@ from agent.research.synthesis import (
     read_synthesis_run,
     run_synthesis,
 )
+from agent.research.compress import (
+    CompressedNode,
+    HierarchicalCompression,
+    compress_from_synthesis,
+    compress_latest_synthesis,
+    compress_synthesis_by_id,
+    latest_compression,
+    list_compressions,
+    read_compression,
+)
+from agent.research.expression import (
+    EXPRESSION_MODALITIES,
+    Expression,
+    list_expressions,
+    read_expression,
+    record_expression,
+    reveal_expression,
+)
 
 
 __all__ = [
@@ -141,4 +159,19 @@ __all__ = [
     "is_converging",
     "recent_no_streak",
     "latest_checkpoint",
+    # Living-knowledge MVP — compression + expression
+    "CompressedNode",
+    "HierarchicalCompression",
+    "compress_from_synthesis",
+    "compress_latest_synthesis",
+    "compress_synthesis_by_id",
+    "list_compressions",
+    "read_compression",
+    "latest_compression",
+    "EXPRESSION_MODALITIES",
+    "Expression",
+    "record_expression",
+    "reveal_expression",
+    "list_expressions",
+    "read_expression",
 ]
