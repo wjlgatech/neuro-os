@@ -222,3 +222,143 @@ def test_law6_every_action_carries_contract_check_field():
     import pydantic
     with pytest.raises(pydantic.ValidationError):
         ControlAction(op="continue", rationale="x")
+
+
+# ---------------------------------------------------------------------------
+# Law 7 — Cross-origin protection (daemon HTTP boundary)
+#
+# Loopback binding (127.0.0.1) alone does NOT defend against a browser
+# script on attacker.com calling fetch('http://127.0.0.1:8765/...'). The
+# browser still delivers the request; only a strict same-origin / Origin
+# allowlist plus the Sec-Fetch-Site signal stops the read AND the CSRF
+# mutation. These tests pin that defense — break them and the daemon's
+# "loopback is the boundary" claim becomes false.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def running_daemon(tmp_path):
+    """Spin up a real FounderLoop daemon on a random port for HTTP tests."""
+    import time
+
+    from urllib.request import Request, urlopen
+
+    from agent.founder_loop.server import serve
+
+    registry = tmp_path / "registry.jsonl"
+    registry.write_text("", encoding="utf-8")
+    contract = tmp_path / "contracts.jsonl"
+    workflowx = tmp_path / "workflowx.jsonl"
+    workflowx.write_text("", encoding="utf-8")
+
+    server = serve(
+        host="127.0.0.1", port=0,
+        registry_path=registry, contract_path=contract,
+        workflowx_fixture=workflowx,
+        block=False,
+    )
+    port = server.server_address[1]
+    base = f"http://127.0.0.1:{port}"
+
+    for _ in range(50):
+        try:
+            urlopen(Request(f"{base}/healthz"), timeout=0.5)
+            break
+        except Exception:
+            time.sleep(0.05)
+
+    yield base, port
+    server.shutdown()
+
+
+def test_law7_attacker_origin_rejected(running_daemon):
+    """Origin: http://attacker.com → 403, no body, no CORS leak."""
+    from urllib.error import HTTPError
+    from urllib.request import Request, urlopen
+
+    base, _ = running_daemon
+    req = Request(f"{base}/healthz")
+    req.add_header("Origin", "http://attacker.com")
+    with pytest.raises(HTTPError) as exc:
+        urlopen(req, timeout=2)
+    assert exc.value.code == 403, (
+        "cross-origin attacker request must return 403, not 200"
+    )
+
+
+def test_law7_sec_fetch_site_cross_site_rejected(running_daemon):
+    """Sec-Fetch-Site: cross-site (modern browsers' canonical signal)
+    must be rejected even if Origin happens to be missing."""
+    from urllib.error import HTTPError
+    from urllib.request import Request, urlopen
+
+    base, _ = running_daemon
+    req = Request(f"{base}/healthz")
+    req.add_header("Sec-Fetch-Site", "cross-site")
+    with pytest.raises(HTTPError) as exc:
+        urlopen(req, timeout=2)
+    assert exc.value.code == 403
+
+
+def test_law7_attacker_post_rejected(running_daemon):
+    """Cross-origin POST (the CSRF mutation case) must be rejected
+    BEFORE the dispatcher runs — state must not change."""
+    from urllib.error import HTTPError
+    from urllib.request import Request, urlopen
+
+    base, _ = running_daemon
+    req = Request(
+        f"{base}/events", data=b"{}", method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    req.add_header("Origin", "http://attacker.com")
+    with pytest.raises(HTTPError) as exc:
+        urlopen(req, timeout=2)
+    assert exc.value.code == 403
+
+
+def test_law7_same_origin_echoes_origin_not_wildcard(running_daemon):
+    """Same-origin request succeeds AND Access-Control-Allow-Origin
+    echoes the request's Origin (never ``*``)."""
+    from urllib.request import Request, urlopen
+
+    base, port = running_daemon
+    req = Request(f"{base}/healthz")
+    req.add_header("Origin", f"http://127.0.0.1:{port}")
+    resp = urlopen(req, timeout=2)
+    assert resp.status == 200
+    cors = resp.headers.get("Access-Control-Allow-Origin")
+    assert cors == f"http://127.0.0.1:{port}", (
+        f"expected echo of Origin, got {cors!r} — wildcard CORS regression"
+    )
+    assert cors != "*", "wildcard CORS regression"
+
+
+def test_law7_extension_origin_allowed(running_daemon):
+    """Browser-extension origins (chrome-extension://, moz-extension://)
+    are allowlisted by scheme since the extension ID is generated at
+    install time and unknown at server-start."""
+    from urllib.request import Request, urlopen
+
+    base, _ = running_daemon
+    req = Request(f"{base}/healthz")
+    req.add_header("Origin", "chrome-extension://abcdefghijklmnop")
+    resp = urlopen(req, timeout=2)
+    assert resp.status == 200
+    assert resp.headers.get(
+        "Access-Control-Allow-Origin"
+    ) == "chrome-extension://abcdefghijklmnop"
+
+
+def test_law7_no_origin_allowed_for_non_browser_clients(running_daemon):
+    """curl / tray app / direct HTTP clients send no Origin header.
+    These must be served (the tray relies on it) but CORS headers must
+    NOT be emitted (no browser context that needs opting-in)."""
+    from urllib.request import Request, urlopen
+
+    base, _ = running_daemon
+    resp = urlopen(Request(f"{base}/healthz"), timeout=2)
+    assert resp.status == 200
+    assert resp.headers.get("Access-Control-Allow-Origin") is None, (
+        "CORS header must not be sent when request has no Origin"
+    )
