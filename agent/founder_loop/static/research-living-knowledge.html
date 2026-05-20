@@ -67,6 +67,57 @@
     }
     header.top .pill.green { color: var(--green); border-color: var(--green); }
     header.top .pill.amber { color: var(--amber); border-color: var(--amber); }
+    header.top .help-link {
+      margin-left: 8px;
+      font-size: 14px;
+      color: var(--text-faint);
+      text-decoration: none;
+      width: 22px; height: 22px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+    }
+    header.top .help-link:hover { color: var(--text); border-color: var(--accent); }
+
+    /* L0/L1/L2 legend at top of tree */
+    .legend {
+      font-size: 11.5px; color: var(--text-dim);
+      margin-bottom: 14px;
+      padding: 8px 12px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      line-height: 1.6;
+    }
+    .legend code {
+      background: var(--panel-2); padding: 1px 5px; border-radius: 3px;
+      font-size: 11px; color: var(--text);
+    }
+    .legend .key { color: var(--text); font-weight: 500; }
+
+    /* Undo banner */
+    .undo-banner {
+      position: fixed;
+      bottom: 18px; left: 50%; transform: translateX(-50%);
+      background: var(--panel-2);
+      border: 1px solid var(--border-strong);
+      border-radius: 6px;
+      padding: 10px 16px;
+      display: none; align-items: center; gap: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      z-index: 200;
+      font-size: 13px;
+    }
+    .undo-banner.open { display: flex; }
+    .undo-banner button {
+      background: var(--accent); border: none; color: white;
+      padding: 5px 12px; border-radius: 4px;
+      font: inherit; font-size: 12px; cursor: pointer;
+    }
+    .undo-banner .timer {
+      color: var(--text-faint); font-size: 11px;
+    }
 
     main.tree {
       overflow: auto;
@@ -373,11 +424,19 @@
       <h1>Living Knowledge</h1>
       <div class="sub" id="compression-meta">loading…</div>
       <div class="pill" id="api-key-pill">checking…</div>
+      <a class="help-link" href="/how-to-use#layer-4--5--compress--express-living-knowledge-mvp"
+         target="_blank" rel="noopener" title="Open the user guide for this surface">?</a>
     </header>
 
     <main class="tree" id="tree-root">
       <div class="empty"><h2>loading…</h2></div>
     </main>
+
+    <div class="undo-banner" id="undo-banner">
+      <span id="undo-label">…</span>
+      <span class="timer" id="undo-timer">30s</span>
+      <button id="undo-btn">Undo</button>
+    </div>
 
     <aside class="side">
       <div class="side-tabs">
@@ -402,16 +461,22 @@
           <div class="v" id="express-source"></div>
         </div>
         <div class="field">
-          <label for="express-modality">Modality</label>
-          <select id="express-modality">
-            <option value="narrative">narrative</option>
-            <option value="visual">visual</option>
-            <option value="musical">musical</option>
-            <option value="physical">physical</option>
-            <option value="organizational">organizational</option>
-            <option value="game">game</option>
-            <option value="biological">biological</option>
+          <label for="express-modality">Modality
+            <span style="float:right; color:var(--text-faint); font-size:10px; text-transform:none"
+                  id="modality-hint">hover an option for what each reveals</span>
+          </label>
+          <select id="express-modality" onchange="updateModalityHint()">
+            <option value="narrative" title="A story or scene encoding the mechanism. Reveals timing, emotional valence, and character-decision shape that text strips out.">narrative — story / scene</option>
+            <option value="visual" title="Painting, diagram, or generative art. Reveals spatial distribution: where in the composition does the mechanism feel weak or strong?">visual — painting / diagram</option>
+            <option value="musical" title="Encoded as harmony, melody, or rhythm. Reveals timing dynamics and interference between competing voices that text hides.">musical — harmony / rhythm</option>
+            <option value="physical" title="Mechanical or robotic instantiation. Reveals motor / interference dynamics and the physical cost of the mechanism.">physical — mechanism / robotics</option>
+            <option value="organizational" title="A team structure, business model, or org ritual. Reveals social dynamics and incentive structures around the mechanism.">organizational — team / business</option>
+            <option value="game" title="Game mechanic or interactive system. Reveals player-strategy dynamics: what do humans naturally exploit?">game — mechanic / system</option>
+            <option value="biological" title="Synthetic biology, gene regulatory circuit, or ecology. Reveals evolutionary stability and metabolic cost.">biological — gene circuit / ecology</option>
           </select>
+          <div class="help" id="modality-help">
+            A story or scene encoding the mechanism. Reveals timing, emotional valence, and character-decision shape that text strips out.
+          </div>
         </div>
         <div class="field">
           <label for="express-title">Title</label>
@@ -580,6 +645,18 @@
         exprByNode.get(e.source_node_id).push(e);
       }
 
+      // Legend (Fix 4: self-evident clarity for first-time users)
+      const legend = document.createElement("div");
+      legend.className = "legend";
+      legend.innerHTML = `
+        <span class="key">L0</span> = core principle (≤5, highest abstraction) ·
+        <span class="key">L1</span> = sub-mechanism cluster (≤30) ·
+        <span class="key">L2</span> = the accepted MechanismCards underneath ·
+        Click any node to see details. Green dot = already expressed.
+      `;
+      root.innerHTML = "";
+      root.appendChild(legend);
+
       // L0 row
       const l0Row = document.createElement("div");
       l0Row.className = "l0-row";
@@ -665,7 +742,6 @@
         });
       }
 
-      root.innerHTML = "";
       root.appendChild(l0Row);
       root.appendChild(l1Region);
       if (selectedL1) root.appendChild(l2Block);
@@ -862,6 +938,15 @@
       if (e.reveals) body.querySelector("#ex-reveals").textContent = e.reveals;
       const footer = document.getElementById("expression-modal-footer");
       footer.innerHTML = "";
+      // Delete button — left side, less prominent
+      const del = document.createElement("button");
+      del.className = "btn secondary";
+      del.style.color = "var(--red)";
+      del.style.borderColor = "var(--red)";
+      del.style.marginRight = "auto";
+      del.textContent = "Delete";
+      del.onclick = () => { closeModal("expression-modal"); deleteExpression(e.expression_id, e.title); };
+      footer.appendChild(del);
       if (!e.reveals) {
         const btn = document.createElement("button");
         btn.className = "btn";
@@ -980,6 +1065,70 @@
       state.activeTab = "expressions";
       renderSide();
     }
+
+    // ---------- Modality tooltip helper ----------
+    function updateModalityHint() {
+      const sel = document.getElementById("express-modality");
+      const opt = sel.options[sel.selectedIndex];
+      const help = document.getElementById("modality-help");
+      if (help && opt) help.textContent = opt.getAttribute("title") || "";
+    }
+
+    // ---------- Delete + undo helpers (Fix 9) ----------
+    let _undoTimer = null;
+    let _undoExpressionId = null;
+    function showUndoBanner(label, expressionId) {
+      _undoExpressionId = expressionId;
+      const banner = document.getElementById("undo-banner");
+      document.getElementById("undo-label").textContent = label;
+      banner.classList.add("open");
+      let secs = 30;
+      document.getElementById("undo-timer").textContent = secs + "s";
+      if (_undoTimer) clearInterval(_undoTimer);
+      _undoTimer = setInterval(() => {
+        secs -= 1;
+        document.getElementById("undo-timer").textContent = secs + "s";
+        if (secs <= 0) { hideUndoBanner(); }
+      }, 1000);
+    }
+    function hideUndoBanner() {
+      if (_undoTimer) { clearInterval(_undoTimer); _undoTimer = null; }
+      _undoExpressionId = null;
+      document.getElementById("undo-banner").classList.remove("open");
+    }
+    async function deleteExpression(expressionId, title) {
+      if (!confirm(`Delete expression "${title}"? It moves to trash; you have 30s to undo.`)) return;
+      const r = await fetch("/research/living-knowledge/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expression_id: expressionId }),
+      });
+      const data = await r.json();
+      if (data.error) {
+        alert("delete failed: " + data.error);
+        return;
+      }
+      await reload();
+      state.activeTab = "expressions";
+      renderSide();
+      showUndoBanner(`Deleted "${title}".`, expressionId);
+    }
+    async function undoDelete() {
+      if (!_undoExpressionId) return;
+      const id = _undoExpressionId;
+      hideUndoBanner();
+      const r = await fetch("/research/living-knowledge/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expression_id: id }),
+      });
+      const data = await r.json();
+      if (data.error) { alert("restore failed: " + data.error); return; }
+      await reload();
+      state.activeTab = "expressions";
+      renderSide();
+    }
+    document.getElementById("undo-btn").addEventListener("click", undoDelete);
 
     // ---------- Helpers ----------
     function openModal(id) { document.getElementById(id).classList.add("open"); }

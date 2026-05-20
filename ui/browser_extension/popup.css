@@ -134,6 +134,22 @@ html, body {
   align-items: center;
   justify-content: space-between;
 }
+
+/* Tank-percentage legend (Fix 2 from design audit). Static HTML so the
+   user sees an explanation even before the popup's JS runs. */
+.fl-legend {
+  margin: 12px 14px 0 14px;
+  padding: 8px 10px;
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 5px;
+  color: #8b949e;
+  font-size: 11px;
+  line-height: 1.5;
+}
+.fl-legend strong { color: #e6edf3; }
+.fl-legend a { color: #58a6ff; text-decoration: none; }
+.fl-legend a:hover { text-decoration: underline; }
 #fl-daemon-status { font-size: 10px; color: #8b949e; }
 .fl-actions button {
   background: #21262d;

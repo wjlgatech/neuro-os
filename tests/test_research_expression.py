@@ -313,3 +313,87 @@ def test_list_expressions_filters_by_compression_id(tmp_path):
     listed_miss = list_expressions(home=tmp_path, compression_id="cmp-other")
     assert len(listed_match) == 1
     assert len(listed_miss) == 0
+
+
+# ---------------------------------------------------------------------------
+# Soft delete + restore (Fix 9 from design audit)
+# ---------------------------------------------------------------------------
+
+
+def test_soft_delete_moves_to_trash(tmp_path):
+    from agent.research.expression import soft_delete_expression, trash_dir
+
+    compression = _seed_compression(tmp_path)
+    l0 = compression.level_0_nodes[0]
+    e = record_expression(
+        compression_id=compression.compression_id,
+        source_node_id=l0.node_id,
+        modality="narrative",
+        title="x",
+        content="y",
+        home=tmp_path,
+    )
+    trash_path = soft_delete_expression(e.expression_id, home=tmp_path)
+    assert trash_path.exists()
+    assert trash_path.parent == trash_dir(home=tmp_path)
+    # list_expressions must no longer return it
+    assert list_expressions(home=tmp_path) == []
+
+
+def test_restore_undoes_soft_delete(tmp_path):
+    from agent.research.expression import restore_expression, soft_delete_expression
+
+    compression = _seed_compression(tmp_path)
+    l0 = compression.level_0_nodes[0]
+    e = record_expression(
+        compression_id=compression.compression_id,
+        source_node_id=l0.node_id,
+        modality="narrative",
+        title="x",
+        content="y",
+        home=tmp_path,
+    )
+    soft_delete_expression(e.expression_id, home=tmp_path)
+    restored = restore_expression(e.expression_id, home=tmp_path)
+    assert restored.exists()
+    # list_expressions must return it again
+    listed = list_expressions(home=tmp_path)
+    assert len(listed) == 1 and listed[0].expression_id == e.expression_id
+
+
+def test_soft_delete_unknown_raises(tmp_path):
+    from agent.research.expression import soft_delete_expression
+
+    with pytest.raises(FileNotFoundError):
+        soft_delete_expression("exp-fake", home=tmp_path)
+
+
+def test_restore_when_not_in_trash_raises(tmp_path):
+    from agent.research.expression import restore_expression
+
+    with pytest.raises(FileNotFoundError):
+        restore_expression("exp-fake", home=tmp_path)
+
+
+def test_delete_then_restore_preserves_content(tmp_path):
+    from agent.research.expression import (
+        read_expression,
+        restore_expression,
+        soft_delete_expression,
+    )
+
+    compression = _seed_compression(tmp_path)
+    l0 = compression.level_0_nodes[0]
+    e = record_expression(
+        compression_id=compression.compression_id,
+        source_node_id=l0.node_id,
+        modality="narrative",
+        title="round-trip survivor",
+        content="exact bytes must survive",
+        home=tmp_path,
+    )
+    soft_delete_expression(e.expression_id, home=tmp_path)
+    restore_expression(e.expression_id, home=tmp_path)
+    loaded = read_expression(e.expression_id, home=tmp_path)
+    assert loaded.title == "round-trip survivor"
+    assert loaded.content == "exact bytes must survive"
