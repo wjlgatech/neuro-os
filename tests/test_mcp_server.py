@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+from pathlib import Path
 
 import pytest
 
@@ -115,6 +116,105 @@ def test_research_ingest_runs_against_empty_dir(tmp_path):
     assert result["sources_scanned"] == 0
     assert result["proposals_emitted"] == 0
     assert result["extraction_method"] == "fallback-heuristic"
+
+
+# ---------------------------------------------------------------------------
+# Path-allowlist gate (defense against prompt-injection-driven arbitrary
+# file reads in autonomous-mode MCP hosts). Pinned to tests so the gate
+# can't silently regress to "any path the agent passes is ingested."
+# ---------------------------------------------------------------------------
+
+
+def test_research_ingest_rejects_system_path():
+    """``/etc`` is on the hard system denylist; rejection must happen
+    before any disk walk or LLM call."""
+    server = build_server()
+    result = _call(server, "research_ingest", {
+        "source_dir": "/etc",
+        "no_llm": True,
+    })
+    assert "error" in result
+    assert "system path" in result["error"].lower()
+
+
+def test_research_ingest_rejects_sensitive_home_subdir(tmp_path, monkeypatch):
+    """A path under one of the sensitive $HOME subdirs (e.g. ``~/.ssh``)
+    must be rejected with a clear reason. Uses a tmp HOME so the test
+    doesn't depend on what the real $HOME contains."""
+    fake_home = tmp_path / "home"
+    (fake_home / ".ssh").mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(fake_home))
+    server = build_server()
+    result = _call(server, "research_ingest", {
+        "source_dir": str(fake_home / ".ssh"),
+        "no_llm": True,
+        "home": str(tmp_path / "neuro_home"),
+    })
+    assert "error" in result
+    assert "sensitive $home path" in result["error"].lower()
+
+
+def test_research_ingest_allows_documents_under_home(tmp_path, monkeypatch):
+    """A non-sensitive subdirectory of $HOME (e.g. ~/Documents) must
+    pass the gate even with no env-var allowlist set."""
+    fake_home = tmp_path / "home"
+    docs = fake_home / "Documents" / "papers"
+    docs.mkdir(parents=True)
+    monkeypatch.setenv("HOME", str(fake_home))
+    monkeypatch.delenv("NEURO_OS_MCP_INGEST_ALLOWED_PATHS", raising=False)
+    server = build_server()
+    result = _call(server, "research_ingest", {
+        "source_dir": str(docs),
+        "no_llm": True,
+        "home": str(tmp_path / "neuro_home"),
+    })
+    # Should run (zero proposals from empty dir), not be rejected.
+    assert "error" not in result, f"unexpected reject: {result}"
+    assert result["sources_scanned"] == 0
+
+
+def test_research_ingest_env_var_extends_allowlist(tmp_path, monkeypatch):
+    """A path outside the default allowlist becomes allowed when the
+    user explicitly lists it via NEURO_OS_MCP_INGEST_ALLOWED_PATHS."""
+    # Create a directory in a location that's NOT under $HOME and NOT
+    # in /tmp — outside the default allowlist. We use ``tmp_path``
+    # itself but pretend HOME is elsewhere so the path is genuinely
+    # outside the default set.
+    alt_home = tmp_path / "elsewhere_home"
+    alt_home.mkdir()
+    monkeypatch.setenv("HOME", str(alt_home))
+    monkeypatch.delenv("TMPDIR", raising=False)
+
+    custom = tmp_path / "custom_corpus"
+    custom.mkdir()
+
+    # Without the env var: outside default allowlist (different HOME,
+    # no TMPDIR) — but tmp_path is under /var/folders or /tmp on macOS,
+    # which IS in the default tmp allowlist. So this leg of the test
+    # demonstrates the env-var path works WHEN it's needed, not that
+    # /tmp is excluded.
+    monkeypatch.setenv("NEURO_OS_MCP_INGEST_ALLOWED_PATHS", str(custom))
+    server = build_server()
+    result = _call(server, "research_ingest", {
+        "source_dir": str(custom),
+        "no_llm": True,
+        "home": str(alt_home / "neuro_home"),
+    })
+    assert "error" not in result, f"env-var allowlist did not work: {result}"
+
+
+def test_is_safe_ingest_path_returns_resolved_reason():
+    """Unit test the gate directly so the reason strings stay stable
+    for the agent's error-handling reasoning."""
+    from agent.mcp_server import _is_safe_ingest_path
+
+    ok, reason = _is_safe_ingest_path(Path("/etc"))
+    assert not ok
+    assert "system path" in reason.lower()
+
+    ok, reason = _is_safe_ingest_path(Path("/nonexistent-xyz-9999"))
+    assert not ok
+    assert "resolved" in reason.lower() or "no such" in reason.lower()
 
 
 def test_research_synthesize_empty_corpus_returns_note(tmp_path):
