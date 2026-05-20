@@ -269,6 +269,10 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             self._serve_living_knowledge_page()
         elif path == "/research/living-knowledge/data":
             self._living_knowledge_data()
+        elif path in ("/research/review", "/research/review/"):
+            self._serve_research_review_page()
+        elif path == "/research/review/data":
+            self._research_review_data()
         elif path in _DOC_ROUTES:
             md_name, title = _DOC_ROUTES[path]
             self._serve_doc(md_name, title)
@@ -373,6 +377,10 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             self._living_knowledge_restore()
         elif path == "/queues-restore":
             self._queues_restore()
+        elif path == "/research/review/accept":
+            self._research_review_accept()
+        elif path == "/research/review/reject":
+            self._research_review_reject()
         else:
             self._send_json(404, {"error": f"unknown route: {path}"})
 
@@ -875,6 +883,152 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             self._send_json(404, {"error": str(e)})
             return
         self._send_json(200, {"restored_path": str(path), "expression_id": expression_id})
+
+    def _serve_research_review_page(self) -> None:
+        path = STATIC_DIR / "research-review.html"
+        if not path.is_file():
+            self._send_json(500, {"error": "research-review.html missing"})
+            return
+        body = path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _research_review_data(self) -> None:
+        """Return pending + recently-resolved (accepted/rejected, last 20)
+        MechanismCardProposals as JSON so the review UI can render them."""
+        from agent.research.proposals import list_proposals
+
+        home = self._research_home()
+        pending = list_proposals(home=home, status="pending")
+        accepted = list_proposals(home=home, status="accepted")
+        rejected = list_proposals(home=home, status="rejected")
+        # Newest-first by proposed_at
+        accepted_recent = sorted(
+            accepted, key=lambda p: p.proposed_at, reverse=True,
+        )[:20]
+        rejected_recent = sorted(
+            rejected, key=lambda p: p.proposed_at, reverse=True,
+        )[:20]
+        self._send_json(200, {
+            "pending": [json.loads(p.model_dump_json()) for p in pending],
+            "recently_accepted": [json.loads(p.model_dump_json()) for p in accepted_recent],
+            "recently_rejected": [json.loads(p.model_dump_json()) for p in rejected_recent],
+        })
+
+    def _research_review_accept(self) -> None:
+        """Accept a pending proposal: write a MechanismCard, transition the
+        proposal to accepted, upsert any user-supplied entity mentions."""
+        from datetime import datetime, timezone
+
+        from agent.cross_vertical import upsert_entity
+        from agent.research import MechanismCard
+        from agent.research.config import write_mechanism_card
+        from agent.research.proposals import (
+            list_proposals,
+            transition_proposal,
+        )
+
+        body = self._read_json_body()
+        proposal_id = body.get("proposal_id")
+        if not proposal_id:
+            self._send_json(400, {"error": "proposal_id is required"})
+            return
+        raw_mentions = body.get("entity_mentions") or []
+        if not isinstance(raw_mentions, list):
+            self._send_json(400, {"error": "entity_mentions must be a list"})
+            return
+        mentions = [
+            str(m).strip().lower() for m in raw_mentions
+            if isinstance(m, str) and m.strip()
+        ]
+
+        home = self._research_home()
+        # Find the proposal in pending
+        pending = list_proposals(home=home, status="pending")
+        prop = next((p for p in pending if p.proposal_id == proposal_id), None)
+        if prop is None:
+            self._send_json(404, {"error": f"proposal {proposal_id!r} not in pending"})
+            return
+
+        try:
+            card = MechanismCard(
+                id=prop.proposal_id,
+                ts=datetime.now(timezone.utc),
+                paper_title=prop.paper_title,
+                paper_source=prop.paper_source,
+                mechanism=prop.mechanism,
+                invariant=prop.invariant,
+                prediction=prop.prediction,
+                failure_mode=prop.failure_mode,
+                thesis_id=prop.thesis_id,
+                entity_mentions=mentions,
+                first_principle=prop.first_principle,
+                anti_pattern=prop.anti_pattern,
+                transferability_test=prop.transferability_test,
+                verdict=prop.verdict,
+                one_sentence_compression=prop.one_sentence_compression,
+                framework_alignment=list(prop.framework_alignment),
+            )
+        except Exception as e:
+            self._send_json(400, {"error": f"failed to build MechanismCard: {e}"})
+            return
+
+        write_mechanism_card(card=card, home=home)
+        transition_proposal(
+            prop.proposal_id, home=home,
+            from_status="pending", to_status="accepted",
+        )
+
+        for slug in mentions:
+            try:
+                upsert_entity(
+                    slug=slug,
+                    kind="topic",
+                    title=slug.replace("-", " ").title(),
+                    source_vertical="research",
+                    compiled_truth=(
+                        f"Mentioned in MechanismCard {card.id} "
+                        f"({card.paper_title!r})."
+                    ),
+                    mentioned_in_note_id=card.id,
+                )
+            except Exception:
+                # entity propagation is best-effort; don't fail the accept
+                pass
+
+        self._send_json(200, {
+            "accepted_proposal_id": proposal_id,
+            "card_id": card.id,
+            "entity_mentions": mentions,
+        })
+
+    def _research_review_reject(self) -> None:
+        from agent.research.proposals import list_proposals, transition_proposal
+
+        body = self._read_json_body()
+        proposal_id = body.get("proposal_id")
+        if not proposal_id:
+            self._send_json(400, {"error": "proposal_id is required"})
+            return
+
+        home = self._research_home()
+        pending = list_proposals(home=home, status="pending")
+        if not any(p.proposal_id == proposal_id for p in pending):
+            self._send_json(404, {"error": f"proposal {proposal_id!r} not in pending"})
+            return
+        try:
+            transition_proposal(
+                proposal_id, home=home,
+                from_status="pending", to_status="rejected",
+            )
+        except (FileNotFoundError, ValueError) as e:
+            self._send_json(400, {"error": str(e)})
+            return
+        self._send_json(200, {"rejected_proposal_id": proposal_id})
 
     def _queues_restore(self) -> None:
         """Restore queue files from a client-side snapshot. The /queues
