@@ -1,0 +1,995 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Living Knowledge — research vertical</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --panel-2: #21262d;
+      --panel-3: #2d333b;
+      --border: #30363d;
+      --border-strong: #484f58;
+      --text: #e6edf3;
+      --text-dim: #8b949e;
+      --text-faint: #6e7681;
+      --accent: #58a6ff;
+      --green: #56d364;
+      --amber: #d29922;
+      --red: #f85149;
+      --l0-a: #d29922;
+      --l0-b: #56d364;
+      --l0-c: #58a6ff;
+      --l0-d: #bc8cff;
+      --l0-e: #ff7b72;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; height: 100%;
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      font-size: 14px;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      grid-template-rows: 56px 1fr;
+      height: 100vh;
+    }
+
+    header.top {
+      grid-column: 1 / -1;
+      display: flex; align-items: center;
+      padding: 0 22px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+      gap: 18px;
+    }
+    header.top h1 {
+      font-size: 16px; font-weight: 500; margin: 0;
+      letter-spacing: -0.2px;
+    }
+    header.top .sub {
+      color: var(--text-dim); font-size: 12px;
+    }
+    header.top .pill {
+      margin-left: auto;
+      font-size: 11px;
+      padding: 4px 10px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text-dim);
+    }
+    header.top .pill.green { color: var(--green); border-color: var(--green); }
+    header.top .pill.amber { color: var(--amber); border-color: var(--amber); }
+
+    main.tree {
+      overflow: auto;
+      padding: 22px;
+      background: radial-gradient(ellipse at top, rgba(88, 166, 255, 0.04), transparent 70%);
+    }
+
+    .empty {
+      max-width: 480px; margin: 80px auto;
+      text-align: center; color: var(--text-dim);
+    }
+    .empty h2 { color: var(--text); font-weight: 500; font-size: 18px; }
+    .empty code {
+      background: var(--panel-2); padding: 2px 6px; border-radius: 4px;
+      font-size: 13px;
+    }
+
+    /* Level 0 row — the cores */
+    .l0-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+    .l0-node {
+      padding: 12px 14px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: border-color 120ms, background 120ms;
+      position: relative;
+    }
+    .l0-node:hover { border-color: var(--border-strong); background: var(--panel-2); }
+    .l0-node.active {
+      border-color: var(--accent);
+      background: var(--panel-2);
+      box-shadow: 0 0 0 1px var(--accent);
+    }
+    .l0-node .tag {
+      font-size: 10px; letter-spacing: 0.4px; color: var(--text-faint);
+      text-transform: uppercase; margin-bottom: 4px;
+    }
+    .l0-node .label {
+      font-size: 13px; font-weight: 500; line-height: 1.35;
+      margin-bottom: 6px;
+    }
+    .l0-node .one-sentence {
+      font-size: 11.5px; color: var(--text-dim); line-height: 1.4;
+    }
+    .l0-node .badge-count {
+      position: absolute;
+      top: 8px; right: 10px;
+      font-size: 10px;
+      background: var(--panel-3);
+      color: var(--text-faint);
+      padding: 2px 6px;
+      border-radius: 8px;
+    }
+    .l0-node .swatch {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+      border-bottom-left-radius: 6px;
+      border-bottom-right-radius: 6px;
+    }
+    .l0-node.expressed::before {
+      content: ""; position: absolute; top: 8px; left: 10px;
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--green);
+    }
+
+    /* Level 1 rows under the selected L0 */
+    .l1-region {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+    .l1-region h3 {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.6px;
+      color: var(--text-dim); text-transform: uppercase;
+      margin: 0 0 10px 0;
+    }
+    .l1-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px;
+    }
+    .l1-node {
+      padding: 10px 12px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 12.5px;
+      line-height: 1.4;
+      position: relative;
+    }
+    .l1-node:hover { border-color: var(--border-strong); }
+    .l1-node.active { border-color: var(--accent); }
+    .l1-node .label { font-weight: 500; margin-bottom: 4px; }
+    .l1-node .one-sentence { color: var(--text-dim); font-size: 11px; }
+    .l1-node .l2-count {
+      position: absolute; top: 8px; right: 10px;
+      font-size: 10px; color: var(--text-faint);
+    }
+    .l1-node.expressed::before {
+      content: ""; position: absolute; top: 8px; left: 8px;
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--green);
+    }
+
+    /* Level 2 list under a selected L1 */
+    .l2-list {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--border);
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 6px;
+    }
+    .l2-node {
+      font-size: 11.5px;
+      padding: 6px 10px;
+      background: var(--panel-3);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-dim);
+      cursor: pointer;
+    }
+    .l2-node:hover { color: var(--text); }
+    .l2-node.active { border-color: var(--accent); color: var(--text); }
+    .l2-node.expressed { border-left: 2px solid var(--green); }
+
+    /* Sidebar */
+    aside.side {
+      border-left: 1px solid var(--border);
+      background: var(--panel);
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .side-tabs {
+      display: flex; border-bottom: 1px solid var(--border);
+    }
+    .side-tabs button {
+      flex: 1;
+      background: none; border: none;
+      color: var(--text-dim);
+      font: inherit; font-size: 12px;
+      padding: 12px 8px; cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    .side-tabs button.active {
+      color: var(--text); border-bottom-color: var(--accent);
+    }
+    .side-body { flex: 1; overflow-y: auto; padding: 16px; }
+
+    .detail-row { margin-bottom: 14px; font-size: 12.5px; line-height: 1.5; }
+    .detail-row .k {
+      font-size: 10px; letter-spacing: 0.4px;
+      color: var(--text-faint); text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+    .detail-row .v { color: var(--text); word-break: break-word; }
+    .detail-row .v code {
+      background: var(--panel-2); padding: 1px 5px; border-radius: 3px;
+      font-size: 11.5px;
+    }
+
+    .btn {
+      display: inline-block;
+      background: var(--accent); border: none; color: white;
+      border-radius: 6px; padding: 8px 14px;
+      font: inherit; font-size: 13px;
+      cursor: pointer;
+    }
+    .btn.secondary {
+      background: transparent; color: var(--accent);
+      border: 1px solid var(--accent);
+    }
+    .btn:disabled {
+      background: var(--panel-2); color: var(--text-faint);
+      cursor: not-allowed; border-color: var(--border);
+    }
+    .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+
+    .expression-card {
+      padding: 12px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .expression-card:hover { border-color: var(--border-strong); }
+    .expression-card .row {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+    }
+    .expression-card .modality {
+      display: inline-block;
+      padding: 1px 7px; border-radius: 8px;
+      background: var(--panel-3); color: var(--text);
+      font-size: 10px; letter-spacing: 0.3px;
+      text-transform: uppercase;
+    }
+    .expression-card .title { font-weight: 500; color: var(--text); }
+    .expression-card .meta {
+      color: var(--text-faint); font-size: 11px;
+    }
+    .expression-card .revealed {
+      color: var(--green); font-size: 11px;
+    }
+    .expression-card .unrevealed {
+      color: var(--amber); font-size: 11px;
+    }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: none; align-items: center; justify-content: center;
+      z-index: 100;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      width: min(640px, 92vw);
+      max-height: 86vh;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .modal header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center;
+    }
+    .modal header h3 {
+      margin: 0; font-size: 15px; font-weight: 500;
+    }
+    .modal header .close {
+      margin-left: auto;
+      background: none; border: none;
+      color: var(--text-dim); font-size: 18px;
+      cursor: pointer; padding: 0; line-height: 1;
+    }
+    .modal .body { padding: 18px; overflow-y: auto; flex: 1; }
+    .modal .footer {
+      padding: 12px 18px;
+      border-top: 1px solid var(--border);
+      display: flex; gap: 8px; justify-content: flex-end;
+    }
+
+    .field { margin-bottom: 14px; }
+    .field label {
+      display: block; font-size: 11px; letter-spacing: 0.4px;
+      color: var(--text-dim); text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .field input, .field select, .field textarea {
+      width: 100%;
+      background: var(--panel-2); border: 1px solid var(--border);
+      color: var(--text); font: inherit; font-size: 13px;
+      padding: 9px 11px; border-radius: 5px; outline: none;
+    }
+    .field textarea { min-height: 100px; resize: vertical; }
+    .field input:focus, .field select:focus, .field textarea:focus {
+      border-color: var(--accent);
+    }
+    .field .help {
+      color: var(--text-faint); font-size: 11px; margin-top: 4px;
+    }
+
+    .chat-bubble {
+      background: var(--panel-2); border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 11px 13px;
+      font-size: 13px; line-height: 1.55;
+      margin-bottom: 10px;
+      white-space: pre-wrap;
+    }
+    .chat-bubble.user { background: var(--accent); color: white; border-color: var(--accent); }
+    .chat-meta {
+      font-size: 11px; color: var(--text-faint); margin-bottom: 8px;
+    }
+
+    .err {
+      background: rgba(248, 81, 73, 0.12);
+      border: 1px solid var(--red);
+      color: var(--red);
+      padding: 10px 12px; border-radius: 5px;
+      font-size: 12.5px;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="layout">
+    <header class="top">
+      <h1>Living Knowledge</h1>
+      <div class="sub" id="compression-meta">loading…</div>
+      <div class="pill" id="api-key-pill">checking…</div>
+    </header>
+
+    <main class="tree" id="tree-root">
+      <div class="empty"><h2>loading…</h2></div>
+    </main>
+
+    <aside class="side">
+      <div class="side-tabs">
+        <button class="active" data-tab="detail">Detail</button>
+        <button data-tab="expressions">Expressions</button>
+      </div>
+      <div class="side-body" id="side-body"></div>
+    </aside>
+  </div>
+
+  <!-- Express modal -->
+  <div class="modal-backdrop" id="express-modal">
+    <div class="modal">
+      <header>
+        <h3>Express this principle</h3>
+        <button class="close" onclick="closeModal('express-modal')">×</button>
+      </header>
+      <div class="body">
+        <div id="express-error" class="err" style="display:none"></div>
+        <div class="detail-row">
+          <div class="k">Source node</div>
+          <div class="v" id="express-source"></div>
+        </div>
+        <div class="field">
+          <label for="express-modality">Modality</label>
+          <select id="express-modality">
+            <option value="narrative">narrative</option>
+            <option value="visual">visual</option>
+            <option value="musical">musical</option>
+            <option value="physical">physical</option>
+            <option value="organizational">organizational</option>
+            <option value="game">game</option>
+            <option value="biological">biological</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="express-title">Title</label>
+          <input id="express-title" type="text" placeholder="The librarian who forgets selectively">
+        </div>
+        <div class="field">
+          <label for="express-content">Content
+            <button class="btn secondary" style="float:right; padding: 3px 8px; font-size:11px"
+                    type="button" onclick="brainstormExpress()">Brainstorm with AI</button>
+          </label>
+          <textarea id="express-content" rows="6"
+            placeholder="The prompt / code / pseudocode / markdown that describes the expression. External tools render the artifact."></textarea>
+          <div class="help">Use the brainstorm button to get 3 angles from the AI (or a templated fallback without an API key).</div>
+        </div>
+        <div class="field">
+          <label for="express-tool-hint">Tool hint (optional)</label>
+          <input id="express-tool-hint" type="text" placeholder="p5.js / Tone.js / markdown / Isaac Sim …">
+        </div>
+        <div id="brainstorm-result" class="chat-bubble" style="display:none"></div>
+      </div>
+      <div class="footer">
+        <button class="btn secondary" onclick="closeModal('express-modal')">Cancel</button>
+        <button class="btn" onclick="submitExpress()">Record expression</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Reveal modal -->
+  <div class="modal-backdrop" id="reveal-modal">
+    <div class="modal">
+      <header>
+        <h3>Reveal — what did the expression teach you?</h3>
+        <button class="close" onclick="closeModal('reveal-modal')">×</button>
+      </header>
+      <div class="body">
+        <div id="reveal-error" class="err" style="display:none"></div>
+        <div class="detail-row">
+          <div class="k">Expression</div>
+          <div class="v" id="reveal-target"></div>
+        </div>
+        <div class="field">
+          <label>Interview <span style="color:var(--text-faint)">(optional, helps articulate)</span>
+            <button class="btn secondary" style="float:right; padding: 3px 8px; font-size:11px"
+                    type="button" onclick="interviewReveal('probe')">Ask a question</button>
+          </label>
+          <div id="interview-history"></div>
+          <textarea id="interview-observation" rows="3"
+                    placeholder="Notes on what the expression revealed (then click 'Crystallize')"></textarea>
+          <div class="btn-row">
+            <button class="btn secondary" type="button" onclick="interviewReveal('crystallize')">Crystallize with AI</button>
+          </div>
+        </div>
+        <div class="field">
+          <label for="reveal-insight">Reveal text (this is what gets stored)</label>
+          <textarea id="reveal-insight" rows="4"
+                    placeholder="What did expressing this principle as [modality] make visible that the text did not?"></textarea>
+        </div>
+        <div class="field">
+          <label for="reveal-feeds-back">Feeds back to node (optional)</label>
+          <select id="reveal-feeds-back"><option value="">— none —</option></select>
+          <div class="help">Pick the compressed node this insight should refine on the next synthesis cycle.</div>
+        </div>
+      </div>
+      <div class="footer">
+        <button class="btn secondary" onclick="closeModal('reveal-modal')">Cancel</button>
+        <button class="btn" onclick="submitReveal()">Record reveal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Expression-detail modal -->
+  <div class="modal-backdrop" id="expression-modal">
+    <div class="modal">
+      <header>
+        <h3 id="expression-modal-title">Expression</h3>
+        <button class="close" onclick="closeModal('expression-modal')">×</button>
+      </header>
+      <div class="body" id="expression-modal-body"></div>
+      <div class="footer" id="expression-modal-footer"></div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- State ----------
+    let state = {
+      compression: null,
+      expressions: [],
+      selectedL0: null,
+      selectedL1: null,
+      selectedL2: null,
+      selectedNodeForExpress: null,
+      hasApiKey: false,
+      activeTab: "detail",
+      interviewHistory: [],
+      pendingExpressionForReveal: null,
+    };
+
+    const L0_COLORS = [
+      "var(--l0-a)", "var(--l0-b)", "var(--l0-c)", "var(--l0-d)", "var(--l0-e)",
+    ];
+
+    // ---------- Init ----------
+    async function init() {
+      try {
+        const r = await fetch("/healthz");
+        const h = await r.json();
+        state.hasApiKey = h.has_api_key;
+        const pill = document.getElementById("api-key-pill");
+        if (h.has_api_key) {
+          pill.textContent = "LLM ready";
+          pill.classList.add("green");
+        } else {
+          pill.textContent = "no API key — templated fallback";
+          pill.classList.add("amber");
+        }
+      } catch (e) {
+        document.getElementById("api-key-pill").textContent = "daemon offline";
+      }
+      await reload();
+    }
+
+    async function reload() {
+      const r = await fetch("/research/living-knowledge/data");
+      const data = await r.json();
+      state.compression = data.compression;
+      state.expressions = data.expressions || [];
+      if (!state.compression) {
+        renderEmpty(data.reason);
+        return;
+      }
+      if (!state.selectedL0 && state.compression.level_0_nodes[0]) {
+        state.selectedL0 = state.compression.level_0_nodes[0].node_id;
+      }
+      renderMeta();
+      renderTree();
+      renderSide();
+    }
+
+    function renderEmpty(reason) {
+      document.getElementById("compression-meta").textContent = "";
+      const root = document.getElementById("tree-root");
+      root.innerHTML = `
+        <div class="empty">
+          <h2>No compression yet</h2>
+          <p>${escapeHtml(reason || "Run a synthesis + compression cycle to populate this view.")}</p>
+          <p style="margin-top:24px">
+            <code>neuro-os research synthesize</code><br>
+            <code>neuro-os research compress</code>
+          </p>
+        </div>
+      `;
+    }
+
+    function renderMeta() {
+      const c = state.compression;
+      const meta = document.getElementById("compression-meta");
+      meta.textContent = `${c.compression_id}  ·  ${c.level_0_nodes.length} L0  ·  ${c.level_1_nodes.length} L1  ·  ${c.level_2_nodes.length} L2  ·  ${state.expressions.length} expression(s)`;
+    }
+
+    function renderTree() {
+      const c = state.compression;
+      const root = document.getElementById("tree-root");
+      const exprByNode = new Map();
+      for (const e of state.expressions) {
+        if (!exprByNode.has(e.source_node_id)) exprByNode.set(e.source_node_id, []);
+        exprByNode.get(e.source_node_id).push(e);
+      }
+
+      // L0 row
+      const l0Row = document.createElement("div");
+      l0Row.className = "l0-row";
+      c.level_0_nodes.forEach((n, idx) => {
+        const div = document.createElement("div");
+        div.className = "l0-node";
+        if (n.node_id === state.selectedL0) div.classList.add("active");
+        if (exprByNode.has(n.node_id)) div.classList.add("expressed");
+        const swatch = L0_COLORS[idx % L0_COLORS.length];
+        div.innerHTML = `
+          <div class="swatch" style="background:${swatch}"></div>
+          <div class="tag">L0 — core</div>
+          <div class="label"></div>
+          <div class="one-sentence"></div>
+          <div class="badge-count">${n.references.length} sub</div>
+        `;
+        div.querySelector(".label").textContent = n.label;
+        div.querySelector(".one-sentence").textContent = n.one_sentence;
+        div.onclick = () => {
+          state.selectedL0 = n.node_id;
+          state.selectedL1 = null;
+          state.selectedL2 = null;
+          state.activeTab = "detail";
+          renderTree();
+          renderSide();
+        };
+        l0Row.appendChild(div);
+      });
+
+      // L1 region for selected L0
+      const selectedL0 = c.level_0_nodes.find(n => n.node_id === state.selectedL0);
+      const l1Region = document.createElement("div");
+      l1Region.className = "l1-region";
+      if (selectedL0) {
+        l1Region.innerHTML = `<h3>L1 — sub-mechanisms under ${escapeHtml(truncate(selectedL0.label, 80))}</h3><div class="l1-row"></div>`;
+        const l1Row = l1Region.querySelector(".l1-row");
+        const childL1 = c.level_1_nodes.filter(n => n.parent_id === state.selectedL0);
+        childL1.forEach(n => {
+          const div = document.createElement("div");
+          div.className = "l1-node";
+          if (n.node_id === state.selectedL1) div.classList.add("active");
+          if (exprByNode.has(n.node_id)) div.classList.add("expressed");
+          const childL2 = c.level_2_nodes.filter(l2 => l2.parent_id === n.node_id);
+          div.innerHTML = `
+            <div class="label"></div>
+            <div class="one-sentence"></div>
+            <div class="l2-count">${childL2.length} cards</div>
+          `;
+          div.querySelector(".label").textContent = n.label;
+          div.querySelector(".one-sentence").textContent = n.one_sentence;
+          div.onclick = () => {
+            state.selectedL1 = n.node_id;
+            state.selectedL2 = null;
+            state.activeTab = "detail";
+            renderTree();
+            renderSide();
+          };
+          l1Row.appendChild(div);
+        });
+      }
+
+      // L2 list for selected L1
+      const l2Block = document.createElement("div");
+      const selectedL1 = c.level_1_nodes.find(n => n.node_id === state.selectedL1);
+      if (selectedL1) {
+        l2Block.className = "l1-region";
+        l2Block.innerHTML = `<h3>L2 — cards under ${escapeHtml(truncate(selectedL1.label, 80))}</h3><div class="l2-list"></div>`;
+        const l2List = l2Block.querySelector(".l2-list");
+        const childL2 = c.level_2_nodes.filter(n => n.parent_id === state.selectedL1);
+        childL2.forEach(n => {
+          const div = document.createElement("div");
+          div.className = "l2-node";
+          if (n.node_id === state.selectedL2) div.classList.add("active");
+          if (exprByNode.has(n.node_id)) div.classList.add("expressed");
+          div.textContent = n.label;
+          div.onclick = () => {
+            state.selectedL2 = n.node_id;
+            state.activeTab = "detail";
+            renderTree();
+            renderSide();
+          };
+          l2List.appendChild(div);
+        });
+      }
+
+      root.innerHTML = "";
+      root.appendChild(l0Row);
+      root.appendChild(l1Region);
+      if (selectedL1) root.appendChild(l2Block);
+    }
+
+    function activeNode() {
+      const c = state.compression;
+      if (state.selectedL2) return c.level_2_nodes.find(n => n.node_id === state.selectedL2);
+      if (state.selectedL1) return c.level_1_nodes.find(n => n.node_id === state.selectedL1);
+      if (state.selectedL0) return c.level_0_nodes.find(n => n.node_id === state.selectedL0);
+      return null;
+    }
+
+    function renderSide() {
+      const body = document.getElementById("side-body");
+      // Update tab buttons
+      document.querySelectorAll(".side-tabs button").forEach(b => {
+        b.classList.toggle("active", b.dataset.tab === state.activeTab);
+        b.onclick = () => { state.activeTab = b.dataset.tab; renderSide(); };
+      });
+
+      if (state.activeTab === "expressions") {
+        renderExpressions(body);
+        return;
+      }
+
+      const node = activeNode();
+      if (!node) {
+        body.innerHTML = `<div style="color:var(--text-dim); font-size:12px">Click a node in the tree to see details.</div>`;
+        return;
+      }
+      const nodeExpressions = state.expressions.filter(e => e.source_node_id === node.node_id);
+      body.innerHTML = `
+        <div class="detail-row"><div class="k">Node id</div><div class="v"><code>${escapeHtml(node.node_id)}</code></div></div>
+        <div class="detail-row"><div class="k">Level</div><div class="v">${node.level}</div></div>
+        <div class="detail-row"><div class="k">Label</div><div class="v" id="d-label"></div></div>
+        <div class="detail-row"><div class="k">One sentence</div><div class="v" id="d-sentence"></div></div>
+        ${node.parent_id ? `<div class="detail-row"><div class="k">Parent</div><div class="v"><code>${escapeHtml(node.parent_id)}</code></div></div>` : ""}
+        ${node.references && node.references.length
+          ? `<div class="detail-row"><div class="k">References (${node.references.length})</div><div class="v" id="d-refs"></div></div>`
+          : ""}
+        <div class="btn-row">
+          <button class="btn" id="btn-express">Express this</button>
+        </div>
+        ${nodeExpressions.length
+          ? `<div class="detail-row" style="margin-top:18px">
+              <div class="k">Expressions of this node (${nodeExpressions.length})</div>
+              <div id="d-node-exprs"></div>
+            </div>`
+          : ""}
+      `;
+      body.querySelector("#d-label").textContent = node.label;
+      body.querySelector("#d-sentence").textContent = node.one_sentence;
+      const refsEl = body.querySelector("#d-refs");
+      if (refsEl) {
+        refsEl.innerHTML = node.references.map(r => `<div><code>${escapeHtml(r)}</code></div>`).join("");
+      }
+      body.querySelector("#btn-express").onclick = () => openExpressModal(node);
+
+      const nodeExprsEl = body.querySelector("#d-node-exprs");
+      if (nodeExprsEl) {
+        for (const e of nodeExpressions) {
+          nodeExprsEl.appendChild(buildExpressionCard(e));
+        }
+      }
+    }
+
+    function renderExpressions(body) {
+      if (!state.expressions.length) {
+        body.innerHTML = `<div style="color:var(--text-dim); font-size:12px">No expressions yet. Click a node in the tree and use "Express this".</div>`;
+        return;
+      }
+      body.innerHTML = "";
+      for (const e of state.expressions) {
+        body.appendChild(buildExpressionCard(e));
+      }
+    }
+
+    function buildExpressionCard(e) {
+      const div = document.createElement("div");
+      div.className = "expression-card";
+      div.innerHTML = `
+        <div class="row">
+          <span class="modality"></span>
+          <span class="title"></span>
+        </div>
+        <div class="meta"></div>
+        <div class="${e.reveals ? "revealed" : "unrevealed"}"></div>
+      `;
+      div.querySelector(".modality").textContent = e.modality;
+      div.querySelector(".title").textContent = e.title;
+      div.querySelector(".meta").textContent = `${e.expression_id}  ·  node ${e.source_node_id}`;
+      div.querySelector(e.reveals ? ".revealed" : ".unrevealed").textContent =
+        e.reveals ? "✓ revealed" : "⊘ no reveal yet";
+      div.onclick = () => openExpressionDetail(e);
+      return div;
+    }
+
+    // ---------- Express modal ----------
+    function openExpressModal(node) {
+      state.selectedNodeForExpress = node;
+      document.getElementById("express-source").innerHTML =
+        `<code>${escapeHtml(node.node_id)}</code> — ${escapeHtml(node.label)}`;
+      document.getElementById("express-title").value = "";
+      document.getElementById("express-content").value = "";
+      document.getElementById("express-tool-hint").value = "";
+      document.getElementById("express-error").style.display = "none";
+      document.getElementById("brainstorm-result").style.display = "none";
+      document.getElementById("brainstorm-result").textContent = "";
+      openModal("express-modal");
+    }
+
+    async function brainstormExpress() {
+      const node = state.selectedNodeForExpress;
+      const modality = document.getElementById("express-modality").value;
+      const out = document.getElementById("brainstorm-result");
+      out.style.display = "block";
+      out.textContent = "thinking…";
+      try {
+        const r = await fetch("/research/living-knowledge/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            kind: "brainstorm",
+            node_label: node.label,
+            node_one_sentence: node.one_sentence,
+            modality,
+          }),
+        });
+        const data = await r.json();
+        if (data.error) {
+          out.textContent = "error: " + data.error;
+          return;
+        }
+        out.textContent = data.reply;
+      } catch (err) {
+        out.textContent = "error: " + String(err);
+      }
+    }
+
+    async function submitExpress() {
+      const node = state.selectedNodeForExpress;
+      const errEl = document.getElementById("express-error");
+      errEl.style.display = "none";
+      const body = {
+        compression_id: state.compression.compression_id,
+        source_node_id: node.node_id,
+        modality: document.getElementById("express-modality").value,
+        title: document.getElementById("express-title").value.trim(),
+        content: document.getElementById("express-content").value.trim(),
+        tool_hint: document.getElementById("express-tool-hint").value.trim() || null,
+      };
+      if (!body.title || !body.content) {
+        errEl.textContent = "title and content are required";
+        errEl.style.display = "block";
+        return;
+      }
+      const r = await fetch("/research/living-knowledge/express", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await r.json();
+      if (data.error) {
+        errEl.textContent = data.error;
+        errEl.style.display = "block";
+        return;
+      }
+      closeModal("express-modal");
+      await reload();
+      state.activeTab = "expressions";
+      renderSide();
+    }
+
+    // ---------- Expression detail modal ----------
+    function openExpressionDetail(e) {
+      document.getElementById("expression-modal-title").textContent =
+        `${e.modality}: ${e.title}`;
+      const body = document.getElementById("expression-modal-body");
+      body.innerHTML = `
+        <div class="detail-row"><div class="k">Expression id</div><div class="v"><code>${escapeHtml(e.expression_id)}</code></div></div>
+        <div class="detail-row"><div class="k">Modality</div><div class="v">${escapeHtml(e.modality)}</div></div>
+        <div class="detail-row"><div class="k">Source node</div><div class="v"><code>${escapeHtml(e.source_node_id)}</code></div></div>
+        ${e.tool_hint ? `<div class="detail-row"><div class="k">Tool hint</div><div class="v">${escapeHtml(e.tool_hint)}</div></div>` : ""}
+        <div class="detail-row"><div class="k">Content</div><div class="v" id="ex-content"></div></div>
+        ${e.reveals
+          ? `<div class="detail-row"><div class="k">Reveals</div><div class="v" id="ex-reveals"></div></div>`
+          : `<div class="detail-row" style="color:var(--amber)">No reveal recorded yet. Click "Reveal" to close the feedback loop.</div>`}
+        ${e.feeds_back_to_node_id
+          ? `<div class="detail-row"><div class="k">Feeds back to</div><div class="v"><code>${escapeHtml(e.feeds_back_to_node_id)}</code></div></div>`
+          : ""}
+      `;
+      body.querySelector("#ex-content").textContent = e.content;
+      if (e.reveals) body.querySelector("#ex-reveals").textContent = e.reveals;
+      const footer = document.getElementById("expression-modal-footer");
+      footer.innerHTML = "";
+      if (!e.reveals) {
+        const btn = document.createElement("button");
+        btn.className = "btn";
+        btn.textContent = "Reveal what this taught";
+        btn.onclick = () => { closeModal("expression-modal"); openRevealModal(e); };
+        footer.appendChild(btn);
+      }
+      const close = document.createElement("button");
+      close.className = "btn secondary";
+      close.textContent = "Close";
+      close.onclick = () => closeModal("expression-modal");
+      footer.appendChild(close);
+      openModal("expression-modal");
+    }
+
+    // ---------- Reveal modal ----------
+    function openRevealModal(expression) {
+      state.pendingExpressionForReveal = expression;
+      state.interviewHistory = [];
+      document.getElementById("reveal-target").innerHTML =
+        `<code>${escapeHtml(expression.expression_id)}</code> — ${escapeHtml(expression.modality)} — ${escapeHtml(expression.title)}`;
+      document.getElementById("reveal-insight").value = "";
+      document.getElementById("interview-observation").value = "";
+      document.getElementById("interview-history").innerHTML = "";
+      document.getElementById("reveal-error").style.display = "none";
+      // Populate the "feeds back to" dropdown with all nodes.
+      const sel = document.getElementById("reveal-feeds-back");
+      sel.innerHTML = '<option value="">— none —</option>';
+      const allNodes = [
+        ...state.compression.level_0_nodes,
+        ...state.compression.level_1_nodes,
+        ...state.compression.level_2_nodes,
+      ];
+      // Default to the source node id of the expression.
+      for (const n of allNodes) {
+        const opt = document.createElement("option");
+        opt.value = n.node_id;
+        opt.textContent = `${n.node_id} — ${truncate(n.label, 50)}`;
+        if (n.node_id === expression.source_node_id) opt.selected = true;
+        sel.appendChild(opt);
+      }
+      openModal("reveal-modal");
+    }
+
+    async function interviewReveal(phase) {
+      const e = state.pendingExpressionForReveal;
+      const histEl = document.getElementById("interview-history");
+      const observation = document.getElementById("interview-observation").value.trim();
+      const payload = {
+        kind: "interview",
+        node_one_sentence: lookupOneSentence(e.source_node_id),
+        modality: e.modality,
+        expression_content: e.content,
+      };
+      if (phase === "crystallize") payload.user_observation = observation;
+      const bubble = document.createElement("div");
+      bubble.className = "chat-bubble";
+      bubble.textContent = "thinking…";
+      histEl.appendChild(bubble);
+      try {
+        const r = await fetch("/research/living-knowledge/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await r.json();
+        if (data.error) { bubble.textContent = "error: " + data.error; return; }
+        bubble.textContent = data.reply;
+        if (phase === "crystallize" && observation) {
+          // Pre-fill the reveal insight box with the crystallized text.
+          document.getElementById("reveal-insight").value = data.reply;
+        }
+      } catch (err) {
+        bubble.textContent = "error: " + String(err);
+      }
+    }
+
+    function lookupOneSentence(nodeId) {
+      const all = [
+        ...state.compression.level_0_nodes,
+        ...state.compression.level_1_nodes,
+        ...state.compression.level_2_nodes,
+      ];
+      const n = all.find(n => n.node_id === nodeId);
+      return n ? n.one_sentence : "";
+    }
+
+    async function submitReveal() {
+      const e = state.pendingExpressionForReveal;
+      const errEl = document.getElementById("reveal-error");
+      errEl.style.display = "none";
+      const insight = document.getElementById("reveal-insight").value.trim();
+      const feedsBack = document.getElementById("reveal-feeds-back").value.trim();
+      if (!insight) {
+        errEl.textContent = "insight is required";
+        errEl.style.display = "block";
+        return;
+      }
+      const r = await fetch("/research/living-knowledge/reveal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          expression_id: e.expression_id,
+          insight,
+          feeds_back_to_node_id: feedsBack || null,
+        }),
+      });
+      const data = await r.json();
+      if (data.error) {
+        errEl.textContent = data.error;
+        errEl.style.display = "block";
+        return;
+      }
+      closeModal("reveal-modal");
+      await reload();
+      state.activeTab = "expressions";
+      renderSide();
+    }
+
+    // ---------- Helpers ----------
+    function openModal(id) { document.getElementById(id).classList.add("open"); }
+    function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c]);
+    }
+    function truncate(s, n) { return s.length > n ? s.slice(0, n - 1) + "…" : s; }
+
+    init();
+  </script>
+</body>
+</html>

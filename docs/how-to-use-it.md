@@ -711,6 +711,67 @@ walk-through) and interactive-experiment (parameter sliders) layers
 from TRUE-E3 are deliberately deferred until they earn a place in a
 specific use case.
 
+### Browser UI — `/research/living-knowledge`
+
+The CLI captures the schema, but the compress→express→reveal cycle is
+**creative work**, and a form is a worse fit for creative work than a
+spatial view. The founder_loop daemon (`neuro-os start` or
+`neuro-os loop serve`) now serves a browser surface for exactly this:
+
+```
+http://127.0.0.1:8765/research/living-knowledge
+```
+
+What you see:
+
+```
+ ┌───────────────────────────────────────────────────────────┬──────────────────┐
+ │  Living Knowledge                          cmp-... · 4 L0 │  Detail / Exprs  │
+ ├───────────────────────────────────────────────────────────┴──────────────────┤
+ │  Level 0 — core (4 nodes — click to drill down)                              │
+ │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐                             │
+ │  │  L0-00  │ │  L0-01  │ │  L0-02  │ │  L0-03  │                             │
+ │  │ feedback│ │hierarchy│ │ express │ │ compress│                             │
+ │  └─────────┘ └─────────┘ └─────────┘ └─────────┘                             │
+ │                                                                              │
+ │  Level 1 — sub-mechanisms under L0-00 (1)                                    │
+ │  ┌──────────────────┐                                                        │
+ │  │ Reveal-closure   │  3 cards                                               │
+ │  └──────────────────┘                                                        │
+ │                                                                              │
+ │  Level 2 — cards under L1-replay-buffer (3)                                  │
+ │  [card-1] [card-2] [card-3]                                                  │
+ └──────────────────────────────────────────────────────────────────────────────┘
+```
+
+What you can do:
+
+- **Click any node** to see its details (label, one-sentence, parent,
+  references) in the right sidebar.
+- **Express this** opens a modal: pick a modality (narrative, musical,
+  physical, organizational, game, biological, visual), give it a title,
+  write the content (a prompt or markdown spec — neuro-os doesn't
+  render; downstream tools do via `tool_hint`).
+- **Brainstorm with AI** inside the express modal: single-turn LLM call
+  that returns 3 angles. Falls back to a templated reply without
+  `ANTHROPIC_API_KEY` so the UI is always functional.
+- **Reveal a recorded expression**: opens an interview modal. Click
+  "Ask a question" to get a probing prompt about what the expression
+  surfaced; type your observation; click "Crystallize with AI" to turn
+  your notes into a clean `reveals` string. Pick which compressed node
+  the insight should refine (defaults to the source node).
+- **Switch to the Expressions tab** in the sidebar to browse all
+  recorded expressions newest-first, with revealed / unrevealed badges.
+
+Security: the new routes inherit the daemon's CORS hardening — only
+the daemon's own origin and browser extensions can reach them. A
+malicious webpage cannot read or mutate your living-knowledge state
+even with the daemon running. (See `tests/test_living_knowledge_ui.py`
+for the regression tests pinning this.)
+
+If you prefer pure CLI, all the same operations are available via
+`research compress` / `research express` as described above.
+
 ## MCP server — drive neuro-os from any AI agent
 
 The same surfaces above are also exposed as **Model Context Protocol
