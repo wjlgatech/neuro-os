@@ -15,6 +15,18 @@
     <div class="fl-loading">Loading…</div>
   </main>
 
+  <!-- Fix 2 (design audit): explain the tank percentage to first-time users.
+       The tank % is the badge number; without context, "67%" doesn't mean
+       anything. Show this as static HTML so it's visible even if the
+       FounderLoopUI module fails to load. -->
+  <aside class="fl-legend">
+    <strong>Tank</strong> = today's reward economy. Credits from evidenced
+    priorities, debits from distraction time. Ration unlocks at the
+    threshold (default 90%).
+    <a href="http://127.0.0.1:8765/how-it-works"
+       target="_blank" rel="noopener">how it works</a>
+  </aside>
+
   <footer class="fl-footer">
     <div id="fl-daemon-status">checking daemon…</div>
     <div class="fl-actions">

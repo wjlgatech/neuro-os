@@ -175,17 +175,80 @@
     }
     .banner.warn { border-color: var(--amber); color: var(--amber); }
     .banner code { color: var(--accent); }
+
+    /* API-key pill (Fix 6) — match the Living Knowledge page */
+    .api-pill {
+      margin-left: auto;
+      font-size: 11px;
+      padding: 4px 10px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      color: var(--text-dim);
+    }
+    .api-pill.green { color: var(--green); border-color: var(--green); }
+    .api-pill.amber { color: var(--amber); border-color: var(--amber); }
+    .api-pill.red   { color: var(--red);   border-color: var(--red);   }
+    .help-link {
+      font-size: 13px;
+      color: var(--text-faint);
+      text-decoration: none;
+      width: 22px; height: 22px;
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      margin-left: 6px;
+    }
+    .help-link:hover { color: var(--text); border-color: var(--accent); }
+
+    /* Undo banner for queue mutations (Fix 7) */
+    .undo-banner {
+      position: fixed;
+      bottom: 18px; left: 50%; transform: translateX(-50%);
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 16px;
+      display: none; align-items: center; gap: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+      z-index: 200;
+      font-size: 13px;
+    }
+    .undo-banner.open { display: flex; }
+    .undo-banner button {
+      background: var(--accent); border: none; color: white;
+      padding: 5px 12px; border-radius: 4px;
+      font: inherit; font-size: 12px; cursor: pointer;
+    }
+    .undo-banner .timer { color: var(--text-faint); font-size: 11px; }
+
+    /* Confirm overwrite (Fix 5) */
+    .sign-confirm {
+      background: rgba(248, 81, 73, 0.10);
+      border: 1px solid var(--red);
+      color: var(--red);
+      padding: 8px 12px; border-radius: 5px;
+      font-size: 12px; margin-bottom: 8px;
+      display: none;
+    }
+    .sign-confirm.open { display: block; }
   </style>
 </head>
 <body>
   <div class="layout">
     <main class="chat">
-      <header>
-        <h1 id="page-title">Morning ritual</h1>
-        <div class="sub">
-          <span class="dot" id="status-dot"></span>
-          <span id="status-text">connecting…</span>
+      <header style="display:flex; align-items:center; gap:12px">
+        <div style="flex:1; min-width:0">
+          <h1 id="page-title">Morning ritual</h1>
+          <div class="sub">
+            <span class="dot" id="status-dot"></span>
+            <span id="status-text">connecting…</span>
+          </div>
         </div>
+        <div class="api-pill" id="api-pill" title="Click for details">checking…</div>
+        <a class="help-link" id="help-link" href="/how-to-use" target="_blank"
+           rel="noopener" title="Open the user guide">?</a>
       </header>
       <div id="banner" class="banner" style="display:none"></div>
       <div class="messages" id="messages"></div>
@@ -219,9 +282,18 @@
         <ul id="queues-list" class="priorities-list"></ul>
       </div>
 
+      <div class="sign-confirm" id="sign-confirm">
+        ⚠ Today's contract is already bound. Click <strong>Sign</strong> again to overwrite it.
+      </div>
       <button id="sign" class="sign-btn" disabled>Sign contract</button>
       <div class="sign-result" id="sign-result"></div>
     </aside>
+  </div>
+
+  <div class="undo-banner" id="undo-banner">
+    <span id="undo-label">…</span>
+    <span class="timer" id="undo-timer">30s</span>
+    <button id="undo-btn">Undo</button>
   </div>
 
   <script>
@@ -287,6 +359,42 @@
   let conversationId = null;
   let canSign = false;
   let usingLLM = false;
+  let contractAlreadyBound = false;   // Fix 5: true if the daemon told us a contract exists
+  let signConfirmShown = false;       // Fix 5: track whether the warning is already visible
+  let queuesUndoSnapshot = null;      // Fix 7: snapshot taken before each queues mutation
+  let _undoTimer = null;              // Fix 7
+
+  // Fix 10: deep-link the help icon to the right anchor in /how-to-use per kind.
+  const KIND_HELP_ANCHOR = {
+    morning: "/how-to-use#moment-1--start-your-day",
+    review:  "/how-to-use#moment-4--look-back",
+    queues:  "/how-to-use#moment-5--tweak-the-rules",
+  };
+  const helpLink = document.getElementById("help-link");
+  if (helpLink) helpLink.href = KIND_HELP_ANCHOR[KIND] || "/how-to-use";
+
+  // Fix 6: API-key pill helper. Same shape as the Living Knowledge page.
+  function updateApiPill(state) {
+    const pill = document.getElementById("api-pill");
+    if (!pill) return;
+    pill.classList.remove("green", "amber", "red");
+    if (state === "ready") {
+      pill.textContent = "LLM ready";
+      pill.classList.add("green");
+      pill.title = "Anthropic key configured. Chat goes through Claude.";
+    } else if (state === "fallback") {
+      pill.textContent = "no API key — fallback mode";
+      pill.classList.add("amber");
+      pill.title = "No ANTHROPIC_API_KEY. Conversation uses the state-machine fallback (slower).";
+    } else if (state === "offline") {
+      pill.textContent = "daemon offline";
+      pill.classList.add("red");
+      pill.title = "Cannot reach the daemon at /healthz.";
+    } else {
+      pill.textContent = "checking…";
+      pill.title = "";
+    }
+  }
 
   function appendMessage(role, text) {
     const wrap = document.createElement("div");
@@ -330,6 +438,7 @@
     try {
       const r = await fetch("/healthz");
       const j = await r.json();
+      contractAlreadyBound = !!j.contract_bound;
       if (j.contract_bound) {
         statusDot.classList.add("dim");
         statusText.textContent = "contract already bound for today";
@@ -337,21 +446,32 @@
         banner.className = "banner warn";
         banner.innerHTML =
           "Today's contract is already bound. Re-signing will overwrite it.";
-      } else if (!j.has_api_key || !j.use_llm) {
-        statusText.textContent = "fallback mode — no Anthropic key configured";
-        banner.style.display = "block";
-        banner.className = "banner warn";
-        banner.innerHTML =
-          "Running without an LLM. The conversation will be functional but stiff (one field at a time). " +
-          "Set <code>ANTHROPIC_API_KEY</code> and start the daemon with <code>--use-llm</code> for natural language.";
+      }
+      // Fix 6: pill state, separate from the status banner
+      if (!j.has_api_key || !j.use_llm) {
+        if (!j.contract_bound) {
+          statusText.textContent = "fallback mode — no Anthropic key configured";
+          banner.style.display = "block";
+          banner.className = "banner warn";
+          banner.innerHTML =
+            "Running without an LLM. The conversation will be functional but stiff (one field at a time). " +
+            "Set <code>ANTHROPIC_API_KEY</code> and start the daemon with <code>--use-llm</code> for natural language.";
+        }
         usingLLM = false;
-      } else {
+        updateApiPill("fallback");
+      } else if (!j.contract_bound) {
         statusText.textContent = "ready · LLM mode";
         usingLLM = true;
+        updateApiPill("ready");
+      } else {
+        // contract bound + LLM ready
+        usingLLM = true;
+        updateApiPill("ready");
       }
     } catch (err) {
       statusDot.style.background = "#f85149";
       statusText.textContent = "daemon unreachable";
+      updateApiPill("offline");
     }
   }
 
@@ -422,6 +542,13 @@
     inputEl.style.height = "44px";
     sendBtn.disabled = true;
     statusText.textContent = "thinking…";
+    // Fix 7: snapshot queues BEFORE the mutation so undo can restore.
+    if (KIND === "queues") {
+      try {
+        const snap = await fetch("/queues-state");
+        queuesUndoSnapshot = await snap.json();
+      } catch (_) { /* if the snapshot fails, undo just won't be offered */ }
+    }
     try {
       const r = await fetch("/chat", {
         method: "POST",
@@ -453,6 +580,11 @@
           const queues = await r2.json();
           renderQueues(queues);
         } catch (_) { /* ignore */ }
+        // Fix 7: offer undo if we have a pre-mutation snapshot
+        if (queuesUndoSnapshot) {
+          const n = j.queue_mutations.length;
+          showUndoBanner(`Applied ${n} queue change${n === 1 ? "" : "s"}.`);
+        }
       }
       canSign = !!j.can_sign;
       if (KIND === "queues") {
@@ -471,6 +603,16 @@
   }
 
   async function signContract() {
+    // Fix 5: if today's contract is already bound and this is the user's
+    // FIRST click, require a second click. The .open class shows a red
+    // banner explaining what re-signing does. The banner stays visible
+    // until the user clicks again (confirming) or until the page reloads.
+    if (KIND !== "queues" && contractAlreadyBound && !signConfirmShown) {
+      signConfirmShown = true;
+      document.getElementById("sign-confirm").classList.add("open");
+      // Keep the button enabled so the user can confirm with a 2nd click.
+      return;
+    }
     signBtn.disabled = true;
     signResult.textContent = "";
     try {
@@ -510,6 +652,46 @@
       signBtn.disabled = false;
     }
   }
+
+  // Fix 7: queue-mutation undo banner + handler
+  function showUndoBanner(label) {
+    const banner = document.getElementById("undo-banner");
+    document.getElementById("undo-label").textContent = label;
+    banner.classList.add("open");
+    let secs = 30;
+    document.getElementById("undo-timer").textContent = secs + "s";
+    if (_undoTimer) clearInterval(_undoTimer);
+    _undoTimer = setInterval(() => {
+      secs -= 1;
+      document.getElementById("undo-timer").textContent = secs + "s";
+      if (secs <= 0) hideUndoBanner();
+    }, 1000);
+  }
+  function hideUndoBanner() {
+    if (_undoTimer) { clearInterval(_undoTimer); _undoTimer = null; }
+    document.getElementById("undo-banner").classList.remove("open");
+  }
+  document.getElementById("undo-btn").addEventListener("click", async () => {
+    if (!queuesUndoSnapshot) { hideUndoBanner(); return; }
+    try {
+      const r = await fetch("/queues-restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(queuesUndoSnapshot),
+      });
+      const j = await r.json();
+      if (j.error) { alert("undo failed: " + j.error); return; }
+      // Re-render the queues panel from the restored state
+      try {
+        const r2 = await fetch("/queues-state");
+        renderQueues(await r2.json());
+      } catch (_) {}
+      queuesUndoSnapshot = null;
+      hideUndoBanner();
+    } catch (err) {
+      alert("undo failed: " + err.message);
+    }
+  });
 
   inputEl.addEventListener("keydown", (e) => {
     if (e.key === "Enter" && !e.shiftKey) {

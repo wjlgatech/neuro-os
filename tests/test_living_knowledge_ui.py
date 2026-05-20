@@ -360,3 +360,146 @@ def test_living_knowledge_express_rejects_cross_site_post(daemon):
     with pytest.raises(HTTPError) as exc:
         urlopen(req, timeout=2)
     assert exc.value.code == 403
+
+
+# ---------------------------------------------------------------------------
+# Soft delete + restore (Fix 9 from design audit)
+# ---------------------------------------------------------------------------
+
+
+def test_delete_moves_expression_to_trash(daemon):
+    base, home = daemon
+    c = _seed_compression(home)
+    l0_id = c.level_0_nodes[0].node_id
+    expr = json.loads(_post(base, "/research/living-knowledge/express", {
+        "compression_id": c.compression_id,
+        "source_node_id": l0_id,
+        "modality": "narrative",
+        "title": "doomed",
+        "content": "this one gets deleted",
+    }).read())["expression"]
+
+    resp = _post(base, "/research/living-knowledge/delete", {
+        "expression_id": expr["expression_id"],
+    })
+    body = json.loads(resp.read())
+    assert body["expression_id"] == expr["expression_id"]
+    assert "_trash" in body["trashed_path"]
+
+    # /data must no longer include it
+    data = json.loads(_get(base, "/research/living-knowledge/data").read())
+    assert all(e["expression_id"] != expr["expression_id"] for e in data["expressions"])
+
+
+def test_restore_brings_expression_back(daemon):
+    base, home = daemon
+    c = _seed_compression(home)
+    l0_id = c.level_0_nodes[0].node_id
+    expr = json.loads(_post(base, "/research/living-knowledge/express", {
+        "compression_id": c.compression_id,
+        "source_node_id": l0_id,
+        "modality": "narrative",
+        "title": "second-thoughts",
+        "content": "regretted the delete",
+    }).read())["expression"]
+
+    # Delete then restore
+    _post(base, "/research/living-knowledge/delete", {"expression_id": expr["expression_id"]})
+    resp = _post(base, "/research/living-knowledge/restore", {"expression_id": expr["expression_id"]})
+    body = json.loads(resp.read())
+    assert body["expression_id"] == expr["expression_id"]
+    assert "_trash" not in body["restored_path"]
+
+    # /data must include it again
+    data = json.loads(_get(base, "/research/living-knowledge/data").read())
+    assert any(e["expression_id"] == expr["expression_id"] for e in data["expressions"])
+
+
+def test_delete_unknown_expression_returns_404(daemon):
+    base, _home = daemon
+    with pytest.raises(HTTPError) as exc:
+        _post(base, "/research/living-knowledge/delete", {
+            "expression_id": "exp-does-not-exist",
+        })
+    assert exc.value.code == 404
+
+
+def test_restore_when_not_in_trash_returns_404(daemon):
+    base, _home = daemon
+    with pytest.raises(HTTPError) as exc:
+        _post(base, "/research/living-knowledge/restore", {
+            "expression_id": "exp-never-deleted",
+        })
+    assert exc.value.code == 404
+
+
+def test_delete_and_restore_require_expression_id(daemon):
+    base, _home = daemon
+    for path in ("/research/living-knowledge/delete", "/research/living-knowledge/restore"):
+        with pytest.raises(HTTPError) as exc:
+            _post(base, path, {})
+        assert exc.value.code == 400
+
+
+# ---------------------------------------------------------------------------
+# /queues-restore (Fix 7 from design audit) — client snapshots queues before
+# each AI mutation, posts them back when the user clicks Undo.
+# ---------------------------------------------------------------------------
+
+
+def test_queues_restore_writes_files(daemon):
+    base, home = daemon
+    # Send a snapshot of all three queue files
+    payload = {
+        "bookmarks_queue": [{"title": "x", "url": "u"}],
+        "social_queue": [],
+        "rubber_duck_venues": [{"venue": "ec"}],
+    }
+    resp = _post(base, "/queues-restore", payload)
+    body = json.loads(resp.read())
+    assert body["restored"] == {
+        "bookmarks_queue": 1,
+        "social_queue": 0,
+        "rubber_duck_venues": 1,
+    }
+    # Verify on disk via the queues-state endpoint
+    state = json.loads(_get(base, "/queues-state").read())
+    assert state["bookmarks_queue"] == [{"title": "x", "url": "u"}]
+    assert state["social_queue"] == []
+    assert state["rubber_duck_venues"] == [{"venue": "ec"}]
+
+
+def test_queues_restore_rejects_non_list_payload(daemon):
+    base, _home = daemon
+    with pytest.raises(HTTPError) as exc:
+        _post(base, "/queues-restore", {"bookmarks_queue": "not a list"})
+    assert exc.value.code == 400
+
+
+def test_queues_restore_partial_payload_only_writes_named_queues(daemon):
+    """If the payload only includes 1 queue, only that queue gets rewritten."""
+    base, home = daemon
+    # Seed with all three
+    _post(base, "/queues-restore", {
+        "bookmarks_queue": [{"title": "initial"}],
+        "social_queue": [{"name": "initial"}],
+        "rubber_duck_venues": [{"venue": "initial"}],
+    })
+    # Now restore only bookmarks_queue
+    _post(base, "/queues-restore", {"bookmarks_queue": []})
+    state = json.loads(_get(base, "/queues-state").read())
+    assert state["bookmarks_queue"] == []
+    assert state["social_queue"] == [{"name": "initial"}]
+    assert state["rubber_duck_venues"] == [{"venue": "initial"}]
+
+
+def test_queues_restore_rejects_cross_site(daemon):
+    base, _home = daemon
+    req = Request(
+        f"{base}/queues-restore", data=b"{}", method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    req.add_header("Origin", "http://attacker.com")
+    with pytest.raises(HTTPError) as exc:
+        urlopen(req, timeout=2)
+    assert exc.value.code == 403

@@ -249,6 +249,53 @@ def _node_exists(
     return False
 
 
+# ---------------------------------------------------------------------------
+# Soft delete + restore — Expression records are interpretive snapshots, not
+# append-only history, so "delete" is a real operation. We make it soft
+# (move to ``_trash/``) so a misclicked delete is recoverable within the
+# session and recoverable later via ``mv`` if needed.
+# ---------------------------------------------------------------------------
+
+
+def trash_dir(home: Optional[Path] = None) -> Path:
+    base = home if home is not None else Path.home() / ".neuro_os_research"
+    d = base / "expressions" / "_trash"
+    d.mkdir(parents=True, exist_ok=True)
+    return d
+
+
+def soft_delete_expression(
+    expression_id: str,
+    *,
+    home: Optional[Path] = None,
+) -> Path:
+    """Move ``<id>.json`` from expressions/ to expressions/_trash/."""
+    src = expressions_dir(home) / f"{expression_id}.json"
+    if not src.is_file():
+        raise FileNotFoundError(
+            f"expression {expression_id!r} not found in expressions/"
+        )
+    dst = trash_dir(home) / f"{expression_id}.json"
+    src.replace(dst)
+    return dst
+
+
+def restore_expression(
+    expression_id: str,
+    *,
+    home: Optional[Path] = None,
+) -> Path:
+    """Move ``<id>.json`` from expressions/_trash/ back to expressions/."""
+    src = trash_dir(home) / f"{expression_id}.json"
+    if not src.is_file():
+        raise FileNotFoundError(
+            f"expression {expression_id!r} not in trash"
+        )
+    dst = expressions_dir(home) / f"{expression_id}.json"
+    src.replace(dst)
+    return dst
+
+
 __all__ = [
     "EXPRESSION_MODALITIES",
     "Expression",
@@ -258,4 +305,7 @@ __all__ = [
     "list_expressions",
     "record_expression",
     "reveal_expression",
+    "soft_delete_expression",
+    "restore_expression",
+    "trash_dir",
 ]

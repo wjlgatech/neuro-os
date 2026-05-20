@@ -367,6 +367,12 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             self._living_knowledge_reveal()
         elif path == "/research/living-knowledge/chat":
             self._living_knowledge_chat()
+        elif path == "/research/living-knowledge/delete":
+            self._living_knowledge_delete()
+        elif path == "/research/living-knowledge/restore":
+            self._living_knowledge_restore()
+        elif path == "/queues-restore":
+            self._queues_restore()
         else:
             self._send_json(404, {"error": f"unknown route: {path}"})
 
@@ -836,6 +842,65 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             f"(No ANTHROPIC_API_KEY — using a template crystallization.)\n\n"
             f"The {modality} expression reveals: {user_observation}"
         )
+
+    def _living_knowledge_delete(self) -> None:
+        """Soft delete: move the expression file to expressions/_trash/.
+        Reversible via /research/living-knowledge/restore within the session."""
+        from agent.research.expression import soft_delete_expression
+
+        body = self._read_json_body()
+        expression_id = body.get("expression_id")
+        if not expression_id:
+            self._send_json(400, {"error": "expression_id is required"})
+            return
+        try:
+            path = soft_delete_expression(expression_id, home=self._research_home())
+        except FileNotFoundError as e:
+            self._send_json(404, {"error": str(e)})
+            return
+        self._send_json(200, {"trashed_path": str(path), "expression_id": expression_id})
+
+    def _living_knowledge_restore(self) -> None:
+        """Restore a soft-deleted expression from _trash/."""
+        from agent.research.expression import restore_expression
+
+        body = self._read_json_body()
+        expression_id = body.get("expression_id")
+        if not expression_id:
+            self._send_json(400, {"error": "expression_id is required"})
+            return
+        try:
+            path = restore_expression(expression_id, home=self._research_home())
+        except FileNotFoundError as e:
+            self._send_json(404, {"error": str(e)})
+            return
+        self._send_json(200, {"restored_path": str(path), "expression_id": expression_id})
+
+    def _queues_restore(self) -> None:
+        """Restore queue files from a client-side snapshot. The /queues
+        chat surface keeps a snapshot before each AI-triggered mutation
+        and POSTs it here when the user clicks Undo. Atomic per-file."""
+        body = self._read_json_body()
+        out: Dict[str, Any] = {}
+        for q in ("bookmarks_queue", "social_queue", "rubber_duck_venues"):
+            if q not in body:
+                continue
+            target = self.config.queues_dir / f"{q}.json"
+            tmp = target.with_suffix(".json.tmp")
+            try:
+                payload = body[q]
+                if not isinstance(payload, list):
+                    self._send_json(400, {
+                        "error": f"{q} must be a JSON list, got {type(payload).__name__}",
+                    })
+                    return
+                tmp.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+                tmp.replace(target)
+                out[q] = len(payload)
+            except OSError as e:
+                self._send_json(500, {"error": f"failed to restore {q}: {e}"})
+                return
+        self._send_json(200, {"restored": out})
 
     def _serve_chat_shell(self, *, kind: str) -> None:
         """Render onboard.html with the kind injected so the same SPA
