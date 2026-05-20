@@ -41,8 +41,9 @@ Tool surface (9 tools, mirrors the load-bearing CLI subcommands):
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 try:
     from mcp.server.fastmcp import FastMCP
@@ -106,6 +107,170 @@ def _err(message: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Path-allowlist gate for tools that read arbitrary host filesystem paths
+# (``research_ingest`` is the main one — it walks .txt/.md/.pdf files and
+# ships their contents to the Anthropic API if a key is configured).
+#
+# Threat model: in autonomous-mode hosts (Claude Code with
+# ``--dangerously-skip-permissions``, Cursor full-agent), the per-tool
+# confirmation prompt is suppressed. A prompt-injection payload that
+# convinces the agent to call ``research_ingest(source_dir="/etc")`` or
+# ``~/Library/Mail`` would otherwise succeed without the user seeing it.
+# The gate refuses obviously sensitive system / $HOME-dotfile paths and
+# allowlists the rest (under $HOME minus the sensitive set, plus tmp).
+# ---------------------------------------------------------------------------
+
+
+def _is_under(child: Path, parent: Path) -> bool:
+    """True if ``child`` is ``parent`` or a descendant of it. Both must
+    already be resolved (absolute, symlinks followed)."""
+    try:
+        child.relative_to(parent)
+        return True
+    except ValueError:
+        return False
+
+
+# System paths we never let an agent ingest from. Narrower than just
+# ``/var`` because macOS resolves $TMPDIR (pytest's tmp_path) to
+# ``/private/var/folders/...`` — a blanket ``/var`` deny would block
+# every test fixture. We list the actual sensitive ``/var`` subpaths
+# instead (logs, db, mail, spool, etc.).
+_SYSTEM_DENY_PREFIXES: Tuple[Path, ...] = (
+    Path("/etc"), Path("/private/etc"),
+    Path("/var/log"), Path("/private/var/log"),
+    Path("/var/db"), Path("/private/var/db"),
+    Path("/var/mail"), Path("/private/var/mail"),
+    Path("/var/spool"), Path("/private/var/spool"),
+    Path("/var/root"), Path("/private/var/root"),
+    Path("/var/audit"), Path("/private/var/audit"),
+    Path("/usr"),
+    Path("/System"),
+    Path("/Library"),
+    Path("/sys"),
+    Path("/proc"),
+    Path("/dev"),
+    Path("/root"),
+    Path("/boot"),
+)
+
+
+def _sensitive_home_subdirs() -> Tuple[Path, ...]:
+    """$HOME subdirectories that hold credentials, keys, mail, IDE
+    config, and other sensitive content. Resolved per-call because
+    ``Path.home()`` is process-cwd-independent but a test that
+    monkeypatches HOME via env var benefits from re-resolution."""
+    home = Path.home().resolve()
+    return (
+        home / "Library",
+        home / ".ssh",
+        home / ".gnupg",
+        home / ".aws",
+        home / ".config",
+        home / ".anthropic",
+        home / ".docker",
+        home / ".kube",
+        home / ".npm",
+        home / ".cargo",
+        home / ".password-store",
+        home / ".thunderbird",
+    )
+
+
+def _is_safe_ingest_path(path: Path) -> Tuple[bool, str]:
+    """Gate the path passed to MCP file-reading tools. Returns
+    ``(allowed, reason)`` — ``reason`` is shown to the agent on reject
+    so it can ask the user to set ``NEURO_OS_MCP_INGEST_ALLOWED_PATHS``
+    if the path is legitimate.
+
+    Order:
+      1. Sensitive ``$HOME`` subdirs (deny). Wins over tmp so a test
+         that monkeypatches ``HOME`` into ``$TMPDIR`` still rejects
+         ``$HOME/.ssh`` correctly.
+      2. System denylist (deny). Narrow ``/var`` paths only so macOS
+         pytest ``/private/var/folders/...`` isn't caught.
+      3. Env-var user allowlist (allow).
+      4. Tmp roots (allow).
+      5. Default ``$HOME`` (allow).
+      6. Default deny."""
+    try:
+        resolved = path.resolve(strict=True)
+    except (OSError, RuntimeError) as e:
+        return False, f"path cannot be resolved: {e}"
+
+    # 1. Sensitive $HOME subdirs — hard deny. Catches ~/.ssh even when
+    # HOME is monkeypatched into a tmp location.
+    for prefix in _sensitive_home_subdirs():
+        if _is_under(resolved, prefix):
+            return False, (
+                f"refusing to ingest from sensitive $HOME path {prefix}: "
+                "this directory typically holds keys, mail, or IDE "
+                "config. Move the files you want to ingest somewhere "
+                "outside the sensitive set, e.g. ~/Documents."
+            )
+
+    # 2. System denylist — hard deny.
+    for prefix in _SYSTEM_DENY_PREFIXES:
+        try:
+            prefix_resolved = prefix.resolve(strict=False)
+        except OSError:
+            continue
+        if _is_under(resolved, prefix_resolved):
+            return False, (
+                f"refusing to ingest from system path {prefix}: this "
+                "is on the hard denylist (system dirs are dense with "
+                "credentials / secrets)."
+            )
+
+    # 3. Explicit user allowlist via env var (colon-separated). After
+    # the deny lists so a user can't accidentally re-enable ~/.ssh or
+    # /var/log; before the default allowlists so this is the place to
+    # add unusual paths (e.g. ``/opt/corpus``, ``/data/papers``).
+    env_allow = os.environ.get("NEURO_OS_MCP_INGEST_ALLOWED_PATHS", "")
+    for raw in env_allow.split(os.pathsep):
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            prefix = Path(raw).expanduser().resolve(strict=False)
+        except (OSError, RuntimeError):
+            continue
+        if _is_under(resolved, prefix):
+            return True, f"allowed via NEURO_OS_MCP_INGEST_ALLOWED_PATHS ({prefix})"
+
+    # 4. Tmp roots — allow. Lets pytest tmp_path work and lets the
+    # user ingest a `/tmp/papers/` staging dir.
+    tmp_roots: List[Path] = []
+    tmpdir = os.environ.get("TMPDIR", "")
+    if tmpdir:
+        try:
+            tmp_roots.append(Path(tmpdir).resolve(strict=False))
+        except OSError:
+            pass
+    for raw in ("/tmp", "/private/tmp", "/var/folders", "/private/var/folders"):
+        try:
+            tmp_roots.append(Path(raw).resolve(strict=False))
+        except OSError:
+            continue
+    for tmp_root in tmp_roots:
+        if _is_under(resolved, tmp_root):
+            return True, f"under tmp ({tmp_root})"
+
+    # 5. Default: anywhere else under $HOME (sensitive subdirs already
+    # filtered above).
+    home = Path.home().resolve()
+    if _is_under(resolved, home):
+        return True, "under $HOME"
+
+    return False, (
+        f"path {path} is outside the default ingest allowlist ($HOME "
+        "minus sensitive dotfile subdirs, plus tmp). To allow it, set "
+        "the env var NEURO_OS_MCP_INGEST_ALLOWED_PATHS=<colon-separated "
+        "paths> before starting the MCP server."
+    )
+
+
+# ---------------------------------------------------------------------------
 # Research vertical tools
 # ---------------------------------------------------------------------------
 
@@ -138,6 +303,13 @@ def _register_research_tools(mcp: FastMCP) -> None:
             return _err(f"source_dir not found: {source_dir}")
         if not src.is_dir():
             return _err(f"source_dir is not a directory: {source_dir}")
+        # Path-allowlist gate: refuse system dirs (/etc, /var, ...) and
+        # sensitive $HOME subdirs (~/.ssh, ~/Library, ...). This is the
+        # defense against prompt-injection-driven arbitrary-file reads
+        # in autonomous-mode hosts that skip the per-tool confirmation.
+        ok, reason = _is_safe_ingest_path(src)
+        if not ok:
+            return _err(reason)
         # prefer=local is the MCP default behavior; the 'auto/gbrain'
         # paths require subprocess wiring out of scope for v0.
         if prefer not in ("auto", "gbrain", "local"):
