@@ -51,7 +51,7 @@
       letter-spacing: -0.2px;
     }
     .chat .sub {
-      font-size: 12px; color: var(--text-dim); margin-top: 4px;
+      font-size: 19px; color: var(--text-dim); margin-top: 4px;
       display: flex; align-items: center; gap: 8px;
     }
     .chat .sub .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); display: inline-block; }
@@ -63,7 +63,7 @@
     }
     .msg {
       max-width: 85%; padding: 10px 14px; border-radius: 12px;
-      margin-bottom: 10px; font-size: 14px; line-height: 1.55;
+      margin-bottom: 10px; font-size: 19px; line-height: 1.55;
       white-space: pre-wrap; word-wrap: break-word;
     }
     .msg.assistant {
@@ -76,7 +76,7 @@
     }
     .msg-row { display: flex; }
     .msg.assistant ~ .typing {
-      font-size: 12px; color: var(--text-faint); padding-left: 6px;
+      font-size: 19px; color: var(--text-faint); padding-left: 6px;
     }
 
     .composer {
@@ -88,13 +88,13 @@
       flex: 1; min-height: 44px; max-height: 160px;
       background: var(--panel); border: 1px solid var(--border);
       border-radius: 10px; padding: 10px 12px;
-      color: var(--text); font: inherit; font-size: 14px;
+      color: var(--text); font: inherit; font-size: 19px;
       resize: none; outline: none;
     }
     .composer textarea:focus { border-color: var(--accent); }
     .composer button {
       background: var(--accent); border: none; color: white;
-      border-radius: 10px; padding: 0 18px; font: inherit; font-size: 14px;
+      border-radius: 10px; padding: 0 18px; font: inherit; font-size: 19px;
       cursor: pointer; min-width: 80px;
     }
     .composer button:disabled {
@@ -109,7 +109,7 @@
       overflow-y: auto;
     }
     .side h2 {
-      font-size: 11px; font-weight: 600; letter-spacing: 0.6px;
+      font-size: 18px; font-weight: 600; letter-spacing: 0.6px;
       color: var(--text-dim); text-transform: uppercase;
       margin: 0 0 12px 0;
     }
@@ -118,9 +118,9 @@
     /* Tank progress bar — appears once a contract is bound */
     .tank-row {
       display: flex; justify-content: space-between; align-items: baseline;
-      font-size: 11px; color: var(--text-dim); margin-bottom: 6px;
+      font-size: 18px; color: var(--text-dim); margin-bottom: 6px;
     }
-    .tank-pct { color: var(--text); font-size: 13px; font-weight: 600; }
+    .tank-pct { color: var(--text); font-size: 20px; font-weight: 600; }
     .tank-bar {
       position: relative;
       height: 10px; width: 100%;
@@ -143,12 +143,12 @@
       pointer-events: none;
     }
     .tank-meta {
-      font-size: 10px; color: var(--text-faint);
+      font-size: 17px; color: var(--text-faint);
       margin-top: 6px;
       display: flex; justify-content: space-between;
     }
     .tank-empty {
-      font-size: 11px; color: var(--text-faint);
+      font-size: 18px; color: var(--text-faint);
       padding: 8px 0;
     }
 
@@ -162,10 +162,10 @@
       from { opacity: 0; transform: translateY(6px); }
       to   { opacity: 1; transform: translateY(0); }
     }
-    .priority-title { font-size: 13px; font-weight: 500; }
-    .priority-meta { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+    .priority-title { font-size: 20px; font-weight: 500; }
+    .priority-meta { font-size: 18px; color: var(--text-dim); margin-top: 4px; }
     .priority-weight {
-      display: inline-block; font-size: 10px; padding: 1px 6px;
+      display: inline-block; font-size: 17px; padding: 1px 6px;
       border-radius: 4px; background: var(--bg); border: 1px solid var(--border);
       margin-right: 6px;
     }
@@ -173,26 +173,26 @@
     .priority-weight.w2 { color: var(--amber); border-color: var(--amber); }
     .priority-weight.w1 { color: var(--text-dim); }
     .priorities-empty {
-      font-size: 12px; color: var(--text-faint);
+      font-size: 19px; color: var(--text-faint);
       padding: 14px 12px; border: 1px dashed var(--border);
       border-radius: 10px; text-align: center;
     }
 
     .ration-row {
       display: flex; align-items: center; gap: 8px;
-      font-size: 12px; color: var(--text-dim);
+      font-size: 19px; color: var(--text-dim);
     }
     .ration-row input {
       flex: 1; background: var(--panel-2); border: 1px solid var(--border);
       color: var(--text); border-radius: 6px; padding: 4px 6px;
-      font: inherit; font-size: 12px;
+      font: inherit; font-size: 19px;
     }
     .ration-row span.unit { color: var(--text-faint); }
 
     .sign-btn {
       width: 100%; background: transparent; border: 1px solid var(--green-line);
       color: var(--green); padding: 12px; border-radius: 10px;
-      font: inherit; font-size: 13px; font-weight: 500;
+      font: inherit; font-size: 20px; font-weight: 500;
       cursor: pointer; transition: background 120ms;
       margin-top: auto;
     }
@@ -201,12 +201,12 @@
       border-color: var(--border); color: var(--text-faint); cursor: not-allowed;
     }
     .sign-result {
-      margin-top: 12px; font-size: 11px; color: var(--green);
+      margin-top: 12px; font-size: 18px; color: var(--green);
       text-align: center; line-height: 1.5;
     }
 
     .banner {
-      font-size: 11px; padding: 8px 10px; border-radius: 8px;
+      font-size: 18px; padding: 8px 10px; border-radius: 8px;
       background: var(--panel-2); border: 1px solid var(--border);
       color: var(--text-dim); margin-bottom: 14px;
     }
@@ -216,7 +216,7 @@
     /* API-key pill (Fix 6) — match the Living Knowledge page */
     .api-pill {
       margin-left: auto;
-      font-size: 11px;
+      font-size: 18px;
       padding: 4px 10px;
       background: var(--panel-2);
       border: 1px solid var(--border);
@@ -227,7 +227,7 @@
     .api-pill.amber { color: var(--amber); border-color: var(--amber); }
     .api-pill.red   { color: var(--red);   border-color: var(--red);   }
     .help-link {
-      font-size: 13px;
+      font-size: 20px;
       color: var(--text-faint);
       text-decoration: none;
       width: 22px; height: 22px;
@@ -250,15 +250,15 @@
       display: none; align-items: center; gap: 12px;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
       z-index: 200;
-      font-size: 13px;
+      font-size: 20px;
     }
     .undo-banner.open { display: flex; }
     .undo-banner button {
       background: var(--accent); border: none; color: white;
       padding: 5px 12px; border-radius: 4px;
-      font: inherit; font-size: 12px; cursor: pointer;
+      font: inherit; font-size: 19px; cursor: pointer;
     }
-    .undo-banner .timer { color: var(--text-faint); font-size: 11px; }
+    .undo-banner .timer { color: var(--text-faint); font-size: 18px; }
 
     /* Confirm overwrite (Fix 5) */
     .sign-confirm {
@@ -266,7 +266,7 @@
       border: 1px solid var(--red);
       color: var(--red);
       padding: 8px 12px; border-radius: 5px;
-      font-size: 12px; margin-bottom: 8px;
+      font-size: 19px; margin-bottom: 8px;
       display: none;
     }
     .sign-confirm.open { display: block; }
@@ -296,7 +296,7 @@
       display: flex; align-items: center;
     }
     .api-key-modal header h3 {
-      margin: 0; font-size: 15px; font-weight: 500;
+      margin: 0; font-size: 20px; font-weight: 500;
     }
     .api-key-modal header .close {
       margin-left: auto;
@@ -304,12 +304,12 @@
       color: var(--text-dim); font-size: 18px;
       cursor: pointer; padding: 0; line-height: 1;
     }
-    .api-key-modal .body { padding: 18px; overflow-y: auto; flex: 1; font-size: 13px; line-height: 1.55; }
+    .api-key-modal .body { padding: 18px; overflow-y: auto; flex: 1; font-size: 20px; line-height: 1.55; }
     .api-key-modal .body p { margin: 0 0 12px 0; }
     .api-key-modal .body a { color: var(--accent); }
     .api-key-modal .body code {
       background: var(--panel-2); padding: 1px 6px; border-radius: 3px;
-      font-size: 12px;
+      font-size: 19px;
     }
     .api-key-modal .footer {
       padding: 12px 18px;
@@ -319,19 +319,19 @@
     .api-key-modal .btn {
       background: var(--accent); border: none; color: white;
       border-radius: 5px; padding: 8px 14px;
-      font: inherit; font-size: 13px; cursor: pointer;
+      font: inherit; font-size: 20px; cursor: pointer;
     }
     .topnav {
       display: flex; align-items: center; gap: 0;
       background: var(--panel); border-bottom: 1px solid var(--border);
-      padding: 0 16px; height: 40px; font-size: 12px; flex-shrink: 0;
+      padding: 0 16px; height: 40px; font-size: 19px; flex-shrink: 0;
     }
     .topnav .brand { font-weight: 600; color: var(--text); text-decoration: none; padding-right: 12px; margin-right: 4px; border-right: 1px solid var(--border); }
     .topnav a.nav-link { color: var(--text-dim); text-decoration: none; padding: 0 10px; height: 40px; display: flex; align-items: center; border-bottom: 2px solid transparent; white-space: nowrap; }
     .topnav a.nav-link:hover { color: var(--text); }
     .topnav a.nav-link.active { color: var(--text); border-bottom-color: var(--accent); }
     .topnav .spacer { flex: 1; }
-    .topnav .next-btn { background: var(--accent); color: #fff; text-decoration: none; padding: 5px 12px; border-radius: 5px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+    .topnav .next-btn { background: var(--accent); color: #fff; text-decoration: none; padding: 5px 12px; border-radius: 5px; font-size: 19px; font-weight: 500; white-space: nowrap; }
     .topnav .next-btn:hover { background: #79b8ff; color: #fff; }
   </style>
 </head>
