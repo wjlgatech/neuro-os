@@ -75,6 +75,7 @@ def daemon(tmp_path: Path):
         contract_path=contracts,
         workflowx_fixture=workflowx,
         block=False,
+        research_home=tmp_path / "research",  # isolated; avoids real ~/.neuro_os_research
     )
     base = f"http://127.0.0.1:{port}"
 
@@ -216,31 +217,127 @@ def test_onboard_html_served(daemon):
     assert "/sign" in body
 
 
+def test_dashboard_root_serves_dashboard_page(daemon):
+    """`/` is the unified 4-vertical dashboard now — NOT the morning
+    ritual. /onboard still serves the ritual."""
+    base, *_ = daemon
+    req = urllib.request.Request(base + "/")
+    with urllib.request.urlopen(req, timeout=2.0) as r:
+        assert r.status == 200
+        body = r.read().decode("utf-8")
+        ct = r.headers.get("Content-Type", "")
+    assert "text/html" in ct
+    # The dashboard distinguishes itself from /onboard by the
+    # four-tile layout — pin specific markers from dashboard.html.
+    assert "Loop · daily contract" in body
+    assert "Research · living knowledge" in body
+    assert "Invest · epistemic calibration" in body
+    assert "Startup · OEC convergence" in body
+    assert "/dashboard/data" in body
+
+
+def test_dashboard_data_returns_all_four_blocks(daemon):
+    base, *_ = daemon
+    r = _get(base + "/dashboard/data")
+    assert set(r.keys()) >= {"loop", "research", "invest", "startup"}
+    # The fixture binds a contract — loop block must carry a tank.
+    assert r["loop"]["contract_bound"] is True
+    assert r["loop"]["tank"] is not None
+    # Other verticals' homes don't exist in tmp_path, so they return
+    # zero/None defaults rather than raising.
+    assert r["research"]["pending_proposals"] == 0
+    assert r["invest"]["open_positions"] == 0
+    assert r["startup"]["ticks_today"] == 0
+
+
 def test_chat_initial_call_returns_greeting(daemon):
     base, *_ = daemon
     r = _post(base + "/chat", {})
     assert r["conversation_id"]
     assert r["assistant_text"]
-    assert r["priorities"] == []
-    assert r["can_sign"] is False
+    # Daemon fixture binds a contract for today, so /chat opens in
+    # AMEND mode: existing priorities are loaded, can_sign=True.
+    assert r["amend_mode"] is True
+    assert len(r["priorities"]) == 1
+    assert r["priorities"][0]["title"] == "ship daemon UI"
+    assert r["can_sign"] is True
 
 
-def test_chat_fallback_extracts_priority(daemon):
+def test_chat_amend_mode_appends_new_priority(daemon):
+    """Adding a priority on a day with a bound contract must keep the
+    existing priority and append the new one — no overwrite."""
     base, *_ = daemon
     init = _post(base + "/chat", {})
     cid = init["conversation_id"]
+    # The fixture's seed priority is "ship daemon UI" — add another
+    # via the fallback walk.
     for msg in [
-        "ship founder_loop UI",
+        "write the amend-mode tests",
         "pr_merged",
-        "neuro-os#999",
-        "3",
+        "neuro-os#142",
+        "2",
     ]:
         r = _post(base + "/chat", {"conversation_id": cid, "message": msg})
-    assert len(r["priorities"]) == 1
-    p = r["priorities"][0]
-    assert p["title"] == "ship founder_loop UI"
-    assert p["evidence_type"] == "pr_merged"
-    assert p["weight"] == 3
+    titles = sorted(p["title"] for p in r["priorities"])
+    assert titles == ["ship daemon UI", "write the amend-mode tests"]
+
+
+def test_chat_amend_mode_sign_writes_union(daemon):
+    """After amending, /sign must persist the existing+new set as one
+    new contract row — and previous priorities are NOT lost."""
+    base, _, contracts = daemon
+    init = _post(base + "/chat", {})
+    cid = init["conversation_id"]
+    for msg in [
+        "write the amend-mode tests",
+        "pr_merged",
+        "neuro-os#142",
+        "2",
+    ]:
+        _post(base + "/chat", {"conversation_id": cid, "message": msg})
+    r = _post(base + "/sign", {"conversation_id": cid})
+    titles = sorted(p["title"] for p in r["contract"]["priorities"])
+    assert titles == ["ship daemon UI", "write the amend-mode tests"]
+
+
+def test_chat_fallback_extracts_priority(tmp_path: Path):
+    """Cold start (no contract bound) — fallback works as before."""
+    registry = tmp_path / "registry.jsonl"
+    contracts = tmp_path / "contracts.jsonl"
+    workflowx = tmp_path / "workflowx.jsonl"
+    workflowx.write_text("", encoding="utf-8")
+    port = _free_port()
+    server = serve(
+        host="127.0.0.1", port=port,
+        registry_path=registry, contract_path=contracts,
+        workflowx_fixture=workflowx, block=False,
+    )
+    base = f"http://127.0.0.1:{port}"
+    try:
+        for _ in range(50):
+            try:
+                _get(base + "/healthz", timeout=0.5)
+                break
+            except (urllib.error.URLError, OSError):
+                time.sleep(0.05)
+        init = _post(base + "/chat", {})
+        assert init.get("amend_mode") is False
+        assert init["priorities"] == []
+        cid = init["conversation_id"]
+        for msg in [
+            "ship founder_loop UI",
+            "pr_merged",
+            "neuro-os#999",
+            "3",
+        ]:
+            r = _post(base + "/chat", {"conversation_id": cid, "message": msg})
+        assert len(r["priorities"]) == 1
+        p = r["priorities"][0]
+        assert p["title"] == "ship founder_loop UI"
+        assert p["evidence_type"] == "pr_merged"
+        assert p["weight"] == 3
+    finally:
+        server.shutdown()
 
 
 def test_sign_binds_contract(daemon):
@@ -262,18 +359,41 @@ def test_sign_binds_contract(daemon):
     assert len(rows) >= 2
 
 
-def test_sign_without_priorities_returns_400(daemon):
-    base, *_ = daemon
-    init = _post(base + "/chat", {})
-    cid = init["conversation_id"]
-    data = json.dumps({"conversation_id": cid}).encode("utf-8")
-    req = urllib.request.Request(
-        base + "/sign", data=data,
-        headers={"Content-Type": "application/json"}, method="POST",
+def test_sign_without_priorities_returns_400(tmp_path: Path):
+    """Cold-start daemon (no contract on disk) — /sign with zero
+    priorities returns 400. The shared ``daemon`` fixture binds a
+    contract before /chat runs, which would put the convo into amend
+    mode and pre-seed priorities, so we spin a clean instance here."""
+    registry = tmp_path / "registry.jsonl"
+    contracts = tmp_path / "contracts.jsonl"
+    workflowx = tmp_path / "workflowx.jsonl"
+    workflowx.write_text("", encoding="utf-8")
+    port = _free_port()
+    server = serve(
+        host="127.0.0.1", port=port,
+        registry_path=registry, contract_path=contracts,
+        workflowx_fixture=workflowx, block=False,
     )
-    with pytest.raises(urllib.error.HTTPError) as exc:
-        urllib.request.urlopen(req, timeout=2.0)
-    assert exc.value.code == 400
+    base = f"http://127.0.0.1:{port}"
+    try:
+        for _ in range(50):
+            try:
+                _get(base + "/healthz", timeout=0.5)
+                break
+            except (urllib.error.URLError, OSError):
+                time.sleep(0.05)
+        init = _post(base + "/chat", {})
+        cid = init["conversation_id"]
+        data = json.dumps({"conversation_id": cid}).encode("utf-8")
+        req = urllib.request.Request(
+            base + "/sign", data=data,
+            headers={"Content-Type": "application/json"}, method="POST",
+        )
+        with pytest.raises(urllib.error.HTTPError) as exc:
+            urllib.request.urlopen(req, timeout=2.0)
+        assert exc.value.code == 400
+    finally:
+        server.shutdown()
 
 
 def test_healthz_reports_contract_and_llm_state(daemon):
@@ -308,6 +428,93 @@ def test_other_doc_routes_render(daemon):
         assert "<table>" in body or "<h2>" in body, (
             f"{path} body looks empty: {body[:200]}"
         )
+
+
+def test_research_workspace_page_served(daemon):
+    """`/research` is the unified workspace — must show all 4 pipeline
+    steps (ingest, review, compress, express) and link back to the home."""
+    base, *_ = daemon
+    with urllib.request.urlopen(base + "/research", timeout=2.0) as r:
+        body = r.read().decode("utf-8")
+        ct = r.headers.get("Content-Type", "")
+    assert "text/html" in ct
+    assert "Research workspace" in body
+    # Pipeline steps numbered 1..4
+    assert "1. Ingest" in body
+    assert "2. Review proposals" in body
+    assert "3. Compress" in body
+    assert "4. Express" in body
+    # The three ingest modes are visible
+    assert "Mode A · Folder of files" in body
+    assert "Mode B · Single URL" in body
+    assert "Mode C · Paste raw text" in body
+    # Workspace links to the deep-link surfaces and the home
+    assert 'href="/research/review"' in body
+    assert 'href="/research/living-knowledge"' in body
+    assert 'href="/"' in body  # back-to-dashboard breadcrumb
+
+
+def test_research_state_returns_defaults_for_empty_home(daemon):
+    """Daemon fixture's tmp_path has no research home — every counter
+    is 0 and llm_available reflects the test daemon's config (no key)."""
+    base, *_ = daemon
+    r = _get(base + "/research/state")
+    assert r["proposals_pending"] == 0
+    assert r["cards_accepted"] == 0
+    # llm_available is False in the test daemon (no api key, no --use-llm)
+    assert r["llm_available"] is False
+    assert isinstance(r.get("compressions", []), list)
+
+
+def test_research_ingest_dir_mode_with_a_markdown_file(daemon, tmp_path):
+    """End-to-end: drop a .md into a tempdir, POST /research/ingest with
+    mode=dir and no_llm=true, expect proposals_emitted >= 1 and the
+    heuristic extractor as the method (daemon has no LLM key)."""
+    src = tmp_path / "sources"
+    src.mkdir()
+    (src / "paper.md").write_text(
+        "---\ntitle: Test paper\n---\n\n"
+        "## Mechanism\n"
+        "Attention reweights tokens by query-key similarity.\n\n"
+        "## Invariant\n"
+        "Softmax produces a probability distribution.\n\n"
+        "## Prediction\n"
+        "Longer contexts will dilute attention.\n",
+        encoding="utf-8",
+    )
+    base, *_ = daemon
+    r = _post(base + "/research/ingest", {
+        "mode": "dir",
+        "source_dir": str(src),
+        "no_llm": True,
+    })
+    assert "error" not in r, r
+    assert r["sources_scanned"] >= 1
+    assert r["extraction_method"] == "fallback-heuristic"
+
+
+def test_research_ingest_dir_mode_rejects_missing_dir(daemon):
+    base, *_ = daemon
+    data = json.dumps({"mode": "dir", "source_dir": "/no/such/dir/exists"}).encode("utf-8")
+    req = urllib.request.Request(
+        base + "/research/ingest", data=data,
+        headers={"Content-Type": "application/json"}, method="POST",
+    )
+    with pytest.raises(urllib.error.HTTPError) as exc:
+        urllib.request.urlopen(req, timeout=2.0)
+    assert exc.value.code == 400
+
+
+def test_research_compress_returns_clear_message_when_no_cards(daemon):
+    """No accepted cards yet → /research/compress returns a soft error
+    in the body (not an HTTP error) telling the user to accept more."""
+    base, *_ = daemon
+    r = _post(base + "/research/compress", {})
+    # Either there's an explicit error string, or there happens to be
+    # enough seeded data — but in the test daemon's empty home the
+    # explicit-error branch must fire.
+    assert "error" in r, f"expected soft error in body, got: {r}"
+    assert "accept" in r["error"].lower() or "no accepted" in r["error"].lower()
 
 
 def test_review_chat_shell_served(daemon):

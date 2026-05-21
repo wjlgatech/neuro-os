@@ -31,7 +31,7 @@ import urllib.parse
 from datetime import date, datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from agent.founder_loop import (
     FounderLoop,
@@ -82,6 +82,7 @@ class _Config:
         use_llm: bool,
         api_key: Optional[str],
         queues_dir: Optional[Path] = None,
+        research_home: Optional[Path] = None,
     ) -> None:
         self.registry_path = registry_path
         self.contract_path = contract_path
@@ -89,6 +90,7 @@ class _Config:
         self.events_path = events_path
         self.use_llm = use_llm
         self.api_key = api_key
+        self.research_home = research_home  # None → default ~/.neuro_os_research
         # Queues live next to the registry by default. The conversation
         # manager mutates these JSON files during the queues flow.
         self.queues_dir = (
@@ -100,6 +102,9 @@ class _Config:
             api_key=api_key,
             queues_dir=self.queues_dir,
         )
+        # Tracks the pipeline run opened at ingest time so compress/express
+        # can attach to it without the client needing to pass a run_id.
+        self.current_pipeline_run_id: Optional[str] = None
 
     def make_loop(self) -> FounderLoop:
         return FounderLoop(
@@ -462,7 +467,8 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             amend_mode = False
             if kind == "morning":
                 existing = load_latest_contract(self.config.contract_path)
-                if existing is not None and existing.date == date.today().isoformat():
+                today_utc = datetime.now(timezone.utc).date().isoformat()
+                if existing is not None and existing.date == today_utc:
                     from agent.founder_loop.conversation import ContractSettings
                     seed_priorities = list(existing.priorities)
                     seed_settings = ContractSettings(
@@ -789,10 +795,9 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
 
     def _research_home(self) -> Optional[Path]:
         """Return the research home dir or None to use the default
-        ``~/.neuro_os_research``. The daemon doesn't currently take a
-        --research-home flag; that's a follow-up if the user wants to
-        run multiple research homes side-by-side."""
-        return None
+        ``~/.neuro_os_research``. Pass ``research_home`` to ``serve()``
+        to override (tests use this for isolation)."""
+        return self.config.research_home
 
     # ------------------------------------------------------------------
     # Research workspace — the unified ingest → review → compress → express
@@ -956,6 +961,23 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
                 llm_fn=llm_fn,
                 home=home,
             )
+            # Open a pipeline run and record the ingest stage so downstream
+            # compress/express calls can attach to the same run.
+            if home is not None:
+                from agent.research.run_registry import open_run, record_stage
+                label = f"run-{run.run_id}"
+                pipeline_run = open_run(home, label=label)
+                record_stage(
+                    home,
+                    pipeline_run.run_id,
+                    "ingest",
+                    artifact_id=run.run_id,
+                    item_count=run.proposals_emitted,
+                )
+                self.config.current_pipeline_run_id = pipeline_run.run_id
+            else:
+                pipeline_run = None
+
             # Pull read-failure + llm-failure lists from module attrs.
             from agent.research.ingest import (
                 load_sources as _load,
@@ -965,6 +987,7 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             llm_errors = getattr(_ext, "last_llm_errors", []) or []
             self._send_json(200, {
                 "run_id": run.run_id,
+                "pipeline_run_id": pipeline_run.run_id if pipeline_run else None,
                 "sources_scanned": run.sources_scanned,
                 "sources_skipped_unchanged": run.sources_skipped_unchanged,
                 "sources_failed_to_read": [
@@ -1035,7 +1058,7 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
 
         api_key = self.config.api_key
 
-        def call(system_prompt: str, user_message: str) -> List[Dict[str, Any]]:
+        def _call(system_prompt: str, user_message: str) -> List[Dict[str, Any]]:
             import anthropic
             client = anthropic.Anthropic(api_key=api_key)
             resp = client.messages.create(
@@ -1074,7 +1097,7 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
                 return [parsed]
             return []
 
-        return call
+        return _call
 
     def _build_openai_extractor(self):
         """Return an llm_fn using OpenAI gpt-4o-mini via OPENAI_API_KEY."""
@@ -1083,7 +1106,7 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
 
         api_key = _os.environ.get("OPENAI_API_KEY")
 
-        def call(system_prompt: str, user_message: str) -> List[Dict[str, Any]]:
+        def _call(system_prompt: str, user_message: str) -> List[Dict[str, Any]]:
             import openai
             client = openai.OpenAI(api_key=api_key)
             resp = client.chat.completions.create(
@@ -1112,12 +1135,12 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
                 if isinstance(obj, dict):
                     for v in obj.values():
                         if isinstance(v, list):
-                            return [r for r in v if isinstance(r, dict)]
+                            return [r for r in v if isinstance(v, dict)]
             except _json.JSONDecodeError:
                 pass
             return []
 
-        return call
+        return _call
 
     def _research_compress(self) -> None:
         """POST /research/compress — run synthesis (if needed) then
@@ -1162,8 +1185,25 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
         compression = compress_from_synthesis(run, max_level_0=max_level_0)
         write_compression(compression, home=home)
 
+        # Attach to the current pipeline run if one is open.
+        pipeline_run_id = self.config.current_pipeline_run_id
+        if pipeline_run_id and home is not None:
+            from agent.research.run_registry import record_stage
+            record_stage(
+                home,
+                pipeline_run_id,
+                "compress",
+                artifact_id=compression.compression_id,
+                item_count=(
+                    len(compression.level_0_nodes)
+                    + len(compression.level_1_nodes)
+                    + len(compression.level_2_nodes)
+                ),
+            )
+
         self._send_json(200, {
             "compression_id": compression.compression_id,
+            "pipeline_run_id": pipeline_run_id,
             "l0_count": len(compression.level_0_nodes),
             "l1_count": len(compression.level_1_nodes),
             "cards_total": len(compression.level_2_nodes),
@@ -1773,11 +1813,14 @@ def serve(
     api_key: Optional[str] = None,
     tick_interval_min: int = 0,
     block: bool = True,
+    research_home: Optional[Path] = None,
 ) -> ThreadingHTTPServer:
     """Start the daemon. Returns the server (already listening).
 
     ``tick_interval_min``: if > 0, daemon runs ``loop.tick()`` every N
     minutes in a background thread. v0 default is 0 (cron-driven).
+    ``research_home``: override the research vertical's data dir (useful
+    for tests that need an isolated, empty research home).
     """
     if host not in {"127.0.0.1", "localhost", "::1"}:
         raise ValueError(
@@ -1792,6 +1835,7 @@ def serve(
         events_path=Path(events_path),
         use_llm=use_llm,
         api_key=api_key or os.environ.get("ANTHROPIC_API_KEY"),
+        research_home=research_home,
     )
     FounderLoopHandler.config = cfg
     server = ThreadingHTTPServer((host, port), FounderLoopHandler)

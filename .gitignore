@@ -1,3 +1,24 @@
+# ===========================================================================
+# GENERATED DATA — never commit these
+# All experimental/runtime data lives in ~/.neuro_os_*/ outside the repo.
+# These patterns are belt-and-suspenders: they catch output that accidentally
+# lands inside the working tree (graphify skill output, CLI scratch runs, etc.)
+# Rule: if it's not code / schema / test / docs — it belongs in ~/.neuro_os_*/
+# ===========================================================================
+graphify-out/
+agent/graphify-out/
+ralph/
+research_practice/
+runs/
+data/
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+.understand-anything/
+claude_plugin/
+# ===========================================================================
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
