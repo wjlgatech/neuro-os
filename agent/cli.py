@@ -269,6 +269,63 @@ def _cmd_autostart_status(args: argparse.Namespace) -> int:
     return 0 if ok else 1
 
 
+def _cmd_loop_evidence(args: argparse.Namespace) -> int:
+    """Mark a priority as evidenced and persist the updated contract.
+
+    The tank reads from the latest contract row, so appending a new row
+    with the priority's status flipped to ``evidenced`` is enough for the
+    next /tank poll to credit its weight.
+    """
+    from agent.founder_loop.contract import load_latest_contract, save_contract
+    from agent.founder_loop.priorities import mark_evidenced
+
+    contract = load_latest_contract(args.contracts)
+    if contract is None:
+        print(f"error: no contract found at {args.contracts}", file=sys.stderr)
+        return 2
+
+    needle = args.title.lower()
+    matches = [p for p in contract.priorities if needle in p.title.lower()]
+    if not matches:
+        titles = ", ".join(repr(p.title) for p in contract.priorities)
+        print(
+            f"error: no priority matches {args.title!r}. "
+            f"Candidates: {titles}",
+            file=sys.stderr,
+        )
+        return 2
+    if len(matches) > 1:
+        titles = ", ".join(repr(p.title) for p in matches)
+        print(
+            f"error: ambiguous title {args.title!r}. Matches: {titles}",
+            file=sys.stderr,
+        )
+        return 2
+
+    target = matches[0]
+    if target.status == "evidenced":
+        print(f"already evidenced: {target.title}")
+        return 0
+
+    try:
+        updated = mark_evidenced(target, args.proof)
+    except ValueError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 2
+
+    new_priorities = [
+        updated if p.title == target.title else p for p in contract.priorities
+    ]
+    new_contract = contract.model_copy(update={"priorities": new_priorities})
+    save_contract(new_contract, args.contracts)
+
+    print(f"evidenced: {target.title}")
+    print(f"  proof:   {args.proof}")
+    print(f"  weight:  {target.weight}")
+    print("  (tank will credit this on the next tick / /tank poll)")
+    return 0
+
+
 def _cmd_loop_serve(args: argparse.Namespace) -> int:
     import logging
     import threading
@@ -501,6 +558,26 @@ def build_parser() -> argparse.ArgumentParser:
         help="founder_loop home dir (default: ~/.founder_loop/)",
     )
     loop_anchor.set_defaults(func=_cmd_loop_anchor)
+
+    # loop evidence — manually mark a priority as evidenced (the tank
+    # then credits its weight on the next tick).
+    loop_evidence = loop_sub.add_parser(
+        "evidence",
+        help="mark a priority as evidenced (manual; auto-evidence handles PR/commit cases automatically)",
+    )
+    loop_evidence.add_argument(
+        "title",
+        help="priority title (case-insensitive substring; must uniquely match)",
+    )
+    loop_evidence.add_argument(
+        "--proof", required=True,
+        help="evidence proof (e.g. '#142', commit sha, URL — must match the priority's evidence_type)",
+    )
+    loop_evidence.add_argument(
+        "--contracts", required=True,
+        help="JSONL contract store path",
+    )
+    loop_evidence.set_defaults(func=_cmd_loop_evidence)
 
     loop_serve = loop_sub.add_parser(
         "serve",
