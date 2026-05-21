@@ -402,6 +402,8 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             self._research_ingest()
         elif path == "/research/compress":
             self._research_compress()
+        elif path == "/priority/evidence":
+            self._priority_evidence()
         else:
             self._send_json(404, {"error": f"unknown route: {path}"})
 
@@ -609,6 +611,80 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
         self._send_json(201, {
             "kind": kind,
             "contract": json.loads(contract.model_dump_json()),
+        })
+
+    # ------------------------------------------------------------------
+    # Priority evidence — manual flip, mirrors `neuro-os loop evidence`.
+    # ------------------------------------------------------------------
+
+    def _priority_evidence(self) -> None:
+        """POST /priority/evidence — mark a priority as evidenced.
+
+        Body: {"title": "<unique-substring>", "proof": "<proof-string>"}
+
+        Returns the updated priority on success, or {"error": "..."} with
+        a 400 / 404 on bad input. The CLI handler at
+        ``_cmd_loop_evidence`` performs the same flow.
+        """
+        from agent.founder_loop.contract import save_contract
+        from agent.founder_loop.priorities import mark_evidenced
+
+        body = self._read_json_body()
+        title = (body.get("title") or "").strip()
+        proof = (body.get("proof") or "").strip()
+        if not title or not proof:
+            self._send_json(400, {
+                "error": "both 'title' and 'proof' are required",
+            })
+            return
+
+        contract = load_latest_contract(self.config.contract_path)
+        if contract is None:
+            self._send_json(404, {"error": "no contract bound for today"})
+            return
+
+        needle = title.lower()
+        matches = [p for p in contract.priorities if needle in p.title.lower()]
+        if not matches:
+            self._send_json(404, {
+                "error": f"no priority matches {title!r}",
+                "candidates": [p.title for p in contract.priorities],
+            })
+            return
+        if len(matches) > 1:
+            self._send_json(400, {
+                "error": f"ambiguous title {title!r}",
+                "matches": [p.title for p in matches],
+            })
+            return
+
+        target = matches[0]
+        if target.status == "evidenced":
+            self._send_json(200, {
+                "ok": True,
+                "already": True,
+                "priority": json.loads(target.model_dump_json()),
+            })
+            return
+
+        try:
+            updated = mark_evidenced(target, proof)
+        except ValueError as e:
+            self._send_json(400, {"error": str(e)})
+            return
+
+        new_priorities = [
+            updated if p.title == target.title else p
+            for p in contract.priorities
+        ]
+        new_contract = contract.model_copy(
+            update={"priorities": new_priorities}
+        )
+        save_contract(new_contract, self.config.contract_path)
+        self._send_json(200, {
+            "ok": True,
+            "already": False,
+            "priority": json.loads(updated.model_dump_json()),
         })
 
     # ------------------------------------------------------------------

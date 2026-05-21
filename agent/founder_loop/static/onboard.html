@@ -172,6 +172,54 @@
     .priority-weight.w3 { color: var(--red); border-color: var(--red); }
     .priority-weight.w2 { color: var(--amber); border-color: var(--amber); }
     .priority-weight.w1 { color: var(--text-dim); }
+
+    /* Status — evidenced priorities get a green left rail, checkmark,
+       and strikethrough title. The CLI flips this; the UI now mirrors it. */
+    .priority-card.is-evidenced {
+      border-left: 3px solid var(--green-line);
+      background: rgba(46, 160, 67, 0.06);
+    }
+    .priority-card.is-evidenced .priority-title {
+      text-decoration: line-through;
+      color: var(--text-dim);
+    }
+    .priority-card.is-evidenced .priority-check {
+      display: inline-block; color: var(--green); margin-right: 4px;
+      font-weight: 600;
+    }
+    .priority-check { display: none; }
+    .priority-evidence-row {
+      display: flex; align-items: center; gap: 6px;
+      margin-top: 6px; font-size: 11px;
+    }
+    .priority-mark-btn {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--text-dim); border-radius: 6px;
+      padding: 2px 8px; font-size: 11px; cursor: pointer;
+      transition: border-color 120ms ease, color 120ms ease;
+    }
+    .priority-mark-btn:hover {
+      border-color: var(--green-line); color: var(--green);
+    }
+    .priority-proof-input {
+      flex: 1; background: var(--bg); border: 1px solid var(--border);
+      color: var(--text); border-radius: 6px;
+      padding: 3px 8px; font-size: 11px; font-family: inherit;
+      min-width: 0;
+    }
+    .priority-proof-input:focus {
+      outline: none; border-color: var(--accent);
+    }
+    .priority-proof-hint {
+      font-size: 10px; color: var(--text-faint); margin-top: 2px;
+    }
+    .priority-proof-err {
+      font-size: 10px; color: var(--red); margin-top: 2px;
+    }
+    .priority-evidence-meta {
+      font-size: 10px; color: var(--green); margin-top: 4px;
+    }
+
     .priorities-empty {
       font-size: 12px; color: var(--text-faint);
       padding: 14px 12px; border: 1px dashed var(--border);
@@ -626,7 +674,22 @@ neuro-os start --use-llm</code></pre>
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
 
+  // Hints per evidence_type — what shape of proof to provide.
+  // Mirrors the regex shapes in agent/founder_loop/priorities.py.
+  const PROOF_HINTS = {
+    pr_merged:        "PR ref — '#142' or full GitHub URL",
+    pr_opened:        "PR ref — '#142' or full GitHub URL",
+    commit_pushed:    "commit SHA (7+ hex chars) or 'N_commits'",
+    doc_published:    "URL or path ending .md/.html, or 'published'",
+    count_reached:    "a number — e.g. '5' or '120_pages'",
+    human_signoff:    "@handle, 'signoff: @alice', or 'approved: lead-eng'",
+    artifact_uploaded: "URL (http/s3/gs) or path ending .zip/.tar",
+  };
+
   function renderPriorities(items) {
+    // Cache the most recent render so cancel/escape can restore it without
+    // a server round-trip.
+    window.__lastPriorities = items || [];
     if (!items || !items.length) {
       prioritiesEl.innerHTML =
         '<li class="priorities-empty">Priorities you commit to will appear here as we discuss them.</li>';
@@ -636,20 +699,132 @@ neuro-os start --use-llm</code></pre>
     items.forEach((p) => {
       const li = document.createElement("li");
       li.className = "priority-card";
-      const title = document.createElement("div");
-      title.className = "priority-title";
+      if (p.status === "evidenced") li.classList.add("is-evidenced");
+      li.dataset.title = p.title;
+
+      const titleEl = document.createElement("div");
+      titleEl.className = "priority-title";
+
+      const check = document.createElement("span");
+      check.className = "priority-check";
+      check.textContent = "✓";
+      titleEl.appendChild(check);
+
       const w = document.createElement("span");
       w.className = "priority-weight w" + p.weight;
       w.textContent = "P" + p.weight;
-      title.appendChild(w);
-      title.appendChild(document.createTextNode(p.title));
+      titleEl.appendChild(w);
+      titleEl.appendChild(document.createTextNode(p.title));
+
       const meta = document.createElement("div");
       meta.className = "priority-meta";
       meta.textContent = p.evidence_type.replaceAll("_", " ") + " · " + p.evidence_target;
-      li.appendChild(title);
+
+      li.appendChild(titleEl);
       li.appendChild(meta);
+
+      if (p.status === "evidenced") {
+        // Show the proof inline so the user can see WHAT closed it.
+        const ev = document.createElement("div");
+        ev.className = "priority-evidence-meta";
+        ev.textContent = "✓ evidenced · " + (p.evidence_proof || "(no proof)");
+        li.appendChild(ev);
+      } else {
+        // Show "Mark done" affordance — closes the CLI/UI gap.
+        const row = document.createElement("div");
+        row.className = "priority-evidence-row";
+        const btn = document.createElement("button");
+        btn.className = "priority-mark-btn";
+        btn.type = "button";
+        btn.textContent = "✓ Mark done";
+        btn.addEventListener("click", () => _showProofInput(li, p));
+        row.appendChild(btn);
+        li.appendChild(row);
+      }
+
       prioritiesEl.appendChild(li);
     });
+  }
+
+  function _showProofInput(li, p) {
+    const row = li.querySelector(".priority-evidence-row");
+    if (!row || row.dataset.editing === "true") return;
+    row.dataset.editing = "true";
+    row.innerHTML = "";
+
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = "priority-proof-input";
+    input.placeholder = "Proof…";
+    row.appendChild(input);
+
+    const submit = document.createElement("button");
+    submit.className = "priority-mark-btn";
+    submit.type = "button";
+    submit.textContent = "✓";
+    row.appendChild(submit);
+
+    const cancel = document.createElement("button");
+    cancel.className = "priority-mark-btn";
+    cancel.type = "button";
+    cancel.textContent = "✕";
+    row.appendChild(cancel);
+
+    const hint = document.createElement("div");
+    hint.className = "priority-proof-hint";
+    hint.textContent = PROOF_HINTS[p.evidence_type] || "any string";
+    row.parentNode.insertBefore(hint, row.nextSibling);
+
+    const cleanup = () => { row.dataset.editing = "false"; hint.remove(); };
+    const onSubmit = () => _submitProof(li, p, input.value, hint);
+    submit.addEventListener("click", onSubmit);
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") onSubmit();
+      else if (e.key === "Escape") { cleanup(); renderPriorities(window.__lastPriorities || []); }
+    });
+    cancel.addEventListener("click", () => {
+      cleanup();
+      renderPriorities(window.__lastPriorities || []);
+    });
+
+    input.focus();
+  }
+
+  async function _submitProof(li, p, proof, hintEl) {
+    proof = (proof || "").trim();
+    if (!proof) {
+      hintEl.className = "priority-proof-err";
+      hintEl.textContent = "Proof is required.";
+      return;
+    }
+    try {
+      const r = await fetch("/priority/evidence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: p.title, proof }),
+      });
+      const data = await r.json();
+      if (!r.ok || data.error) {
+        hintEl.className = "priority-proof-err";
+        hintEl.textContent = data.error || ("HTTP " + r.status);
+        return;
+      }
+      // Success: re-fetch /today so both the tank AND the priorities re-render
+      // from server truth.
+      if (typeof refreshToday === "function") {
+        refreshToday();
+      } else {
+        // Fallback: optimistic local update.
+        const updated = (window.__lastPriorities || []).map((x) =>
+          x.title === p.title ? data.priority : x
+        );
+        window.__lastPriorities = updated;
+        renderPriorities(updated);
+      }
+    } catch (e) {
+      hintEl.className = "priority-proof-err";
+      hintEl.textContent = "network error: " + (e && e.message ? e.message : e);
+    }
   }
 
   // ----- Tank progress bar -----
@@ -700,6 +875,35 @@ neuro-os start --use-llm</code></pre>
     if (tankPollHandle !== null) return;
     refreshTank();
     tankPollHandle = setInterval(refreshTank, 15000);
+  }
+
+  // Refresh both priorities AND tank from /today. Called after a successful
+  // mark-evidenced flip so the UI matches server truth atomically.
+  async function refreshToday() {
+    try {
+      const r = await fetch("/today");
+      const j = await r.json();
+      if (j && j.contract && Array.isArray(j.contract.priorities)) {
+        renderPriorities(j.contract.priorities);
+      }
+      // /today returns the same tank shape /tank does — reuse the renderer.
+      if (j && j.tank) {
+        const t = j.tank;
+        tankSectionEl.classList.remove("fl-hidden");
+        const pct = Math.max(0, Math.min(100, t.percent || 0));
+        const threshold = t.threshold || 90;
+        tankFillEl.style.width = pct + "%";
+        tankThresholdEl.style.left = threshold + "%";
+        tankFillEl.classList.remove("over", "way-over");
+        if (pct >= threshold + 15) tankFillEl.classList.add("way-over");
+        else if (pct >= threshold) tankFillEl.classList.add("over");
+        tankPctEl.textContent = pct.toFixed(0) + "% / " + threshold + "%";
+        tankStatusEl.textContent = _statusLabel(t.status);
+        tankRationEl.textContent = "ration: " + (t.ration_remaining_min ?? 0) + " min";
+      }
+    } catch (e) {
+      // Silent fail — next 15s poll will retry.
+    }
   }
 
   async function checkHealth() {
