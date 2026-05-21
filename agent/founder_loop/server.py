@@ -290,6 +290,8 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             self._serve_invest_dashboard_page()
         elif path == "/invest/dashboard/data":
             self._invest_dashboard_data(query)
+        elif path == "/fs/browse":
+            self._fs_browse(query)
         elif path in _DOC_ROUTES:
             md_name, title = _DOC_ROUTES[path]
             self._serve_doc(md_name, title)
@@ -612,6 +614,82 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
         })
 
     # ------------------------------------------------------------------
+    # Filesystem browser — backs the /research "Browse folders…" picker.
+    # Daemon binds to loopback only, so listing the user's filesystem
+    # over HTTP is acceptable. We still refuse non-readable, non-existent,
+    # and non-directory paths, and we cap entries at 500 per call.
+    # ------------------------------------------------------------------
+
+    _FS_BROWSE_ENTRY_CAP = 500
+
+    def _fs_browse(self, query: Dict[str, str]) -> None:
+        """GET /fs/browse?path=<abs>&show_hidden=<0|1>
+
+        Returns ``{path, parent, entries: [{name, is_dir, is_readable}]}``.
+        Defaults ``path`` to ``$HOME``. Refuses non-absolute paths.
+        Always returns ``parent: null`` at the filesystem root.
+        """
+        raw = (query.get("path") or "").strip()
+        show_hidden = query.get("show_hidden", "0") == "1"
+
+        if not raw:
+            target = Path.home()
+        else:
+            target = Path(raw)
+            if not target.is_absolute():
+                self._send_json(400, {
+                    "error": "path must be absolute (e.g. /Users/you/...)",
+                })
+                return
+
+        try:
+            target = target.resolve(strict=True)
+        except (FileNotFoundError, OSError):
+            self._send_json(404, {"error": f"path not found: {raw or target}"})
+            return
+
+        if not target.is_dir():
+            self._send_json(400, {"error": f"not a directory: {target}"})
+            return
+        if not os.access(target, os.R_OK):
+            self._send_json(403, {"error": f"not readable: {target}"})
+            return
+
+        entries: List[Dict[str, Any]] = []
+        try:
+            children = sorted(
+                target.iterdir(),
+                key=lambda p: (not p.is_dir(), p.name.lower()),
+            )
+        except PermissionError:
+            self._send_json(403, {"error": f"permission denied: {target}"})
+            return
+
+        for child in children:
+            if not show_hidden and child.name.startswith("."):
+                continue
+            try:
+                is_dir = child.is_dir()
+            except OSError:
+                continue  # broken symlink, ignore
+            entries.append({
+                "name": child.name,
+                "is_dir": is_dir,
+                "is_readable": os.access(child, os.R_OK),
+            })
+            if len(entries) >= self._FS_BROWSE_ENTRY_CAP:
+                break
+
+        parent = str(target.parent) if target.parent != target else None
+        self._send_json(200, {
+            "path": str(target),
+            "parent": parent,
+            "entries": entries,
+            "truncated": len(entries) >= self._FS_BROWSE_ENTRY_CAP,
+            "show_hidden": show_hidden,
+        })
+
+    # ------------------------------------------------------------------
     # Static file serving (for /onboard)
     # ------------------------------------------------------------------
 
@@ -681,9 +759,10 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
     def _dashboard_research_block(self) -> Dict[str, Any]:
         """Research headline: pending proposals count + active thesis.
 
-        Reads from ``~/.neuro_os_research/proposals/pending/*.json`` and
-        the research contract; both are optional."""
-        home = Path.home() / ".neuro_os_research"
+        Reads from ``<research_home>/proposals/pending/*.json`` and
+        the research contract; both are optional. Respects the
+        ``research_home`` override on ``_Config`` (for test isolation)."""
+        home = self.config.research_home or (Path.home() / ".neuro_os_research")
         pending = 0
         try:
             pdir = home / "proposals" / "pending"
