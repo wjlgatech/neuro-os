@@ -450,6 +450,10 @@ class IngestionRun(BaseModel):
     sources_scanned: int = Field(ge=0)
     sources_skipped_unchanged: int = Field(ge=0)
     proposals_emitted: int = Field(ge=0)
+    # Count of proposals the LLM produced that we DID NOT write because an
+    # existing pending/accepted proposal already had the same mechanism+
+    # invariant hash. Defaults to 0 for backwards-compat with older log rows.
+    proposals_skipped_duplicate: int = Field(default=0, ge=0)
     extraction_method: EXTRACTION_METHOD
     cost_usd_estimate: float = Field(ge=0.0)
 
