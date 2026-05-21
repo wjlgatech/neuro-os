@@ -913,6 +913,12 @@ def _add_research_ingest_subcommands(top_sub: "argparse._SubParsersAction") -> N
              "Fast + free + offline; produces low-confidence proposals.",
     )
     ing.add_argument(
+        "--provider", default="anthropic", choices=["anthropic", "openai"],
+        help="(local extractor) LLM provider. 'anthropic' uses ANTHROPIC_API_KEY "
+             "(claude-haiku-4-5); 'openai' uses OPENAI_API_KEY (gpt-4o-mini). "
+             "Ignored when --no-llm is set.",
+    )
+    ing.add_argument(
         "--home", default=None,
         help="vertical home dir (default: ~/.neuro_os_research/)",
     )
@@ -1255,7 +1261,11 @@ def _research_ingest_local(args: argparse.Namespace, home: Optional[Path]) -> in
 
     llm_fn = None
     if not args.no_llm:
-        llm_fn = _make_anthropic_llm_fn()
+        provider = getattr(args, "provider", "anthropic")
+        if provider == "openai":
+            llm_fn = _make_openai_llm_fn()
+        else:
+            llm_fn = _make_anthropic_llm_fn()
 
     run = local_ingest(source_dir=source_dir, llm_fn=llm_fn, home=home)
     append_run_log(run, home=home)
@@ -1298,6 +1308,61 @@ def _make_anthropic_llm_fn():
         start = body.find("[")
         end = body.rfind("]")
         if start == -1 or end == -1 or end <= start:
+            return []
+        try:
+            parsed = json.loads(body[start:end + 1])
+        except json.JSONDecodeError:
+            return []
+        if not isinstance(parsed, list):
+            return []
+        return [r for r in parsed if isinstance(r, dict)]
+
+    return llm_fn
+
+
+def _make_openai_llm_fn():
+    """Build an LLM callable wired to OpenAI gpt-4o-mini, OR None if no key.
+
+    Mirrors _make_anthropic_llm_fn — same return contract: None falls back
+    to the regex heuristic. Use with --provider openai.
+    """
+    import os
+
+    if not os.environ.get("OPENAI_API_KEY"):
+        return None
+    try:
+        import openai  # type: ignore
+    except ImportError:
+        return None
+
+    client = openai.OpenAI()
+
+    def llm_fn(system_prompt: str, user_text: str) -> List[dict]:
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            max_tokens=4000,
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_text},
+            ],
+        )
+        body = resp.choices[0].message.content or ""
+        # The system prompt asks for a JSON array; gpt-4o-mini with
+        # json_object mode may wrap it in {"proposals": [...]} — unwrap.
+        start = body.find("[")
+        end = body.rfind("]")
+        if start == -1 or end == -1 or end <= start:
+            # Try unwrapping a top-level object whose first list value is
+            # the proposals array.
+            try:
+                obj = json.loads(body)
+                if isinstance(obj, dict):
+                    for v in obj.values():
+                        if isinstance(v, list):
+                            return [r for r in v if isinstance(r, dict)]
+            except json.JSONDecodeError:
+                pass
             return []
         try:
             parsed = json.loads(body[start:end + 1])

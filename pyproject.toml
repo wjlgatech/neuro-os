@@ -51,6 +51,7 @@ tray = [
 ]
 llm = [
     "anthropic>=0.40",
+    "openai>=1.0",
 ]
 mcp = [
     "mcp>=1.0",

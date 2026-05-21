@@ -1,0 +1,399 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>neuro-os · dashboard</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --panel-2: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-dim: #8b949e;
+      --text-faint: #6e7681;
+      --accent: #58a6ff;
+      --green: #56d364;
+      --green-line: #2ea043;
+      --amber: #d29922;
+      --red: #f85149;
+      --purple: #bc8cff;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; min-height: 100%;
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    }
+
+    .page {
+      max-width: 1100px; margin: 0 auto;
+      padding: 40px 28px 60px 28px;
+    }
+
+    header.top {
+      display: flex; align-items: baseline; justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    header.top h1 {
+      margin: 0; font-size: 22px; font-weight: 500; letter-spacing: -0.2px;
+    }
+    header.top .sub {
+      font-size: 12px; color: var(--text-dim);
+      display: flex; gap: 10px; align-items: center;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); display: inline-block; }
+    .dot.dim { background: var(--amber); }
+    .dot.bad { background: var(--red); }
+
+    .hint {
+      font-size: 12px; color: var(--text-dim);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin: 16px 0 24px 0;
+      line-height: 1.55;
+    }
+    .hint b { color: var(--text); font-weight: 600; }
+    .hint code {
+      background: var(--panel-2);
+      padding: 1px 6px;
+      border-radius: 4px;
+      color: var(--accent);
+      font-size: 11px;
+    }
+
+    .tiles {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 760px) {
+      .tiles { grid-template-columns: 1fr; }
+    }
+
+    .tile {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 18px 16px 18px;
+      transition: border-color 160ms;
+      display: flex; flex-direction: column;
+    }
+    .tile:hover { border-color: var(--text-faint); }
+    .tile h2 {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.6px;
+      color: var(--text-dim); text-transform: uppercase;
+      margin: 0 0 6px 0;
+    }
+    .tile .lead {
+      font-size: 13px; color: var(--text-dim);
+      margin: 0 0 14px 0; line-height: 1.5;
+    }
+    .tile .big {
+      font-size: 30px; font-weight: 600;
+      letter-spacing: -0.5px;
+      margin-bottom: 4px;
+    }
+    .tile .big small {
+      font-size: 14px; color: var(--text-dim);
+      font-weight: 400; margin-left: 4px;
+    }
+    .tile .meta {
+      font-size: 11px; color: var(--text-faint);
+      margin-bottom: 14px;
+    }
+
+    /* Inline progress bar inside the loop tile */
+    .mini-bar {
+      position: relative;
+      height: 8px; border-radius: 4px;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      margin: 8px 0 14px 0;
+    }
+    .mini-bar .fill {
+      height: 100%;
+      background: var(--amber);
+      transition: width 320ms ease-out, background 320ms ease-out;
+      border-radius: 3px 0 0 3px;
+    }
+    .mini-bar .fill.over { background: var(--green); }
+    .mini-bar .fill.way-over { background: var(--accent); }
+    .mini-bar .mark {
+      position: absolute; top: -2px; bottom: -2px;
+      width: 2px; background: var(--text); opacity: 0.55;
+    }
+
+    .actions {
+      display: flex; gap: 8px; margin-top: auto;
+      flex-wrap: wrap;
+    }
+    .btn {
+      flex: 1; min-width: 110px;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 8px;
+      font: inherit; font-size: 12px;
+      cursor: pointer; text-decoration: none;
+      text-align: center;
+      transition: background 120ms, border-color 120ms;
+    }
+    .btn:hover { background: var(--panel-2); border-color: var(--text-faint); }
+    .btn.primary {
+      border-color: var(--green-line); color: var(--green);
+    }
+    .btn.primary:hover { background: rgba(46, 160, 67, 0.10); }
+    .btn.muted { color: var(--text-faint); }
+
+    .tile .next {
+      margin-top: 10px; font-size: 11px; color: var(--accent);
+      border-top: 1px dashed var(--border);
+      padding-top: 10px;
+    }
+    .tile .next::before {
+      content: "→ ";
+      color: var(--text-faint);
+    }
+
+    /* Tile accent stripes (left bar) by vertical */
+    .tile.loop     { border-left: 3px solid var(--green); }
+    .tile.research { border-left: 3px solid var(--accent); }
+    .tile.invest   { border-left: 3px solid var(--amber); }
+    .tile.startup  { border-left: 3px solid var(--purple); }
+
+    /* Footer with global tools */
+    footer.tools {
+      margin-top: 28px;
+      font-size: 11px; color: var(--text-faint);
+      display: flex; gap: 16px; flex-wrap: wrap;
+    }
+    footer.tools a {
+      color: var(--text-dim); text-decoration: none;
+      padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px;
+    }
+    footer.tools a:hover { color: var(--text); border-color: var(--text-faint); }
+    .topnav { display: flex; align-items: center; gap: 0; background: var(--panel); border-bottom: 1px solid var(--border); padding: 0 16px; height: 40px; font-size: 12px; }
+    .topnav .brand { font-weight: 600; color: var(--text); text-decoration: none; padding-right: 12px; margin-right: 4px; border-right: 1px solid var(--border); }
+    .topnav a.nav-link { color: var(--text-dim); text-decoration: none; padding: 0 10px; height: 40px; display: flex; align-items: center; border-bottom: 2px solid transparent; white-space: nowrap; }
+    .topnav a.nav-link:hover { color: var(--text); }
+    .topnav a.nav-link.active { color: var(--text); border-bottom-color: var(--accent); }
+    .topnav .spacer { flex: 1; }
+    .topnav .next-btn { background: var(--accent); color: #fff; text-decoration: none; padding: 5px 12px; border-radius: 5px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+    .topnav .next-btn:hover { background: #79b8ff; color: #fff; }
+  </style>
+</head>
+<body>
+  <nav class="topnav">
+    <a class="brand" href="/">neuro-os</a>
+    <a class="nav-link active" href="/">Dashboard</a>
+    <a class="nav-link" href="/onboard">Morning ritual</a>
+    <a class="nav-link" href="/review">Review</a>
+    <a class="nav-link" href="/research">Research</a>
+    <a class="nav-link" href="/research/living-knowledge">Living knowledge</a>
+    <a class="nav-link" href="/invest/dashboard">Invest</a>
+    <span class="spacer"></span>
+    <a class="next-btn" href="/onboard">Next: Morning ritual →</a>
+  </nav>
+  <div class="page">
+    <header class="top">
+      <h1>neuro-os</h1>
+      <div class="sub">
+        <span class="dot" id="daemon-dot"></span>
+        <span id="daemon-text">checking daemon…</span>
+      </div>
+    </header>
+
+    <div class="hint" id="next-step">
+      Loading…
+    </div>
+
+    <div class="tiles">
+
+      <!-- LOOP TILE -->
+      <article class="tile loop">
+        <h2>Loop · daily contract</h2>
+        <p class="lead">Yesterday-you signs. Today-you honors. Tank fills as you ship.</p>
+        <div class="big" id="loop-pct">—<small id="loop-thr"></small></div>
+        <div class="mini-bar">
+          <div class="fill" id="loop-fill" style="width:0%"></div>
+          <div class="mark" id="loop-mark" style="left:90%"></div>
+        </div>
+        <div class="meta" id="loop-meta">no contract bound</div>
+        <div class="actions">
+          <a class="btn primary" href="/onboard">Morning ritual</a>
+          <a class="btn" href="/review">Review</a>
+        </div>
+        <div class="next" id="loop-next"></div>
+      </article>
+
+      <!-- RESEARCH TILE -->
+      <article class="tile research">
+        <h2>Research · living knowledge</h2>
+        <p class="lead">Turn paper-collecting into recursive world-model refinement.</p>
+        <div class="big" id="research-count">—<small> proposals</small></div>
+        <div class="meta" id="research-meta">no thesis bound</div>
+        <div class="actions">
+          <a class="btn primary" href="/research">Workspace</a>
+          <a class="btn" href="/research/review">Review queue</a>
+          <a class="btn" href="/research/living-knowledge">Living knowledge</a>
+        </div>
+        <div class="next" id="research-next"></div>
+      </article>
+
+      <!-- INVEST TILE -->
+      <article class="tile invest">
+        <h2>Invest · epistemic calibration</h2>
+        <p class="lead">Advisory only. Track calibration, not positions. No trade execution.</p>
+        <div class="big" id="invest-count">—<small> open</small></div>
+        <div class="meta" id="invest-meta">cost-of-living: not set</div>
+        <div class="actions">
+          <a class="btn primary" href="/invest/dashboard">Dashboard</a>
+          <a class="btn muted" href="/about">Read the rules</a>
+        </div>
+        <div class="next" id="invest-next"></div>
+      </article>
+
+      <!-- STARTUP TILE -->
+      <article class="tile startup">
+        <h2>Startup · OEC convergence</h2>
+        <p class="lead">One hypothesis at a time. Evidence forces pivots, not vibes.</p>
+        <div class="big" id="startup-count">—<small> ticks today</small></div>
+        <div class="meta" id="startup-meta">no hypothesis bound</div>
+        <div class="actions">
+          <a class="btn primary muted" href="#" id="startup-cta">Tick (CLI)</a>
+          <a class="btn muted" href="/about">Read the rules</a>
+        </div>
+        <div class="next" id="startup-next"></div>
+      </article>
+
+    </div>
+
+    <footer class="tools">
+      <a href="/about">About</a>
+      <a href="/how-to-use">How to use it</a>
+      <a href="/how-it-works">How it works</a>
+      <a href="/roadmap">Roadmap</a>
+      <a href="/queues">Queues</a>
+    </footer>
+  </div>
+
+  <script>
+  async function refresh() {
+    let health, summary;
+    try {
+      health  = await fetch("/healthz").then(r => r.json());
+      summary = await fetch("/dashboard/data").then(r => r.json());
+    } catch (err) {
+      document.getElementById("daemon-dot").className = "dot bad";
+      document.getElementById("daemon-text").textContent = "daemon unreachable";
+      document.getElementById("next-step").innerHTML =
+        "<b>Daemon offline.</b> Start it in a terminal: <code>neuro-os start --use-llm</code>";
+      return;
+    }
+    renderHeader(health);
+    renderLoop(summary.loop);
+    renderResearch(summary.research);
+    renderInvest(summary.invest);
+    renderStartup(summary.startup);
+    renderNextStep(summary);
+  }
+
+  function renderHeader(h) {
+    const dot = document.getElementById("daemon-dot");
+    const txt = document.getElementById("daemon-text");
+    if (!h.use_llm) {
+      dot.className = "dot dim";
+      txt.textContent = h.has_api_key
+        ? "fallback mode · LLM disabled (restart with --use-llm)"
+        : "fallback mode · no Anthropic key";
+    } else {
+      dot.className = "dot";
+      txt.textContent = "ready · LLM mode";
+    }
+  }
+
+  function renderLoop(loop) {
+    if (!loop || !loop.tank) {
+      document.getElementById("loop-pct").innerHTML = "—<small> not bound</small>";
+      document.getElementById("loop-meta").textContent = "no contract bound for today";
+      return;
+    }
+    const t = loop.tank;
+    document.getElementById("loop-pct").innerHTML =
+      `${Math.round(t.percent)}%<small> / ${t.threshold}%</small>`;
+    document.getElementById("loop-thr").textContent = "";
+    const fill = document.getElementById("loop-fill");
+    fill.style.width = Math.max(0, Math.min(100, t.percent)) + "%";
+    fill.classList.remove("over", "way-over");
+    if (t.percent >= t.threshold + 15) fill.classList.add("way-over");
+    else if (t.percent >= t.threshold) fill.classList.add("over");
+    document.getElementById("loop-mark").style.left = t.threshold + "%";
+    document.getElementById("loop-meta").textContent =
+      `${(loop.priorities_count || 0)} priorities · ration ${t.ration_remaining_min || 0} min · ${t.status.replace(/_/g, " ")}`;
+  }
+
+  function renderResearch(r) {
+    if (!r) return;
+    document.getElementById("research-count").innerHTML =
+      `${r.pending_proposals ?? 0}<small> proposals</small>`;
+    const thesis = r.active_thesis_id ? `thesis: ${r.active_thesis_id}` : "no thesis bound";
+    document.getElementById("research-meta").textContent =
+      `${thesis} · ${r.cards_total ?? 0} cards`;
+  }
+
+  function renderInvest(i) {
+    if (!i) return;
+    document.getElementById("invest-count").innerHTML =
+      `${i.open_positions ?? 0}<small> open</small>`;
+    const col = (i.cost_of_living_usd !== null && i.cost_of_living_usd !== undefined)
+      ? `cost-of-living: $${i.cost_of_living_usd}/mo`
+      : "cost-of-living: not set";
+    document.getElementById("invest-meta").textContent = col;
+  }
+
+  function renderStartup(s) {
+    if (!s) return;
+    document.getElementById("startup-count").innerHTML =
+      `${s.ticks_today ?? 0}<small> ticks today</small>`;
+    const hyp = s.active_hypothesis_id ? `hypothesis: ${s.active_hypothesis_id}` : "no hypothesis bound";
+    document.getElementById("startup-meta").textContent = hyp;
+  }
+
+  function renderNextStep(summary) {
+    // Decide ONE recommended next action and put it in the top banner.
+    const loop = summary.loop || {};
+    const research = summary.research || {};
+    const invest = summary.invest || {};
+    let html;
+
+    if (!loop.contract_bound) {
+      html = "<b>Start your day.</b> Sign today's contract — yesterday-you committed to something, honor it. " +
+             "<a href='/onboard' style='color:var(--accent)'>→ Morning ritual</a>";
+    } else if (loop.tank && loop.tank.percent < 30) {
+      html = "<b>Tank is low.</b> Log progress on what you just shipped: open a terminal and run " +
+             "<code>/loop-tick \"&lt;what you did&gt;\"</code> — or set up the post-commit hook so it's automatic.";
+    } else if ((research.pending_proposals ?? 0) > 0) {
+      html = `<b>${research.pending_proposals} research proposals pending review.</b> ` +
+             "<a href='/research/review' style='color:var(--accent)'>→ Walk the queue</a>";
+    } else if (loop.tank && loop.tank.percent >= loop.tank.threshold) {
+      html = "<b>Threshold hit.</b> Ration unlocked — spend it without guilt. " +
+             "<a href='/onboard' style='color:var(--accent)'>→ Open onboard</a> to see what's left.";
+    } else {
+      html = "<b>Contract bound, tank filling.</b> Keep shipping. Use " +
+             "<code>/loop-tick \"...\"</code> from Claude Code to log credits inline.";
+    }
+    document.getElementById("next-step").innerHTML = html;
+  }
+
+  refresh();
+  setInterval(refresh, 15000);
+  </script>
+</body>
+</html>

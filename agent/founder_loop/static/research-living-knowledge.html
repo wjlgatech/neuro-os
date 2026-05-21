@@ -38,7 +38,7 @@
       display: grid;
       grid-template-columns: 1fr 360px;
       grid-template-rows: 56px 1fr;
-      height: 100vh;
+      height: calc(100vh - 40px);
     }
 
     header.top {
@@ -416,9 +416,28 @@
       font-size: 12.5px;
       margin-bottom: 12px;
     }
+    .topnav { display: flex; align-items: center; gap: 0; background: var(--panel); border-bottom: 1px solid var(--border); padding: 0 16px; height: 40px; font-size: 12px; flex-shrink: 0; }
+    .topnav .brand { font-weight: 600; color: var(--text); text-decoration: none; padding-right: 12px; margin-right: 4px; border-right: 1px solid var(--border); }
+    .topnav a.nav-link { color: var(--text-dim); text-decoration: none; padding: 0 10px; height: 40px; display: flex; align-items: center; border-bottom: 2px solid transparent; white-space: nowrap; }
+    .topnav a.nav-link:hover { color: var(--text); }
+    .topnav a.nav-link.active { color: var(--text); border-bottom-color: var(--accent); }
+    .topnav .spacer { flex: 1; }
+    .topnav .next-btn { background: var(--accent); color: #fff; text-decoration: none; padding: 5px 12px; border-radius: 5px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+    .topnav .next-btn:hover { background: #79b8ff; color: #fff; }
   </style>
 </head>
 <body>
+  <nav class="topnav">
+    <a class="brand" href="/">neuro-os</a>
+    <a class="nav-link" href="/">Dashboard</a>
+    <a class="nav-link" href="/onboard">Morning ritual</a>
+    <a class="nav-link" href="/review">Review</a>
+    <a class="nav-link" href="/research">Research</a>
+    <a class="nav-link active" href="/research/living-knowledge">Living knowledge</a>
+    <a class="nav-link" href="/invest/dashboard">Invest</a>
+    <span class="spacer"></span>
+    <a class="next-btn" href="/">Next: Dashboard →</a>
+  </nav>
   <div class="layout">
     <header class="top">
       <h1>Living Knowledge</h1>

@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>neuro-os · research workspace</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --panel-2: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-dim: #8b949e;
+      --text-faint: #6e7681;
+      --accent: #58a6ff;
+      --green: #56d364;
+      --green-line: #2ea043;
+      --amber: #d29922;
+      --red: #f85149;
+      --purple: #bc8cff;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; padding: 0; min-height: 100%;
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      font-size: 14px; line-height: 1.55;
+    }
+    .page { max-width: 1080px; margin: 0 auto; padding: 36px 28px 60px 28px; }
+
+    .crumbs { font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
+    .crumbs a { color: var(--text-dim); text-decoration: none; border-bottom: 1px dotted var(--text-faint); }
+    .crumbs a:hover { color: var(--text); }
+    h1 { font-size: 24px; font-weight: 500; letter-spacing: -0.2px; margin: 0 0 4px 0; }
+    .tagline { color: var(--text-dim); font-size: 13px; margin-bottom: 22px; }
+
+    /* Pipeline strip */
+    .strip {
+      display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;
+      margin-bottom: 28px;
+    }
+    @media (max-width: 760px) { .strip { grid-template-columns: repeat(2, 1fr); } }
+    .strip-cell {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 14px;
+    }
+    .strip-cell h3 {
+      font-size: 10px; font-weight: 600; letter-spacing: 0.6px;
+      color: var(--text-dim); text-transform: uppercase;
+      margin: 0 0 4px 0;
+    }
+    .strip-cell .big {
+      font-size: 22px; font-weight: 600; letter-spacing: -0.3px;
+    }
+    .strip-cell .sub {
+      font-size: 11px; color: var(--text-faint); margin-top: 2px;
+    }
+
+    /* Sections */
+    section.block {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 12px; padding: 22px 22px 18px 22px;
+      margin-bottom: 18px;
+    }
+    section.block > h2 {
+      font-size: 16px; font-weight: 600; margin: 0 0 4px 0;
+      display: flex; align-items: center; gap: 8px;
+    }
+    section.block .pill {
+      font-size: 10px; padding: 2px 8px; border-radius: 10px;
+      background: var(--panel-2); border: 1px solid var(--border);
+      color: var(--text-dim); font-weight: 500;
+    }
+    section.block .what {
+      font-size: 12px; color: var(--text-dim); margin: 4px 0 14px 0;
+    }
+    section.block .what code {
+      color: var(--accent); background: var(--panel-2);
+      padding: 1px 6px; border-radius: 4px; font-size: 11px;
+    }
+
+    /* Ingest form */
+    .modes {
+      display: grid; grid-template-columns: 1fr; gap: 14px;
+    }
+    .mode {
+      background: var(--panel-2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 14px 14px 12px 14px;
+    }
+    .mode label.title {
+      font-size: 13px; font-weight: 600; display: block; margin-bottom: 4px;
+    }
+    .mode .explain {
+      font-size: 11px; color: var(--text-faint);
+      margin-bottom: 10px; line-height: 1.55;
+    }
+    .mode .explain b { color: var(--text-dim); font-weight: 500; }
+    .mode .explain code {
+      color: var(--accent); background: var(--bg);
+      padding: 1px 5px; border-radius: 4px; font-size: 11px;
+    }
+    .mode input[type="text"], .mode textarea {
+      width: 100%; background: var(--bg); color: var(--text);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 8px 10px; font: inherit; font-size: 12px;
+    }
+    .mode textarea { min-height: 110px; resize: vertical; }
+    .mode .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .mode .row label { font-size: 11px; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
+
+    .btn {
+      background: transparent; border: 1px solid var(--green-line);
+      color: var(--green); padding: 8px 14px; border-radius: 8px;
+      font: inherit; font-size: 12px; cursor: pointer;
+      transition: background 120ms;
+    }
+    .btn:hover:enabled { background: rgba(46, 160, 67, 0.10); }
+    .btn:disabled { color: var(--text-faint); border-color: var(--border); cursor: not-allowed; }
+    .btn.muted { color: var(--text); border-color: var(--border); }
+    .btn.muted:hover:enabled { background: var(--panel-2); }
+    .btn-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+    .btn-row .status { font-size: 11px; color: var(--text-dim); }
+
+    .result {
+      margin-top: 10px; font-size: 12px;
+      padding: 10px 12px; border-radius: 6px;
+      background: var(--bg); border: 1px solid var(--border);
+      display: none; white-space: pre-wrap; line-height: 1.5;
+    }
+    .result.ok { display: block; border-color: var(--green-line); color: var(--green); }
+    .result.err { display: block; border-color: var(--red); color: var(--red); }
+
+    /* Lists (compress / review summaries) */
+    ul.compact { list-style: none; padding: 0; margin: 10px 0 0 0; }
+    ul.compact li {
+      font-size: 12px; padding: 6px 0; border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; gap: 10px; align-items: baseline;
+    }
+    ul.compact li:first-child { border-top: none; }
+    ul.compact li a { color: var(--accent); text-decoration: none; }
+    ul.compact li a:hover { text-decoration: underline; }
+
+    /* Footer */
+    footer {
+      margin-top: 28px; font-size: 11px; color: var(--text-faint);
+      text-align: center;
+    }
+    footer a { color: var(--text-dim); text-decoration: none; margin: 0 8px; }
+    footer a:hover { color: var(--text); }
+    .topnav { display: flex; align-items: center; gap: 0; background: var(--panel); border-bottom: 1px solid var(--border); padding: 0 16px; height: 40px; font-size: 12px; margin: -36px -28px 24px -28px; }
+    .topnav .brand { font-weight: 600; color: var(--text); text-decoration: none; padding-right: 12px; margin-right: 4px; border-right: 1px solid var(--border); }
+    .topnav a.nav-link { color: var(--text-dim); text-decoration: none; padding: 0 10px; height: 40px; display: flex; align-items: center; border-bottom: 2px solid transparent; white-space: nowrap; }
+    .topnav a.nav-link:hover { color: var(--text); }
+    .topnav a.nav-link.active { color: var(--text); border-bottom-color: var(--accent); }
+    .topnav .spacer { flex: 1; }
+    .topnav .next-btn { background: var(--accent); color: #fff; text-decoration: none; padding: 5px 12px; border-radius: 5px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+    .topnav .next-btn:hover { background: #79b8ff; color: #fff; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <nav class="topnav">
+      <a class="brand" href="/">neuro-os</a>
+      <a class="nav-link" href="/">Dashboard</a>
+      <a class="nav-link" href="/onboard">Morning ritual</a>
+      <a class="nav-link" href="/review">Review</a>
+      <a class="nav-link active" href="/research">Research</a>
+      <a class="nav-link" href="/research/living-knowledge">Living knowledge</a>
+      <a class="nav-link" href="/invest/dashboard">Invest</a>
+      <span class="spacer"></span>
+      <a class="next-btn" href="/research/review">Next: Review queue →</a>
+    </nav>
+    <h1>Research workspace</h1>
+    <div class="tagline">
+      Turn a folder of papers into accepted mechanism cards, then compress them into a 3-level hierarchy you can express and refine.
+      The pipeline is: <b>ingest → review → compress → express</b>. Every step lives below.
+    </div>
+
+    <!-- Pipeline strip -->
+    <div class="strip">
+      <div class="strip-cell">
+        <h3>Sources</h3>
+        <div class="big" id="strip-sources">—</div>
+        <div class="sub">ingested files</div>
+      </div>
+      <div class="strip-cell">
+        <h3>Pending</h3>
+        <div class="big" id="strip-pending">—</div>
+        <div class="sub">waiting for review</div>
+      </div>
+      <div class="strip-cell">
+        <h3>Accepted</h3>
+        <div class="big" id="strip-accepted">—</div>
+        <div class="sub">mechanism cards</div>
+      </div>
+      <div class="strip-cell">
+        <h3>Compressions</h3>
+        <div class="big" id="strip-compressions">—</div>
+        <div class="sub">hierarchies built</div>
+      </div>
+      <div class="strip-cell">
+        <h3>Expressions</h3>
+        <div class="big" id="strip-expressions">—</div>
+        <div class="sub">renders × modalities</div>
+      </div>
+    </div>
+
+    <!-- INGEST -->
+    <section class="block" id="ingest">
+      <h2>1. Ingest <span class="pill" id="ingest-mode-pill">checking key…</span></h2>
+      <div class="what">
+        Drop a folder, paste a URL, or paste raw text. Each source becomes one or more <b>MechanismCardProposal</b> rows in your review queue.
+        With an Anthropic key, an LLM extracts <code>mechanism / invariant / prediction / failure mode</code> per source.
+        Without a key, a regex heuristic produces low-confidence drafts you can still review.
+      </div>
+
+      <div class="modes">
+        <!-- Mode A: folder -->
+        <div class="mode">
+          <label class="title" for="ingest-dir">Mode A · Folder of files</label>
+          <div class="explain">
+            Absolute path to a directory of <code>.txt</code> / <code>.md</code> / <code>.pdf</code> files. Each file becomes one source. <b>Example:</b> <code>/Users/you/Documents/papers</code> — equivalent to <code>neuro-os research ingest --prefer local --source-dir &lt;path&gt;</code>.
+          </div>
+          <input type="text" id="ingest-dir" placeholder="/Users/you/Documents/papers" autocomplete="off">
+          <div class="row" style="margin-top:8px">
+            <label><input type="checkbox" id="ingest-no-llm"> skip LLM (use heuristic — fast + free + low quality)</label>
+          </div>
+          <div class="btn-row">
+            <button class="btn" id="btn-ingest-dir">Ingest folder</button>
+            <span class="status" id="status-dir"></span>
+          </div>
+          <div class="result" id="result-dir"></div>
+        </div>
+
+        <!-- Mode B: URL -->
+        <div class="mode">
+          <label class="title" for="ingest-url">Mode B · Single URL</label>
+          <div class="explain">
+            Paste a URL ending in <code>.pdf</code>, <code>.md</code>, or <code>.txt</code>. We download it to a temp folder and ingest exactly like Mode A.
+            HTML pages aren't supported yet — save the article to a .md first.
+          </div>
+          <input type="text" id="ingest-url" placeholder="https://arxiv.org/pdf/2106.04561.pdf" autocomplete="off">
+          <div class="btn-row">
+            <button class="btn" id="btn-ingest-url">Fetch + ingest</button>
+            <span class="status" id="status-url"></span>
+          </div>
+          <div class="result" id="result-url"></div>
+        </div>
+
+        <!-- Mode C: paste -->
+        <div class="mode">
+          <label class="title" for="ingest-paste">Mode C · Paste raw text</label>
+          <div class="explain">
+            For quick capture — paste an abstract, a tweet thread, or your own notes. We treat it as one source.
+            Give it a one-line title in the first field so it can be cited later.
+          </div>
+          <input type="text" id="ingest-title" placeholder="Title (e.g. 'Karpathy on RLHF')" autocomplete="off">
+          <textarea id="ingest-paste" placeholder="paste the text here…"></textarea>
+          <div class="btn-row">
+            <button class="btn" id="btn-ingest-paste">Ingest text</button>
+            <span class="status" id="status-paste"></span>
+          </div>
+          <div class="result" id="result-paste"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- REVIEW -->
+    <section class="block" id="review">
+      <h2>2. Review proposals</h2>
+      <div class="what">
+        Each proposal is a draft <b>MechanismCard</b>. Accept the ones that pass your bar; reject the rest.
+        Acceptance writes a card to disk — that's the input to compression in step 3.
+      </div>
+      <div class="btn-row">
+        <a class="btn muted" href="/research/review">Open review queue →</a>
+        <span class="status" id="review-status"></span>
+      </div>
+    </section>
+
+    <!-- COMPRESS -->
+    <section class="block" id="compress">
+      <h2>3. Compress</h2>
+      <div class="what">
+        Roll accepted cards into a 3-level hierarchy: ≤5 cores (L0), ≤30 sub-mechanisms (L1), all cards (L2).
+        First we run a <b>synthesis</b> pass that clusters cards by overlap, then we group clusters into the L0 cores.
+        Equivalent to: <code>neuro-os research synthesize</code> → <code>neuro-os research compress</code>.
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="btn-compress">Compress now</button>
+        <span class="status" id="status-compress"></span>
+      </div>
+      <div class="result" id="result-compress"></div>
+      <ul class="compact" id="compressions-list"></ul>
+    </section>
+
+    <!-- EXPRESS -->
+    <section class="block" id="express">
+      <h2>4. Express &amp; reveal</h2>
+      <div class="what">
+        Re-render a compressed principle in a different <b>modality</b> (visual, musical, physical, organizational, game, biological, narrative).
+        The point isn't art — it's stress-testing: if a principle survives translation to a new shape, it's structurally sound. If translation breaks, the principle has a hidden assumption.
+        After expressing, <b>reveal</b> what the new modality showed you.
+      </div>
+      <div class="btn-row">
+        <a class="btn muted" href="/research/living-knowledge">Open living knowledge →</a>
+      </div>
+    </section>
+
+    <footer>
+      <a href="/about">About</a>
+      <a href="/how-to-use">How to use it</a>
+      <a href="/how-it-works">How it works</a>
+      <a href="/">Dashboard</a>
+    </footer>
+  </div>
+
+  <script>
+  async function refreshState() {
+    let s;
+    try {
+      s = await fetch("/research/state").then(r => r.json());
+    } catch (err) {
+      return;
+    }
+    document.getElementById("strip-sources").textContent      = s.sources_ingested ?? 0;
+    document.getElementById("strip-pending").textContent      = s.proposals_pending ?? 0;
+    document.getElementById("strip-accepted").textContent     = s.cards_accepted ?? 0;
+    document.getElementById("strip-compressions").textContent = s.compressions_count ?? 0;
+    document.getElementById("strip-expressions").textContent  = s.expressions_count ?? 0;
+
+    // Mode pill — tells the user which extractor mode ingest will use.
+    const pill = document.getElementById("ingest-mode-pill");
+    if (s.llm_available) {
+      pill.textContent = "LLM mode";
+      pill.style.color = "var(--green)"; pill.style.borderColor = "var(--green-line)";
+    } else {
+      pill.textContent = "heuristic mode (no key)";
+      pill.style.color = "var(--amber)"; pill.style.borderColor = "var(--amber)";
+    }
+
+    // Review status note
+    const rs = document.getElementById("review-status");
+    if ((s.proposals_pending ?? 0) === 0) {
+      rs.textContent = "queue is empty";
+    } else {
+      const n = s.proposals_pending;
+      rs.textContent = `${n} pending proposal${n === 1 ? "" : "s"}`;
+    }
+
+    // Compressions list
+    const ul = document.getElementById("compressions-list");
+    ul.innerHTML = "";
+    (s.compressions || []).forEach(c => {
+      const li = document.createElement("li");
+      li.innerHTML =
+        `<span>${escapeHtml(c.id)} <span style="color:var(--text-faint)">· ${c.l0_count} cores · ${c.l1_count} sub · ${c.cards_total} cards</span></span>` +
+        `<a href="/research/living-knowledge">view →</a>`;
+      ul.appendChild(li);
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+    }[c]));
+  }
+
+  async function postJSON(url, body) {
+    const r = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    return r.json();
+  }
+
+  function showResult(resultEl, ok, text) {
+    resultEl.className = "result " + (ok ? "ok" : "err");
+    resultEl.textContent = text;
+    // The .ok / .err classes set `display: block`, but any prior inline
+    // style="display:none" set by a hide-before-call wins specificity-
+    // wise. Clear the inline style so the class rule takes effect.
+    resultEl.style.display = "";
+  }
+
+  function disableBtn(btn, status, label) {
+    btn.disabled = true;
+    status.textContent = label;
+  }
+  function enableBtn(btn, status) {
+    btn.disabled = false;
+    status.textContent = "";
+  }
+
+  // INGEST — folder mode
+  document.getElementById("btn-ingest-dir").addEventListener("click", async () => {
+    const dir = document.getElementById("ingest-dir").value.trim();
+    const noLlm = document.getElementById("ingest-no-llm").checked;
+    const result = document.getElementById("result-dir");
+    const btn = document.getElementById("btn-ingest-dir");
+    const status = document.getElementById("status-dir");
+    if (!dir) { showResult(result, false, "Enter a directory path first."); return; }
+    disableBtn(btn, status, "ingesting… (this can take a minute with LLM mode)");
+    result.style.display = "none";
+    try {
+      const r = await postJSON("/research/ingest", {
+        mode: "dir", source_dir: dir, no_llm: noLlm,
+      });
+      if (r.error) {
+        showResult(result, false, "Failed: " + r.error);
+      } else {
+        const failed = r.sources_failed_to_read || [];
+        const llmErrs = r.llm_errors || [];
+        let msg = `✓ Ingested ${r.sources_scanned} source${r.sources_scanned === 1 ? "" : "s"} → ${r.proposals_emitted} proposal${r.proposals_emitted === 1 ? "" : "s"} added.\n` +
+                  `Method: ${r.extraction_method}.`;
+        if (failed.length > 0) {
+          msg += `\n\n⚠ ${failed.length} file${failed.length === 1 ? "" : "s"} could not be read:`;
+          for (const f of failed.slice(0, 8)) {
+            msg += `\n  · ${f.name}  (${f.reason})`;
+          }
+          if (failed.length > 8) msg += `\n  · … +${failed.length - 8} more`;
+          msg += `\n\nFix: if these are PDFs, run  pip install pypdf  in your venv and re-ingest.`;
+        }
+        if (llmErrs.length > 0) {
+          msg += `\n\n⚠ LLM extractor failed on ${llmErrs.length} source${llmErrs.length === 1 ? "" : "s"}; fell back to the regex heuristic (which finds few mechanisms in dense papers).`;
+          msg += `\nReason: ${llmErrs[0].reason}`;
+        }
+        if (r.sources_scanned === 0 && failed.length === 0) {
+          msg += `\n\nNo supported files found in that folder (looking for .txt / .md / .pdf).`;
+        }
+        msg += `\n→ Next: review the queue (button below) to accept the ones that pass.`;
+        showResult(result, r.proposals_emitted > 0 || r.sources_scanned > 0, msg);
+        refreshState();
+      }
+    } catch (err) {
+      showResult(result, false, "Network error: " + err.message);
+    } finally {
+      enableBtn(btn, status);
+    }
+  });
+
+  // INGEST — URL mode
+  document.getElementById("btn-ingest-url").addEventListener("click", async () => {
+    const url = document.getElementById("ingest-url").value.trim();
+    const result = document.getElementById("result-url");
+    const btn = document.getElementById("btn-ingest-url");
+    const status = document.getElementById("status-url");
+    if (!url) { showResult(result, false, "Paste a URL first."); return; }
+    disableBtn(btn, status, "fetching + ingesting…");
+    result.style.display = "none";
+    try {
+      const r = await postJSON("/research/ingest", { mode: "url", url });
+      if (r.error) {
+        showResult(result, false, "Failed: " + r.error);
+      } else {
+        showResult(result, true,
+          `✓ Fetched + ingested. ${r.proposals_emitted} proposal${r.proposals_emitted === 1 ? "" : "s"} added.`);
+        refreshState();
+      }
+    } catch (err) {
+      showResult(result, false, "Network error: " + err.message);
+    } finally {
+      enableBtn(btn, status);
+    }
+  });
+
+  // INGEST — paste mode
+  document.getElementById("btn-ingest-paste").addEventListener("click", async () => {
+    const title = document.getElementById("ingest-title").value.trim();
+    const text  = document.getElementById("ingest-paste").value.trim();
+    const result = document.getElementById("result-paste");
+    const btn = document.getElementById("btn-ingest-paste");
+    const status = document.getElementById("status-paste");
+    if (!text) { showResult(result, false, "Paste some text first."); return; }
+    if (!title) { showResult(result, false, "Add a one-line title first."); return; }
+    disableBtn(btn, status, "ingesting…");
+    result.style.display = "none";
+    try {
+      const r = await postJSON("/research/ingest", { mode: "paste", title, text });
+      if (r.error) {
+        showResult(result, false, "Failed: " + r.error);
+      } else {
+        showResult(result, true,
+          `✓ Ingested. ${r.proposals_emitted} proposal${r.proposals_emitted === 1 ? "" : "s"} added.`);
+        refreshState();
+      }
+    } catch (err) {
+      showResult(result, false, "Network error: " + err.message);
+    } finally {
+      enableBtn(btn, status);
+    }
+  });
+
+  // COMPRESS
+  document.getElementById("btn-compress").addEventListener("click", async () => {
+    const result = document.getElementById("result-compress");
+    const btn = document.getElementById("btn-compress");
+    const status = document.getElementById("status-compress");
+    disableBtn(btn, status, "synthesizing + compressing…");
+    result.style.display = "none";
+    try {
+      const r = await postJSON("/research/compress", {});
+      if (r.error) {
+        showResult(result, false, "Failed: " + r.error);
+      } else {
+        showResult(result, true,
+          `✓ Built compression ${r.compression_id}.\n` +
+          `  ${r.l0_count} core node${r.l0_count === 1 ? "" : "s"} · ` +
+          `${r.l1_count} sub-mechanism${r.l1_count === 1 ? "" : "s"} · ` +
+          `${r.cards_total} cards.\n` +
+          `→ Next: open Living knowledge to express any of the nodes in a new modality.`);
+        refreshState();
+      }
+    } catch (err) {
+      showResult(result, false, "Network error: " + err.message);
+    } finally {
+      enableBtn(btn, status);
+    }
+  });
+
+  refreshState();
+  setInterval(refreshState, 30000);
+  </script>
+</body>
+</html>
