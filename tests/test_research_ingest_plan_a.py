@@ -336,7 +336,12 @@ def test_extract_clips_to_max_chars(tmp_path):
         seen_text.append(text)
         return []
 
-    extract_mechanisms(src, llm_fn=capturing_llm, now=NOW)
+    # Single-pass mode so we assert against exactly 1 LLM call; the
+    # multi-persona path's clipping is identical (same user_message
+    # built upstream of the parallel fan-out).
+    extract_mechanisms(
+        src, llm_fn=capturing_llm, now=NOW, multi_persona=False,
+    )
     assert len(seen_text) == 1
     assert "SENTINEL_AT_END" not in seen_text[0]
     assert len(seen_text[0]) <= MAX_CHARS_PER_SOURCE
@@ -415,7 +420,10 @@ def test_ingest_with_pdf_source_and_llm_fn_emits_proposals(tmp_path):
             "reasoning": "From the PDF body content.",
         }]
 
-    run = ingest(source_dir=src_dir, llm_fn=llm_fn, home=home, now=NOW)
+    run = ingest(
+        source_dir=src_dir, llm_fn=llm_fn, home=home, now=NOW,
+        multi_persona=False,
+    )
     assert run.sources_scanned == 1
     assert run.proposals_emitted == 1
     assert len(seen_text) == 1

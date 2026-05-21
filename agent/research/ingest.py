@@ -372,13 +372,20 @@ def extract_mechanisms(
     llm_fn: Optional[LLMCallable] = None,
     now: Optional[datetime] = None,
     framework: Optional[Framework] = None,
+    multi_persona: bool = True,
 ) -> List[MechanismCardProposal]:
     """One source → 0..K MechanismCardProposal candidates.
 
     If ``llm_fn`` is None, falls back to ``_heuristic_extract``.
-    Otherwise calls the LLM, validates each row through
-    ``MechanismCardProposal.model_validate`` (Pydantic at the boundary —
-    malformed LLM output is dropped with a warning, not silently kept).
+    Otherwise calls the LLM:
+      * ``multi_persona=True`` (default): runs all 5 personas in
+        ``agent.research.extractors.PERSONAS`` in parallel, merges and
+        dedups results. Each persona's prompt has the 4-criteria filter
+        (compression / transferability / executability / falsifiability)
+        baked in so junk mechanisms self-reject at extraction time.
+      * ``multi_persona=False``: single-pass extraction with the legacy
+        prompt. Tests that want determinism (one llm_fn call → one batch
+        of rows) opt into this.
 
     ``framework`` (optional) is the user's framework from
     ``agent.research.framework.load_framework``. When supplied with
@@ -397,6 +404,30 @@ def extract_mechanisms(
         raw_rows = _heuristic_extract(body_trimmed)
         method = "fallback-heuristic"
         model = None
+    elif multi_persona:
+        from agent.research.extractors import extract_multi_persona
+        try:
+            raw_rows, stats = extract_multi_persona(
+                llm_fn=llm_fn,
+                base_prompt=_SYSTEM_PROMPT,
+                user_message=user_message,
+            )
+        except Exception as e:
+            logger.warning(
+                "ingest.extract_mechanisms: multi-persona failed for "
+                "%s (%s); falling back to heuristic",
+                source.source_id, e,
+            )
+            raw_rows = _heuristic_extract(body_trimmed)
+            method = "fallback-heuristic"
+            model = None
+        else:
+            logger.info(
+                "multi-persona extraction for %s: %s → %d unique candidates",
+                source.source_id, stats, len(raw_rows),
+            )
+            method = "llm-anthropic"
+            model = "claude-haiku-4-5"
     else:
         try:
             raw_rows = llm_fn(_SYSTEM_PROMPT, user_message)
@@ -463,6 +494,7 @@ def ingest(
     home: Optional[Path] = None,
     now: Optional[datetime] = None,
     framework: Optional[Framework] = None,
+    multi_persona: bool = True,
 ) -> IngestionRun:
     """End-to-end: load sources → extract per source → write proposals.
 
@@ -473,6 +505,10 @@ def ingest(
     ``framework`` defaults to ``load_framework(home)`` so a user-edited
     ``~/.neuro_os_research/framework.json`` flows in automatically; pass
     an explicit ``Framework`` to override (tests do this).
+
+    ``multi_persona`` (default True) runs the 5-persona parallel
+    extractor with inline rubric filter per source. Set to False for
+    tests that need exactly-one llm_fn call per source.
     """
     started = now or datetime.now(timezone.utc)
     sources, skipped = load_sources(source_dir, home=home)
@@ -485,6 +521,7 @@ def ingest(
     for src in sources:
         all_proposals.extend(extract_mechanisms(
             src, llm_fn=llm_fn, now=started, framework=framework,
+            multi_persona=multi_persona,
         ))
 
     for prop in all_proposals:
