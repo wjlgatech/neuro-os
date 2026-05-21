@@ -119,8 +119,94 @@
     .btn:disabled { color: var(--text-faint); border-color: var(--border); cursor: not-allowed; }
     .btn.muted { color: var(--text); border-color: var(--border); }
     .btn.muted:hover:enabled { background: var(--panel-2); }
-    .btn-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+    .btn-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
     .btn-row .status { font-size: 11px; color: var(--text-dim); }
+
+    /* Indeterminate progress bar — used when ingest/compress is running.
+       We don't have per-file events from the server yet, so the bar is
+       animated indeterminate and a phase ticker rotates the label every
+       few seconds to communicate WHERE we are in the pipeline. */
+    .progress {
+      display: inline-flex; align-items: center; gap: 10px;
+      font-size: 11px; color: var(--text-dim);
+    }
+    .progress-bar {
+      position: relative; width: 140px; height: 5px;
+      background: var(--panel-2); border-radius: 3px;
+      overflow: hidden; border: 1px solid var(--border);
+    }
+    .progress-bar::after {
+      content: ""; position: absolute; left: 0; top: 0;
+      width: 35%; height: 100%; background: var(--accent);
+      border-radius: 2px;
+      animation: progress-slide 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+    @keyframes progress-slide {
+      0%   { transform: translateX(-100%); }
+      100% { transform: translateX(400%); }
+    }
+    .progress-text { min-width: 0; }
+
+    .dir-row { display: flex; gap: 8px; align-items: stretch; }
+    .dir-row input[type="text"] { flex: 1; }
+    .dir-row .btn { white-space: nowrap; padding: 6px 12px; }
+
+    /* Directory-picker modal */
+    .dp-overlay {
+      position: fixed; inset: 0; background: rgba(0, 0, 0, 0.7);
+      display: none; align-items: center; justify-content: center;
+      z-index: 100;
+    }
+    .dp-overlay.is-open { display: flex; }
+    .dp-modal {
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 10px; width: min(560px, 90vw);
+      max-height: 75vh; display: flex; flex-direction: column;
+      box-shadow: 0 16px 60px rgba(0, 0, 0, 0.5);
+    }
+    .dp-header {
+      padding: 12px 16px; border-bottom: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 13px;
+    }
+    .dp-header strong { font-weight: 600; }
+    .dp-close {
+      background: transparent; border: none; color: var(--text-dim);
+      font-size: 18px; cursor: pointer; padding: 0 4px;
+    }
+    .dp-close:hover { color: var(--text); }
+    .dp-path {
+      padding: 8px 16px; font-family: ui-monospace, "SF Mono", monospace;
+      font-size: 12px; color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto; white-space: nowrap;
+    }
+    .dp-list {
+      flex: 1; overflow-y: auto; padding: 4px 0;
+    }
+    .dp-entry {
+      display: flex; align-items: center; gap: 8px;
+      padding: 6px 16px; cursor: pointer;
+      font-size: 13px;
+    }
+    .dp-entry:hover { background: var(--panel-2); }
+    .dp-entry.is-up { color: var(--text-dim); }
+    .dp-entry.is-file { color: var(--text-faint); cursor: default; }
+    .dp-entry.is-file:hover { background: transparent; }
+    .dp-entry .dp-icon {
+      display: inline-block; width: 16px; text-align: center;
+    }
+    .dp-footer {
+      padding: 12px 16px; border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+      gap: 8px;
+    }
+    .dp-footer .dp-hint {
+      font-size: 11px; color: var(--text-faint); flex: 1;
+    }
+    .dp-error {
+      padding: 8px 16px; color: var(--red); font-size: 12px;
+    }
 
     .result {
       margin-top: 10px; font-size: 12px;
@@ -220,9 +306,12 @@
         <div class="mode">
           <label class="title" for="ingest-dir">Mode A · Folder of files</label>
           <div class="explain">
-            Absolute path to a directory of <code>.txt</code> / <code>.md</code> / <code>.pdf</code> files. Each file becomes one source. <b>Example:</b> <code>/Users/you/Documents/papers</code> — equivalent to <code>neuro-os research ingest --prefer local --source-dir &lt;path&gt;</code>.
+            Pick a directory of <code>.txt</code> / <code>.md</code> / <code>.pdf</code> files via <b>Browse…</b>, or paste an absolute path. Each file becomes one source. Equivalent to <code>neuro-os research ingest --prefer local --source-dir &lt;path&gt;</code>.
           </div>
-          <input type="text" id="ingest-dir" placeholder="/Users/you/Documents/papers" autocomplete="off">
+          <div class="dir-row">
+            <input type="text" id="ingest-dir" placeholder="/Users/you/Documents/papers" autocomplete="off">
+            <button type="button" class="btn muted" id="btn-browse-dir">Browse…</button>
+          </div>
           <div class="row" style="margin-top:8px">
             <label><input type="checkbox" id="ingest-no-llm"> skip LLM (use heuristic — fast + free + low quality)</label>
           </div>
@@ -316,6 +405,23 @@
     </footer>
   </div>
 
+  <!-- Directory-picker modal — backed by GET /fs/browse -->
+  <div class="dp-overlay" id="dp-overlay" role="dialog" aria-modal="true" aria-labelledby="dp-title">
+    <div class="dp-modal">
+      <div class="dp-header">
+        <strong id="dp-title">Pick a folder</strong>
+        <button class="dp-close" id="dp-close" type="button" aria-label="Close">×</button>
+      </div>
+      <div class="dp-path" id="dp-path">—</div>
+      <div class="dp-error" id="dp-error" style="display:none"></div>
+      <div class="dp-list" id="dp-list"></div>
+      <div class="dp-footer">
+        <span class="dp-hint">Click a folder to open it; click <strong>Use this folder</strong> to pick the current one.</span>
+        <button class="btn" id="dp-pick" type="button">Use this folder</button>
+      </div>
+    </div>
+  </div>
+
   <script>
   async function refreshState() {
     let s;
@@ -385,13 +491,134 @@
     resultEl.style.display = "";
   }
 
-  function disableBtn(btn, status, label) {
+  // ────────────────────────────────────────────────────────────────────
+  // Directory-picker — backs the Browse… button next to the dir input.
+  // ────────────────────────────────────────────────────────────────────
+  const dpOverlay = document.getElementById("dp-overlay");
+  const dpList    = document.getElementById("dp-list");
+  const dpPathEl  = document.getElementById("dp-path");
+  const dpErrorEl = document.getElementById("dp-error");
+  const dpCloseBtn = document.getElementById("dp-close");
+  const dpPickBtn  = document.getElementById("dp-pick");
+  const dirInput   = document.getElementById("ingest-dir");
+  let dpCurrentPath = "";
+
+  function openPicker(initial) {
+    dpOverlay.classList.add("is-open");
+    loadDir(initial || dirInput.value.trim() || "");
+  }
+  function closePicker() {
+    dpOverlay.classList.remove("is-open");
+  }
+
+  async function loadDir(path) {
+    dpErrorEl.style.display = "none";
+    dpList.innerHTML = '<div class="dp-entry is-file"><span class="dp-icon">…</span>loading</div>';
+    try {
+      const q = path ? "?path=" + encodeURIComponent(path) : "";
+      const r = await fetch("/fs/browse" + q);
+      const data = await r.json();
+      if (!r.ok || data.error) {
+        dpErrorEl.textContent = data.error || ("HTTP " + r.status);
+        dpErrorEl.style.display = "block";
+        dpList.innerHTML = "";
+        return;
+      }
+      dpCurrentPath = data.path;
+      dpPathEl.textContent = data.path;
+      renderEntries(data);
+    } catch (e) {
+      dpErrorEl.textContent = "network error: " + (e && e.message ? e.message : e);
+      dpErrorEl.style.display = "block";
+      dpList.innerHTML = "";
+    }
+  }
+
+  function renderEntries(data) {
+    dpList.innerHTML = "";
+    if (data.parent) {
+      const up = document.createElement("div");
+      up.className = "dp-entry is-up";
+      up.innerHTML = '<span class="dp-icon">↑</span>..';
+      up.addEventListener("click", () => loadDir(data.parent));
+      dpList.appendChild(up);
+    }
+    if (!data.entries.length) {
+      const empty = document.createElement("div");
+      empty.className = "dp-entry is-file";
+      empty.innerHTML = '<span class="dp-icon">·</span>(empty)';
+      dpList.appendChild(empty);
+      return;
+    }
+    data.entries.forEach((entry) => {
+      const row = document.createElement("div");
+      row.className = "dp-entry " + (entry.is_dir ? "is-dir" : "is-file");
+      const icon = entry.is_dir ? "📁" : "📄";
+      const dim = !entry.is_readable ? " (not readable)" : "";
+      row.innerHTML = '<span class="dp-icon">' + icon + '</span>' + entry.name + dim;
+      if (entry.is_dir && entry.is_readable) {
+        row.addEventListener("click", () => {
+          loadDir(data.path.replace(/\/$/, "") + "/" + entry.name);
+        });
+      }
+      dpList.appendChild(row);
+    });
+    if (data.truncated) {
+      const note = document.createElement("div");
+      note.className = "dp-entry is-file";
+      note.innerHTML = '<span class="dp-icon">…</span>(showing first 500 entries — narrow your path)';
+      dpList.appendChild(note);
+    }
+  }
+
+  document.getElementById("btn-browse-dir").addEventListener("click", () => openPicker());
+  dpCloseBtn.addEventListener("click", closePicker);
+  dpOverlay.addEventListener("click", (e) => {
+    if (e.target === dpOverlay) closePicker();
+  });
+  dpPickBtn.addEventListener("click", () => {
+    if (dpCurrentPath) {
+      dirInput.value = dpCurrentPath;
+      closePicker();
+    }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && dpOverlay.classList.contains("is-open")) {
+      closePicker();
+    }
+  });
+
+  // Render an animated progress bar with a rotating phase label.
+  // `phases` is an optional array of strings; if present, the label cycles
+  // every ~5s. If omitted, the initial `label` stays put.
+  function disableBtn(btn, status, label, phases) {
     btn.disabled = true;
-    status.textContent = label;
+    status.innerHTML = '';
+    const wrap = document.createElement("span");
+    wrap.className = "progress";
+    const bar = document.createElement("span");
+    bar.className = "progress-bar";
+    const text = document.createElement("span");
+    text.className = "progress-text";
+    text.textContent = label;
+    wrap.appendChild(bar);
+    wrap.appendChild(text);
+    status.appendChild(wrap);
+    if (Array.isArray(phases) && phases.length > 1) {
+      let i = 0;
+      status._ticker = setInterval(() => {
+        i = (i + 1) % phases.length;
+        text.textContent = phases[i];
+      }, 5000);
+    }
   }
   function enableBtn(btn, status) {
     btn.disabled = false;
-    status.textContent = "";
+    if (status._ticker) {
+      clearInterval(status._ticker);
+      status._ticker = null;
+    }
+    status.innerHTML = "";
   }
 
   // INGEST — folder mode
@@ -402,7 +629,13 @@
     const btn = document.getElementById("btn-ingest-dir");
     const status = document.getElementById("status-dir");
     if (!dir) { showResult(result, false, "Enter a directory path first."); return; }
-    disableBtn(btn, status, "ingesting… (this can take a minute with LLM mode)");
+    disableBtn(btn, status, "Scanning folder for .pdf/.md/.txt files…", [
+      "Scanning folder for .pdf/.md/.txt files…",
+      "Extracting text from each file…",
+      noLlm ? "Running heuristic extractor…" : "Calling LLM to extract mechanisms…",
+      "Writing proposal cards…",
+      noLlm ? "Still working…" : "Still calling LLM (large files take longer)…",
+    ]);
     result.style.display = "none";
     try {
       const r = await postJSON("/research/ingest", {
@@ -448,7 +681,12 @@
     const btn = document.getElementById("btn-ingest-url");
     const status = document.getElementById("status-url");
     if (!url) { showResult(result, false, "Paste a URL first."); return; }
-    disableBtn(btn, status, "fetching + ingesting…");
+    disableBtn(btn, status, "Downloading URL…", [
+      "Downloading URL…",
+      "Extracting text…",
+      "Calling LLM to extract mechanisms…",
+      "Writing proposal card…",
+    ]);
     result.style.display = "none";
     try {
       const r = await postJSON("/research/ingest", { mode: "url", url });
@@ -475,7 +713,11 @@
     const status = document.getElementById("status-paste");
     if (!text) { showResult(result, false, "Paste some text first."); return; }
     if (!title) { showResult(result, false, "Add a one-line title first."); return; }
-    disableBtn(btn, status, "ingesting…");
+    disableBtn(btn, status, "Extracting mechanisms from pasted text…", [
+      "Extracting mechanisms from pasted text…",
+      "Calling LLM…",
+      "Writing proposal card…",
+    ]);
     result.style.display = "none";
     try {
       const r = await postJSON("/research/ingest", { mode: "paste", title, text });
@@ -498,7 +740,11 @@
     const result = document.getElementById("result-compress");
     const btn = document.getElementById("btn-compress");
     const status = document.getElementById("status-compress");
-    disableBtn(btn, status, "synthesizing + compressing…");
+    disableBtn(btn, status, "Clustering accepted cards by mechanism…", [
+      "Clustering accepted cards by mechanism…",
+      "Building 3-level hierarchy (L0 / L1 / L2)…",
+      "Writing compression…",
+    ]);
     result.style.display = "none";
     try {
       const r = await postJSON("/research/compress", {});
