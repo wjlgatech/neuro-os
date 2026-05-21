@@ -1181,6 +1181,99 @@ def _add_research_ingest_subcommands(top_sub: "argparse._SubParsersAction") -> N
     )
     exp_p.set_defaults(func=_research_express_handler)
 
+    # runs — pipeline run history (ingest → compress → express grouped by run)
+    runs_p = top_sub.add_parser(
+        "runs",
+        help="browse pipeline run history (ingest → compress → express)",
+    )
+    runs_sub = runs_p.add_subparsers(dest="runs_command", required=True)
+
+    runs_list = runs_sub.add_parser("list", help="list recent pipeline runs")
+    runs_list.add_argument(
+        "--limit", type=int, default=20,
+        help="max runs to show (default 20)",
+    )
+    runs_list.add_argument(
+        "--home", default=None,
+        help="vertical home dir (default: ~/.neuro_os_research/)",
+    )
+    runs_list.set_defaults(func=_research_runs_list_handler)
+
+    runs_show = runs_sub.add_parser("show", help="show details of one run")
+    runs_show.add_argument("run_id", help="short run ID (e.g. a1b2c3d4)")
+    runs_show.add_argument(
+        "--home", default=None,
+        help="vertical home dir (default: ~/.neuro_os_research/)",
+    )
+    runs_show.set_defaults(func=_research_runs_show_handler)
+
+    runs_clean = runs_sub.add_parser(
+        "clean", help="prune old runs, keeping the N most recent"
+    )
+    runs_clean.add_argument(
+        "--keep", type=int, default=20,
+        help="number of runs to keep (default 20)",
+    )
+    runs_clean.add_argument(
+        "--home", default=None,
+        help="vertical home dir (default: ~/.neuro_os_research/)",
+    )
+    runs_clean.set_defaults(func=_research_runs_clean_handler)
+
+
+def _research_runs_list_handler(args: argparse.Namespace) -> int:
+    from agent.research.run_registry import list_runs
+
+    home = Path(args.home).expanduser() if args.home else _research_default_home()
+    runs = list_runs(home, limit=args.limit)
+    if not runs:
+        print("no pipeline runs yet — run `research ingest` to start one")
+        return 0
+    print(f"{'RUN ID':<10}  {'OPENED':<26}  {'STAGES'}")
+    print("-" * 60)
+    for r in runs:
+        stage_summary = " → ".join(s.stage for s in r.stages) if r.stages else "(no stages)"
+        print(f"{r.run_id:<10}  {r.opened_at:<26}  {stage_summary}")
+    return 0
+
+
+def _research_runs_show_handler(args: argparse.Namespace) -> int:
+    from agent.research.run_registry import load_run
+
+    home = Path(args.home).expanduser() if args.home else _research_default_home()
+    run = load_run(home, args.run_id)
+    if run is None:
+        print(f"error: run {args.run_id!r} not found", file=sys.stderr)
+        return 2
+    print(f"run_id   : {run.run_id}")
+    print(f"label    : {run.label}")
+    print(f"opened   : {run.opened_at}")
+    if not run.stages:
+        print("stages   : (none)")
+    else:
+        for s in run.stages:
+            print(
+                f"  {s.stage:<10}  artifact={s.artifact_id}"
+                f"  items={s.item_count}  at={s.recorded_at}"
+            )
+    return 0
+
+
+def _research_runs_clean_handler(args: argparse.Namespace) -> int:
+    from agent.research.run_registry import clean_runs
+
+    home = Path(args.home).expanduser() if args.home else _research_default_home()
+    deleted = clean_runs(home, keep=args.keep)
+    if deleted == 0:
+        print(f"nothing to delete (≤{args.keep} runs on disk)")
+    else:
+        print(f"deleted {deleted} old run(s), kept {args.keep} most recent")
+    return 0
+
+
+def _research_default_home() -> Path:
+    return Path("~/.neuro_os_research").expanduser()
+
 
 def _research_ingest_handler(args: argparse.Namespace) -> int:
     from agent.research.ingest_router import (

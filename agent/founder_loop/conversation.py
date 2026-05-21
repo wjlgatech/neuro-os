@@ -384,6 +384,30 @@ _KIND_GREETINGS: Dict[str, str] = {
 }
 
 
+def _amend_greeting(kind: str, existing: "List[Priority]") -> str:
+    """Greeting for the amend flow — used when today's contract is
+    already bound. The user is here to ADD priorities, not start over."""
+    n = len(existing)
+    if n == 0:
+        return _KIND_GREETINGS[kind]
+    # The titles are short; show up to 3 inline.
+    titles_preview = ", ".join(f"\"{p.title[:40]}\"" for p in existing[:3])
+    more = f" (+{n - 3} more)" if n > 3 else ""
+    if kind == "morning":
+        return (
+            f"Welcome back. Today's contract is bound with {n} priorit"
+            f"{'y' if n == 1 else 'ies'}: {titles_preview}{more}. "
+            f"What would you like to ADD? They'll be appended — nothing existing gets lost."
+        )
+    if kind == "review":
+        return (
+            f"Welcome back. Tomorrow's contract is already drafted with {n} "
+            f"priorit{'y' if n == 1 else 'ies'}: {titles_preview}{more}. "
+            f"Anything you want to add before signing?"
+        )
+    return _KIND_GREETINGS[kind]
+
+
 class ConversationManager:
     """Per-daemon instance. In-memory state.
 
@@ -433,19 +457,62 @@ class ConversationManager:
         *,
         kind: str = "morning",
         kickoff: Optional[str] = None,
+        seed_priorities: Optional[List[Priority]] = None,
+        seed_settings: Optional[ContractSettings] = None,
     ) -> tuple[str, str]:
+        """Open a new conversation.
+
+        ``seed_priorities`` + ``seed_settings`` enable the AMEND flow:
+        when /onboard is reopened later on a day with an already-bound
+        contract, the existing priorities are loaded into the
+        conversation state so the user sees them in the sidebar AND
+        any new priorities they add are appended to (not overwriting)
+        the existing set. Without seeds, the behavior is unchanged
+        (fresh morning ritual)."""
         if kind not in KIND_VOCAB:
             raise ValueError(f"unknown conversation kind: {kind!r}")
         cid = uuid.uuid4().hex[:12]
         state = _ConvoState(kind=kind)
-        greeting = _KIND_GREETINGS[kind]
+        # Pre-populate with the existing contract's priorities (amend
+        # mode). The LLM sees them via the kickoff text; the fallback
+        # state-machine sees them because they're in state.priorities;
+        # the sidebar renders them on the first turn either way.
+        amend_mode = bool(seed_priorities)
+        if seed_priorities:
+            state.priorities = list(seed_priorities)
+            state.can_sign = True  # already signable — adding is optional
+        if seed_settings:
+            state.settings = seed_settings
+        if amend_mode:
+            greeting = _amend_greeting(kind, state.priorities)
+        else:
+            greeting = _KIND_GREETINGS[kind]
+        # Build kickoff text. In amend mode, include the existing
+        # priorities so the LLM knows not to re-elicit them.
+        kickoff_parts: List[str] = []
         if kickoff:
-            # Inject the runtime context (today's summary / current queues)
-            # as the first *user* message so Claude reasons over it.
-            state.history.append(
-                {"role": "user", "content": [{"type": "text", "text": kickoff}]}
+            kickoff_parts.append(kickoff)
+        if amend_mode:
+            existing_summary = (
+                "AMEND MODE: today's contract is already signed with "
+                f"{len(state.priorities)} priority"
+                f"{'y' if len(state.priorities) == 1 else 'ies'}:\n"
+                + "\n".join(
+                    f"  - P{p.weight} {p.title} ({p.evidence_type} → "
+                    f"{p.evidence_target})"
+                    for p in state.priorities
+                )
+                + "\n\nThe user is here to ADD priorities, not overwrite. "
+                "Do NOT re-elicit the existing ones. Acknowledge what's "
+                "there and help the user articulate what they want to add. "
+                "If the user only confirms they're done, that's fine — "
+                "they can sign without changes."
             )
-        # Greeting goes into history as the assistant's opening line.
+            kickoff_parts.append(existing_summary)
+        if kickoff_parts:
+            state.history.append(
+                {"role": "user", "content": [{"type": "text", "text": "\n\n".join(kickoff_parts)}]}
+            )
         state.history.append(
             {"role": "assistant", "content": [{"type": "text", "text": greeting}]}
         )

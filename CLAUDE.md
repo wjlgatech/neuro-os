@@ -11,7 +11,7 @@ This codebase is currently authored by **one human (Paul) plus AI assistants**. 
 
 ## Two artefacts you must read before touching code
 
-1. **[`docs/AI_NATIVE_ENGINEERING_PRINCIPLES.md`](docs/AI_NATIVE_ENGINEERING_PRINCIPLES.md)** — the 10 laws, each tagged with how it's enforced (`[ENFORCED-by-test]`, `[ENFORCED-by-type]`, `[ENFORCED-by-runtime]`, or `[ASPIRATIONAL]`). Read it. The tags are honest — laws marked aspirational do not have automatic enforcement, so the prompt is your only guardrail there.
+1. **[`docs/AI_NATIVE_ENGINEERING_PRINCIPLES.md`](docs/AI_NATIVE_ENGINEERING_PRINCIPLES.md)** — the 11 laws, each tagged with how it's enforced (`[ENFORCED-by-test]`, `[ENFORCED-by-type]`, `[ENFORCED-by-runtime]`, or `[ASPIRATIONAL]`). Read it. The tags are honest — laws marked aspirational do not have automatic enforcement, so the prompt is your only guardrail there.
 2. **[`tests/test_engineering_principles.py`](tests/test_engineering_principles.py)** — the deterministic gate. Run it before every commit:
 
    ```bash
@@ -87,6 +87,7 @@ Cross-vertical reads go through `agent/cross_vertical.py`.
 - Do not let one vertical read another's data without going through `agent/cross_vertical.read_shared(...)` — the privacy-assertion test in `tests/test_cross_vertical_e2e.py` will fire. Default cross-vertical visibility is private.
 - Do not let any vertical's catalog drift from "exactly 6 named failure modes, ≥1 option per failure mode." This is the substrate's invariant; the substrate-adapter tests defend it.
 - Do not commit without the three-section message format (Law 9; pre-commit hook will block you).
+- Do not write generated data into the repo tree (Law 11). All runtime artifacts (JSONL logs, SQLite DBs, JSON payloads from pipeline runs) go to `~/.neuro_os_*/`. If a new tool writes output files, add the pattern to `.gitignore` **in the same PR**. `test_law_11` will catch any `.jsonl`/`.db` files that slip through.
 
 ## How to add a new law
 

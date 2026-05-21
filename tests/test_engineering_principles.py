@@ -24,6 +24,8 @@ Laws 2 (mechanism over description), 8 (minimal primitive set), and 10
 (system before content) are tagged ``[ASPIRATIONAL]`` and are not
 covered here by design — they are prompt-time-only and would require
 an LLM-as-judge to mechanize.
+
+    11. Generated Data Stays Out of the Repo
 """
 from __future__ import annotations
 
@@ -496,3 +498,39 @@ def test_law_9_recent_commit_messages_have_required_sections():
         warnings.warn(msg, stacklevel=2)
         return
     _log_run(9, "pass", [], notes=f"checked {checked} commits")
+
+
+def test_law_11_no_generated_data_in_repo():
+    """Law 11 — Generated data must not live inside the repo tree.
+
+    Checks that no .jsonl, .db, .db-journal, .db-shm, or .db-wal files
+    exist under agent/ or the repo root (outside tests/fixtures/ which
+    holds deterministic, version-controlled test data).
+    """
+    forbidden_suffixes = {".jsonl", ".db", ".db-journal", ".db-shm", ".db-wal"}
+    # tests/fixtures/ — deterministic, version-controlled test data.
+    # versions/       — test-harness measurement log (already gitignored).
+    allowed_prefixes = (
+        REPO_ROOT / "tests" / "fixtures",
+        REPO_ROOT / "versions",
+    )
+
+    violations: List[str] = []
+    for suffix in forbidden_suffixes:
+        for path in REPO_ROOT.rglob(f"*{suffix}"):
+            if any(path.is_relative_to(p) for p in allowed_prefixes):
+                continue
+            # Skip hidden dirs (.git, .ruff_cache, etc.)
+            if any(part.startswith(".") for part in path.parts):
+                continue
+            violations.append(str(path.relative_to(REPO_ROOT)))
+
+    if violations:
+        _log_run(11, "fail", violations)
+        pytest.fail(
+            "Law 11: generated data found inside the repo tree.\n"
+            "Move these files to ~/.neuro_os_*/ and add the pattern to .gitignore:\n"
+            + "\n".join(f"  {v}" for v in violations)
+        )
+
+    _log_run(11, "pass", [], notes=f"scanned {REPO_ROOT}")
