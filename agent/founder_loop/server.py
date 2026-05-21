@@ -251,7 +251,11 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             self._tick(query)
         elif path == "/today":
             self._today()
-        elif path in ("/onboard", "/onboard/", "/"):
+        elif path in ("/", "/dashboard", "/dashboard/"):
+            self._serve_dashboard_page()
+        elif path == "/dashboard/data":
+            self._dashboard_data()
+        elif path in ("/onboard", "/onboard/"):
             self._serve_chat_shell(kind="morning")
         elif path in ("/review", "/review/"):
             self._serve_chat_shell(kind="review")
@@ -262,6 +266,10 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
         elif path.startswith("/onboard/"):
             asset = path[len("/onboard/"):]
             self._serve_static(asset, _guess_mime(asset))
+        elif path in ("/research", "/research/"):
+            self._serve_research_workspace_page()
+        elif path == "/research/state":
+            self._research_state()
         elif path in (
             "/research/living-knowledge",
             "/research/living-knowledge/",
@@ -385,6 +393,10 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             self._research_review_accept()
         elif path == "/research/review/reject":
             self._research_review_reject()
+        elif path == "/research/ingest":
+            self._research_ingest()
+        elif path == "/research/compress":
+            self._research_compress()
         else:
             self._send_json(404, {"error": f"unknown route: {path}"})
 
@@ -442,22 +454,51 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
 
         if not cid:
             kickoff = self._build_kickoff(kind)
+            # Amend mode: if /onboard reopens with today already
+            # signed, load existing priorities + settings into the
+            # new conversation so additions APPEND rather than overwrite.
+            seed_priorities = None
+            seed_settings = None
+            amend_mode = False
+            if kind == "morning":
+                existing = load_latest_contract(self.config.contract_path)
+                if existing is not None and existing.date == date.today().isoformat():
+                    from agent.founder_loop.conversation import ContractSettings
+                    seed_priorities = list(existing.priorities)
+                    seed_settings = ContractSettings(
+                        entertainment_ration_min=existing.entertainment_ration_min,
+                        threshold_pct=existing.threshold_pct,
+                    )
+                    amend_mode = True
             cid, greeting = self.config.conversations.start(
-                kind=kind, kickoff=kickoff,
+                kind=kind,
+                kickoff=kickoff,
+                seed_priorities=seed_priorities,
+                seed_settings=seed_settings,
             )
+            initial_priorities = (
+                [p.model_dump() for p in seed_priorities]
+                if seed_priorities else []
+            )
+            if seed_settings is not None:
+                from dataclasses import asdict as _asdict
+                initial_settings = _asdict(seed_settings)
+            else:
+                initial_settings = {
+                    "entertainment_ration_min": 60,
+                    "threshold_pct": 90,
+                }
             self._send_json(200, {
                 "conversation_id": cid,
                 "kind": kind,
                 "assistant_text": greeting,
-                "priorities": [],
-                "settings": {
-                    "entertainment_ration_min": 60,
-                    "threshold_pct": 90,
-                },
-                "can_sign": False,
+                "priorities": initial_priorities,
+                "settings": initial_settings,
+                "can_sign": amend_mode,
+                "amend_mode": amend_mode,
                 "using_llm": bool(self.config.api_key and self.config.use_llm),
                 "queue_mutations": [],
-                "kickoff": kickoff,  # so the UI can show today's summary
+                "kickoff": kickoff,
             })
             return
         if not message:
@@ -586,6 +627,163 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     # ------------------------------------------------------------------
+    # Unified dashboard at "/" — 4 vertical tiles + a next-step hint
+    # ------------------------------------------------------------------
+
+    def _serve_dashboard_page(self) -> None:
+        path = STATIC_DIR / "dashboard.html"
+        if not path.is_file():
+            self._send_json(500, {"error": "dashboard.html missing"})
+            return
+        body = path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _dashboard_data(self) -> None:
+        """One read of every vertical's headline number for the homepage.
+
+        Pure read-on-poll. Each block is defensive — if a vertical's
+        on-disk state is missing/corrupt, the field is None and the
+        tile renders a "not bound" hint rather than 500ing the page."""
+        out: Dict[str, Any] = {
+            "loop": self._dashboard_loop_block(),
+            "research": self._dashboard_research_block(),
+            "invest": self._dashboard_invest_block(),
+            "startup": self._dashboard_startup_block(),
+        }
+        self._send_json(200, out)
+
+    def _dashboard_loop_block(self) -> Dict[str, Any]:
+        contract = load_latest_contract(self.config.contract_path)
+        if contract is None:
+            return {"contract_bound": False, "tank": None, "priorities_count": 0}
+        all_rows = read_registry(self.config.registry_path)
+        today_rows = filter_by_day(
+            all_rows, datetime.now(timezone.utc).date()
+        )
+        tank = compute_tank(today_rows, contract=contract)
+        return {
+            "contract_bound": True,
+            "tank": json.loads(tank.model_dump_json()),
+            "priorities_count": len(contract.priorities),
+        }
+
+    def _dashboard_research_block(self) -> Dict[str, Any]:
+        """Research headline: pending proposals count + active thesis.
+
+        Reads from ``~/.neuro_os_research/proposals/pending/*.json`` and
+        the research contract; both are optional."""
+        home = Path.home() / ".neuro_os_research"
+        pending = 0
+        try:
+            pdir = home / "proposals" / "pending"
+            if pdir.is_dir():
+                pending = sum(
+                    1 for p in pdir.iterdir()
+                    if p.is_file() and p.suffix == ".json"
+                )
+        except OSError:
+            pending = 0
+        active_thesis = None
+        cards_total = 0
+        try:
+            contract_path = home / "contract.json"
+            if contract_path.is_file():
+                data = json.loads(contract_path.read_text(encoding="utf-8"))
+                active_thesis = data.get("active_thesis_id")
+        except (OSError, json.JSONDecodeError):
+            active_thesis = None
+        try:
+            cards_dir = home / "cards"
+            if cards_dir.is_dir():
+                cards_total = sum(
+                    1 for p in cards_dir.iterdir()
+                    if p.is_file() and p.suffix == ".json"
+                )
+        except OSError:
+            cards_total = 0
+        return {
+            "pending_proposals": pending,
+            "active_thesis_id": active_thesis,
+            "cards_total": cards_total,
+        }
+
+    def _dashboard_invest_block(self) -> Dict[str, Any]:
+        home = Path.home() / ".neuro_os_invest"
+        col_usd = None
+        open_positions = 0
+        try:
+            col_path = home / "cost_of_living.json"
+            if col_path.is_file():
+                d = json.loads(col_path.read_text(encoding="utf-8"))
+                col_usd = d.get("monthly_usd")
+        except (OSError, json.JSONDecodeError):
+            col_usd = None
+        try:
+            trades_path = home / "trades.jsonl"
+            if trades_path.is_file():
+                open_ids: set[str] = set()
+                closed_ids: set[str] = set()
+                for line in trades_path.read_text(encoding="utf-8").splitlines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        row = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    tid = row.get("trade_id") or row.get("id")
+                    action = row.get("action")
+                    if action == "close":
+                        closed_ids.add(tid)
+                    elif tid:
+                        open_ids.add(tid)
+                open_positions = len(open_ids - closed_ids)
+        except OSError:
+            open_positions = 0
+        return {
+            "cost_of_living_usd": col_usd,
+            "open_positions": open_positions,
+        }
+
+    def _dashboard_startup_block(self) -> Dict[str, Any]:
+        home = Path.home() / ".neuro_os_startup"
+        active_hypothesis = None
+        ticks_today = 0
+        try:
+            contract_path = home / "contract.json"
+            if contract_path.is_file():
+                d = json.loads(contract_path.read_text(encoding="utf-8"))
+                active_hypothesis = d.get("active_hypothesis_id")
+        except (OSError, json.JSONDecodeError):
+            active_hypothesis = None
+        try:
+            registry_path = home / "registry.jsonl"
+            if registry_path.is_file():
+                today = datetime.now(timezone.utc).date().isoformat()
+                for line in registry_path.read_text(encoding="utf-8").splitlines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        row = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    ts = row.get("ts") or row.get("timestamp") or ""
+                    if ts.startswith(today):
+                        ticks_today += 1
+        except OSError:
+            ticks_today = 0
+        return {
+            "active_hypothesis_id": active_hypothesis,
+            "ticks_today": ticks_today,
+        }
+
+    # ------------------------------------------------------------------
     # Living Knowledge (research vertical) — Layer 4 + 5 UI
     # ------------------------------------------------------------------
 
@@ -595,6 +793,381 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
         --research-home flag; that's a follow-up if the user wants to
         run multiple research homes side-by-side."""
         return None
+
+    # ------------------------------------------------------------------
+    # Research workspace — the unified ingest → review → compress → express
+    # entry point. The other research browser pages (review, living-knowledge)
+    # are deep-link surfaces; this is the home.
+    # ------------------------------------------------------------------
+
+    def _serve_research_workspace_page(self) -> None:
+        path = STATIC_DIR / "research-workspace.html"
+        if not path.is_file():
+            self._send_json(500, {"error": "research-workspace.html missing"})
+            return
+        body = path.read_bytes()
+        self.send_response(200)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _research_state(self) -> None:
+        """Counts that drive the workspace strip.
+
+        All reads are defensive — a missing home dir returns zero, never
+        500. The strip is a one-glance status; if something is wrong on
+        disk the user finds out from the specific section that needs it."""
+        from agent.research.compress import list_compressions
+        from agent.research.expression import list_expressions
+        from agent.research.proposals import list_proposals
+
+        home = self._research_home()
+        out: Dict[str, Any] = {
+            "sources_ingested": 0,
+            "proposals_pending": 0,
+            "cards_accepted": 0,
+            "compressions_count": 0,
+            "expressions_count": 0,
+            "llm_available": bool(
+                self.config.api_key and self.config.use_llm
+            ),
+            "compressions": [],
+        }
+        try:
+            pending = list_proposals(status="pending", home=home)
+            out["proposals_pending"] = len(pending)
+        except Exception:
+            pass
+        try:
+            accepted = list_proposals(status="accepted", home=home)
+            out["cards_accepted"] = len(accepted)
+        except Exception:
+            pass
+        try:
+            comps = list_compressions(home=home, limit=10)
+            out["compressions_count"] = len(comps)
+            out["compressions"] = [
+                {
+                    "id": c.compression_id,
+                    "l0_count": len(c.level_0_nodes),
+                    "l1_count": len(c.level_1_nodes),
+                    "cards_total": len(c.level_2_nodes),
+                }
+                for c in comps
+            ]
+        except Exception:
+            pass
+        try:
+            exprs = list_expressions(home=home)
+            out["expressions_count"] = len(exprs)
+        except Exception:
+            pass
+        # sources_ingested = unique source files referenced across all
+        # proposals (pending + accepted + rejected). Cheap approximation.
+        try:
+            home_dir = Path.home() / ".neuro_os_research" if home is None else home
+            srcs: set[str] = set()
+            for sub in ("pending", "accepted", "rejected"):
+                d = home_dir / "proposals" / sub
+                if d.is_dir():
+                    for p in d.iterdir():
+                        if p.is_file() and p.suffix == ".json":
+                            try:
+                                data = json.loads(p.read_text(encoding="utf-8"))
+                                sid = data.get("source_id")
+                                if sid:
+                                    srcs.add(sid)
+                            except (OSError, json.JSONDecodeError):
+                                continue
+            out["sources_ingested"] = len(srcs)
+        except Exception:
+            pass
+        self._send_json(200, out)
+
+    def _research_ingest(self) -> None:
+        """POST /research/ingest
+
+        Body modes (mutually exclusive):
+            {"mode": "dir",   "source_dir": "/abs/path", "no_llm": false}
+            {"mode": "url",   "url": "https://...pdf"}
+            {"mode": "paste", "title": "...", "text": "..."}
+
+        Returns the IngestionRun shape on success:
+            {sources_scanned, sources_skipped_unchanged, proposals_emitted,
+             extraction_method, run_id}
+        Or {"error": "..."} on input / runtime failure.
+        """
+        from agent.research.ingest import ingest as ingest_fn
+
+        body = self._read_json_body()
+        mode = body.get("mode")
+        if mode not in ("dir", "url", "paste"):
+            raise _BadRequest("mode must be one of: dir, url, paste")
+
+        # Resolve source_dir for each mode. URL + paste materialize a
+        # tempdir so the same ingest() entry point handles all three.
+        cleanup_tempdir: Optional[Path] = None
+        try:
+            if mode == "dir":
+                raw = body.get("source_dir", "")
+                if not raw:
+                    raise _BadRequest("source_dir required for mode=dir")
+                source_dir = Path(raw).expanduser().resolve()
+                if not source_dir.is_dir():
+                    raise _BadRequest(
+                        f"not a directory: {source_dir}. Use an absolute "
+                        "path to a folder of .txt/.md/.pdf files."
+                    )
+                no_llm = bool(body.get("no_llm", False))
+            elif mode == "url":
+                url = body.get("url", "").strip()
+                if not url or not (
+                    url.startswith("http://") or url.startswith("https://")
+                ):
+                    raise _BadRequest("url must start with http:// or https://")
+                source_dir, cleanup_tempdir = self._download_url_to_tempdir(url)
+                no_llm = bool(body.get("no_llm", False))
+            else:  # paste
+                title = (body.get("title") or "").strip()
+                text = body.get("text") or ""
+                if not title or not text:
+                    raise _BadRequest(
+                        "paste mode requires both 'title' and 'text'"
+                    )
+                source_dir, cleanup_tempdir = self._paste_to_tempdir(title, text)
+                no_llm = bool(body.get("no_llm", False))
+
+            # Pick the LLM callable. Prefer OpenAI when OPENAI_API_KEY is
+            # set (e.g. when Anthropic quota is exhausted); fall back to
+            # Anthropic; fall back to heuristic when no_llm or no key.
+            llm_fn = None
+            if not no_llm and self.config.use_llm:
+                import os as _os
+                if _os.environ.get("OPENAI_API_KEY"):
+                    llm_fn = self._build_openai_extractor()
+                elif self.config.api_key:
+                    llm_fn = self._build_anthropic_extractor()
+
+            home = self._research_home()
+            run = ingest_fn(
+                source_dir=source_dir,
+                llm_fn=llm_fn,
+                home=home,
+            )
+            # Pull read-failure + llm-failure lists from module attrs.
+            from agent.research.ingest import (
+                load_sources as _load,
+                extract_mechanisms as _ext,
+            )
+            read_failures = getattr(_load, "last_read_failures", []) or []
+            llm_errors = getattr(_ext, "last_llm_errors", []) or []
+            self._send_json(200, {
+                "run_id": run.run_id,
+                "sources_scanned": run.sources_scanned,
+                "sources_skipped_unchanged": run.sources_skipped_unchanged,
+                "sources_failed_to_read": [
+                    {"name": n, "reason": r} for (n, r) in read_failures
+                ],
+                "llm_errors": [
+                    {"source_id": s, "reason": r} for (s, r) in llm_errors
+                ],
+                "proposals_emitted": run.proposals_emitted,
+                "extraction_method": run.extraction_method,
+            })
+        finally:
+            if cleanup_tempdir is not None and cleanup_tempdir.is_dir():
+                # Best-effort cleanup. Sources are already snapshotted
+                # in the proposals on disk (each carries source_id +
+                # excerpt), so removing the originals is safe.
+                import shutil
+                shutil.rmtree(cleanup_tempdir, ignore_errors=True)
+
+    def _download_url_to_tempdir(self, url: str) -> tuple[Path, Path]:
+        """Fetch a single URL into a fresh tempdir. Returns (dir, dir)
+        so the caller can ingest the dir and then clean it up."""
+        import tempfile
+        import urllib.parse
+        import urllib.request
+        # Pick a filename from the URL — preserve extension so the
+        # ingest router routes correctly (.pdf vs .md vs .txt).
+        parsed = urllib.parse.urlparse(url)
+        name = Path(parsed.path).name or "fetched"
+        if "." not in name:
+            name += ".txt"
+        tmp = Path(tempfile.mkdtemp(prefix="neuroos-ingest-"))
+        target = tmp / name
+        # urlopen with a short timeout; fail loudly on non-200.
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "neuro-os/research-ingest"
+        })
+        with urllib.request.urlopen(req, timeout=15.0) as resp:
+            if resp.status != 200:
+                raise _BadRequest(f"fetch failed: HTTP {resp.status}")
+            target.write_bytes(resp.read())
+        return tmp, tmp
+
+    def _paste_to_tempdir(self, title: str, text: str) -> tuple[Path, Path]:
+        """Materialize pasted text as a .md file in a fresh tempdir,
+        with a YAML front-matter block carrying the user-supplied title
+        so the ingest pipeline picks it up as the source title."""
+        import tempfile
+        import re
+        slug = re.sub(r"[^a-zA-Z0-9_-]+", "-", title.lower()).strip("-")[:48]
+        slug = slug or "paste"
+        tmp = Path(tempfile.mkdtemp(prefix="neuroos-ingest-"))
+        body = f"---\ntitle: {title}\n---\n\n{text.strip()}\n"
+        (tmp / f"{slug}.md").write_text(body, encoding="utf-8")
+        return tmp, tmp
+
+    def _build_anthropic_extractor(self):
+        """Return an llm_fn matching agent.research.ingest.LLMCallable:
+        ``(system_prompt: str, user_message: str) -> List[dict]``.
+
+        Wraps ``anthropic.Anthropic.messages.create``. The model is
+        instructed (via the existing system prompt) to emit JSON; this
+        wrapper extracts the first JSON array/object it finds and
+        returns it as ``List[dict]``. Lazy-imports anthropic so the
+        daemon boots without it installed."""
+        import json as _json
+        import re as _re
+
+        api_key = self.config.api_key
+
+        def call(system_prompt: str, user_message: str) -> List[Dict[str, Any]]:
+            import anthropic
+            client = anthropic.Anthropic(api_key=api_key)
+            resp = client.messages.create(
+                model="claude-haiku-4-5",
+                max_tokens=4096,
+                system=system_prompt,
+                messages=[{"role": "user", "content": user_message}],
+            )
+            parts: List[str] = []
+            for block in resp.content:
+                t = getattr(block, "text", None)
+                if t:
+                    parts.append(t)
+            text = "".join(parts).strip()
+            if not text:
+                return []
+            # The system prompt asks for JSON; model often wraps it in
+            # ```json fences or pre/post-amble. Strip both.
+            fenced = _re.search(
+                r"```(?:json)?\s*([\[\{].*?[\]\}])\s*```", text, _re.S,
+            )
+            if fenced:
+                text = fenced.group(1)
+            else:
+                # Best-effort: first '[' to its matching ']' (greedy).
+                m = _re.search(r"(\[.*\])", text, _re.S)
+                if m:
+                    text = m.group(1)
+            try:
+                parsed = _json.loads(text)
+            except _json.JSONDecodeError:
+                return []
+            if isinstance(parsed, list):
+                return [r for r in parsed if isinstance(r, dict)]
+            if isinstance(parsed, dict):
+                return [parsed]
+            return []
+
+        return call
+
+    def _build_openai_extractor(self):
+        """Return an llm_fn using OpenAI gpt-4o-mini via OPENAI_API_KEY."""
+        import json as _json
+        import os as _os
+
+        api_key = _os.environ.get("OPENAI_API_KEY")
+
+        def call(system_prompt: str, user_message: str) -> List[Dict[str, Any]]:
+            import openai
+            client = openai.OpenAI(api_key=api_key)
+            resp = client.chat.completions.create(
+                model="gpt-4o-mini",
+                max_tokens=4096,
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_message},
+                ],
+            )
+            text = (resp.choices[0].message.content or "").strip()
+            if not text:
+                return []
+            start = text.find("[")
+            end = text.rfind("]")
+            if start != -1 and end != -1 and end > start:
+                try:
+                    parsed = _json.loads(text[start:end + 1])
+                    if isinstance(parsed, list):
+                        return [r for r in parsed if isinstance(r, dict)]
+                except _json.JSONDecodeError:
+                    pass
+            try:
+                obj = _json.loads(text)
+                if isinstance(obj, dict):
+                    for v in obj.values():
+                        if isinstance(v, list):
+                            return [r for r in v if isinstance(r, dict)]
+            except _json.JSONDecodeError:
+                pass
+            return []
+
+        return call
+
+    def _research_compress(self) -> None:
+        """POST /research/compress — run synthesis (if needed) then
+        compress its output into a HierarchicalCompression.
+
+        Body (all optional):
+            {"window_days": 30, "min_cluster_size": 2, "max_level_0": 5}
+
+        Returns: {compression_id, l0_count, l1_count, cards_total}
+        Or {"error": "..."} if there aren't enough accepted cards.
+        """
+        from agent.research.compress import (
+            compress_from_synthesis,
+            write_compression,
+        )
+        from agent.research.synthesis import run_synthesis
+
+        body = self._read_json_body()
+        window_days = int(body.get("window_days") or 30)
+        min_cluster_size = int(body.get("min_cluster_size") or 1)
+        max_level_0 = int(body.get("max_level_0") or 5)
+        home = self._research_home()
+
+        # Step 1 — synthesize accepted cards into clusters.
+        run = run_synthesis(
+            home=home,
+            window_days=window_days,
+            min_cluster_size=min_cluster_size,
+            llm_fn=None,  # heuristic is reliable for v0; user can pass --llm later
+        )
+        if not run.clusters:
+            self._send_json(200, {
+                "error": (
+                    f"no accepted cards to compress "
+                    f"(input_card_count={run.input_card_count}). "
+                    "Accept at least one proposal in the review queue, then try again."
+                ),
+            })
+            return
+
+        # Step 2 — compress the synthesis run.
+        compression = compress_from_synthesis(run, max_level_0=max_level_0)
+        write_compression(compression, home=home)
+
+        self._send_json(200, {
+            "compression_id": compression.compression_id,
+            "l0_count": len(compression.level_0_nodes),
+            "l1_count": len(compression.level_1_nodes),
+            "cards_total": len(compression.level_2_nodes),
+        })
 
     def _serve_living_knowledge_page(self) -> None:
         path = STATIC_DIR / "research-living-knowledge.html"
