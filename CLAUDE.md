@@ -1,9 +1,41 @@
-# CLAUDE.md — operating manual for AI agents working in this repo
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 > If you're a Claude (or other LLM) about to write code in this repo,
 > read this first. The non-negotiable laws are in
 > [`docs/AI_NATIVE_ENGINEERING_PRINCIPLES.md`](docs/AI_NATIVE_ENGINEERING_PRINCIPLES.md).
 > The deterministic gate is `tests/test_engineering_principles.py`.
+
+## What this repo is (60 seconds)
+
+Neuro-OS is a local, self-modifying knowledge OS. The shape of the system:
+
+- **One substrate** at `agent/domain_app/` — enforces "6 named failure modes + ≥1 constructive expression each + 4 first-class metrics + shared `Confidence` enum + `ContractCheck` on every action" for every vertical.
+- **Four verticals** layered on top: `agent/founder_loop/` (the daily product), `agent/research/`, `agent/investment/` (advisory-only), `agent/startup/`. Same OEC loop (Observe → Evaluate → Control → Validate), different vocabulary.
+- **Cross-vertical bridge** at `agent/cross_vertical.py` — default-PRIVATE; explicit `share_with=[...]` to broaden. Investment positions / startup confidentials / research IP stay home unless the user opts in.
+- **Daemon** at `127.0.0.1:8765` (HTTP + browser surfaces under `agent/founder_loop/static/`). 100% local; no telemetry.
+
+## Dev setup
+
+```bash
+pip install -e ".[dev,llm,ui]"          # editable install with optional groups
+git config core.hooksPath .githooks      # enable commit-msg + pre-commit hooks
+```
+
+## Common commands
+
+| Task | Command |
+|---|---|
+| Boot the daemon + open `/onboard` | `neuro-os start` |
+| Run full test suite | `pytest tests/` |
+| Run a single test | `pytest tests/test_research_compress.py::test_compress_round_trip -v` |
+| Run only the law gate | `pytest tests/test_engineering_principles.py -v` |
+| Run e2e HTTP scenarios | `pytest tests/e2e/test_http_scenarios.py -v` |
+| Lint | `ruff check agent/ tests/` |
+| MCP server entry point | `neuro-os-mcp` (defined in `pyproject.toml`) |
+
+Runtime artifacts (JSONL logs, SQLite DBs) live under `~/.neuro_os_*/` — never the repo tree (Law 11).
 
 ## Audience
 
