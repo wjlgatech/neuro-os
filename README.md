@@ -48,6 +48,7 @@ Start here. All detailed docs live behind these links:
 
 | Doc | For whom | What's in it |
 |---|---|---|
+| [**URL-to-Living-Knowledge**](./docs/url-to-living-knowledge.md) | Daily users wiring up Hermes / Telegram / shell producers | The full inbox loop: schema, walkthrough, allowlist, cross-vertical privacy boundary, failure modes. |
 | [**E2E test catalog**](./tests/e2e/scenarios.md) | Contributors | 29 scenarios (26 deterministic + 3 judgment) describing user journeys with personas, steps, expected outcomes — covers all four verticals. |
 | [**E2E test runner README**](./tests/e2e/README.md) | Contributors | How to run the HTTP / Playwright / Computer Use harnesses. |
 | [**Browser extension README**](./ui/browser_extension/README.md) | Power users | Manifest V3 setup, how the Sublimation Card injects, how the badge polls. |
@@ -79,6 +80,8 @@ That boots the local daemon on `127.0.0.1:8765`, **auto-detects your workflowx e
 | `neuro-os loop anchor --kind {faith,relational} --context "..."` | Append a faith or relational anchor to the daily log. `count_anchors_per_day()` renders "5/7 days hit" on the dashboard. |
 | `neuro-os loop nightly` | End-of-day rollup: prediction MAE, contract-honor rate, entertainment minutes used, sublimation success rate. |
 | `neuro-os research ingest --prefer local --source-dir ~/reading/` | Native LLM extractor: walks `.txt` / `.md` / `.pdf` files → emits `MechanismCardProposal`s. No gbrain required. |
+| `neuro-os research inbox ingest` | URL-to-living-knowledge: consume pre-extracted records from `~/.neuro_os_research/inbox.jsonl` (Hermes / Telegram / curl drop them in). See [**URL-to-Living-Knowledge**](./docs/url-to-living-knowledge.md). |
+| `neuro-os research goal --card-id <id> --entity-slug wfx-revenue-q1` | Link an accepted MechanismCard to a startup-vertical goal entity. Cross-vertical privacy preserved (default-private; only research + startup see the link). |
 | `neuro-os research review --cli` | REPL for accepting / rejecting proposals (Law-7 human gate); accept prompt asks for entity slugs. |
 | `neuro-os research dashboard --window 7` | Compound-curve rollup: drift histogram, stick-rate, never-fired catalog signal, action queue. |
 | `neuro-os cross-vertical share-note --note-id <id> --with investment` | Broaden a note's visibility (research → invest hand-off, etc.). Default is private. |

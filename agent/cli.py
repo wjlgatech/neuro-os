@@ -1220,6 +1220,101 @@ def _add_research_ingest_subcommands(top_sub: "argparse._SubParsersAction") -> N
     )
     runs_clean.set_defaults(func=_research_runs_clean_handler)
 
+    # inbox — pull pre-extracted URL records from inbox.jsonl into the
+    # research vertical's proposal queue. The external producer (Hermes
+    # Gmail watcher, Telegram bot, curl) writes the JSONL; we consume.
+    inb = top_sub.add_parser(
+        "inbox",
+        help="process the URL-to-living-knowledge inbox (~/.neuro_os_research/inbox.jsonl)",
+    )
+    inb_sub = inb.add_subparsers(dest="inbox_command", required=True)
+
+    inb_ingest = inb_sub.add_parser(
+        "ingest",
+        help="consume new records from inbox.jsonl → MechanismCardProposals",
+    )
+    inb_ingest.add_argument(
+        "--no-llm", action="store_true",
+        help="use the regex heuristic instead of an LLM (offline / free / "
+             "low-confidence proposals — same contract as `research ingest --no-llm`)",
+    )
+    inb_ingest.add_argument(
+        "--provider", default="anthropic", choices=["anthropic", "openai"],
+        help="LLM provider when --no-llm is unset (default anthropic)",
+    )
+    inb_ingest.add_argument(
+        "--home", default=None,
+        help="vertical home dir (default: ~/.neuro_os_research/)",
+    )
+    inb_ingest.set_defaults(func=_research_inbox_ingest_handler)
+
+    inb_status = inb_sub.add_parser(
+        "status",
+        help="show pending inbox depth + cursor position (no side effects)",
+    )
+    inb_status.add_argument(
+        "--home", default=None,
+        help="vertical home dir (default: ~/.neuro_os_research/)",
+    )
+    inb_status.set_defaults(func=_research_inbox_status_handler)
+
+    inb_append = inb_sub.add_parser(
+        "append",
+        help="append one record to inbox.jsonl (helper for shell pipelines)",
+    )
+    inb_append.add_argument("--url", required=True, help="source URL")
+    inb_append.add_argument(
+        "--source-type", required=True,
+        choices=["youtube", "blog", "twitter", "pdf", "email-body", "other"],
+        help="producer-attested source type",
+    )
+    inb_append.add_argument("--title", required=True, help="source title")
+    inb_append.add_argument("--author", default="unknown", help="source author")
+    inb_append.add_argument(
+        "--text-file", required=True,
+        help="path to a file whose contents are the pre-extracted body text",
+    )
+    inb_append.add_argument(
+        "--sender", default=None,
+        help="optional sender identity (checked against inbox_allowlist.json)",
+    )
+    inb_append.add_argument(
+        "--urge-tag", default=None,
+        help="optional active drift mode (novelty/social/frustration/...)",
+    )
+    inb_append.add_argument(
+        "--home", default=None,
+        help="vertical home dir (default: ~/.neuro_os_research/)",
+    )
+    inb_append.set_defaults(func=_research_inbox_append_handler)
+
+    # goal — link an accepted MechanismCard to a startup-vertical entity,
+    # broadening cross-vertical visibility so the startup loop can read
+    # research insights that bear on its revenue goals.
+    gol = top_sub.add_parser(
+        "goal",
+        help="link an accepted MechanismCard to a startup-vertical goal entity",
+    )
+    gol.add_argument(
+        "--card-id", required=True,
+        help="MechanismCard id (from `research review --cli` accept step)",
+    )
+    gol.add_argument(
+        "--entity-slug", required=True,
+        help="kebab-case slug for the startup-vertical goal "
+             "(e.g. 'wfx-revenue-q1' / 'omega-founders-launch')",
+    )
+    gol.add_argument(
+        "--entity-title", default=None,
+        help="human-readable title for the goal entity "
+             "(default: derived from slug)",
+    )
+    gol.add_argument(
+        "--home", default=None,
+        help="vertical home dir (default: ~/.neuro_os_research/)",
+    )
+    gol.set_defaults(func=_research_goal_handler)
+
 
 def _research_runs_list_handler(args: argparse.Namespace) -> int:
     from agent.research.run_registry import list_runs
@@ -1273,6 +1368,166 @@ def _research_runs_clean_handler(args: argparse.Namespace) -> int:
 
 def _research_default_home() -> Path:
     return Path("~/.neuro_os_research").expanduser()
+
+
+def _research_inbox_ingest_handler(args: argparse.Namespace) -> int:
+    """Consume new records from inbox.jsonl into the proposals queue."""
+    from agent.research.inbox import process_inbox
+
+    home = Path(args.home).expanduser() if args.home else None
+    llm_fn = None
+    if not args.no_llm:
+        provider = getattr(args, "provider", "anthropic")
+        if provider == "openai":
+            llm_fn = _make_openai_llm_fn()
+        else:
+            llm_fn = _make_anthropic_llm_fn()
+
+    summary = process_inbox(llm_fn=llm_fn, home=home)
+    print(summary.model_dump_json(indent=2))
+    return 0
+
+
+def _research_inbox_status_handler(args: argparse.Namespace) -> int:
+    """Show pending inbox depth + cursor position. No side effects."""
+    from agent.research.inbox import (
+        default_cursor_path,
+        default_inbox_path,
+        load_allowlist,
+        read_pending,
+    )
+
+    home = Path(args.home).expanduser() if args.home else None
+    inbox_path = default_inbox_path(home)
+    cursor_path = default_cursor_path(home)
+    pending = read_pending(home=home)
+    allowlist = load_allowlist(home)
+
+    cursor_value = -1
+    if cursor_path.exists():
+        try:
+            cursor_value = int(cursor_path.read_text(encoding="utf-8").strip())
+        except (ValueError, OSError):
+            cursor_value = -1
+
+    total_lines = 0
+    if inbox_path.exists():
+        with inbox_path.open("r", encoding="utf-8") as f:
+            total_lines = sum(1 for _ in f)
+
+    print(json.dumps({
+        "inbox_path": str(inbox_path),
+        "cursor_path": str(cursor_path),
+        "cursor": cursor_value,
+        "total_lines": total_lines,
+        "pending_count": len(pending),
+        "allowlist_active": allowlist is not None and len(allowlist) > 0,
+        "allowlist_size": (len(allowlist) if allowlist else 0),
+    }, indent=2))
+    return 0
+
+
+def _research_inbox_append_handler(args: argparse.Namespace) -> int:
+    """Append one record to inbox.jsonl from CLI args + a text file."""
+    from datetime import datetime, timezone
+
+    from agent.research.inbox import InboxRecord, append_to_inbox
+
+    home = Path(args.home).expanduser() if args.home else None
+    text_path = Path(args.text_file).expanduser()
+    if not text_path.exists():
+        print(f"error: text file not found: {text_path}", file=sys.stderr)
+        return 2
+    body = text_path.read_text(encoding="utf-8", errors="replace")
+    if not body.strip():
+        print(f"error: text file is empty: {text_path}", file=sys.stderr)
+        return 2
+
+    record = InboxRecord(
+        url=args.url,
+        source_type=args.source_type,
+        title=args.title,
+        author=args.author,
+        extracted_text=body,
+        extracted_at=datetime.now(timezone.utc),
+        sender=args.sender,
+        urge_tag=args.urge_tag,
+    )
+    offset = append_to_inbox(record, home=home)
+    print(json.dumps({
+        "appended_offset": offset,
+        "source_type": record.source_type,
+        "url": record.url,
+        "byte_count": len(body.encode("utf-8")),
+    }, indent=2))
+    return 0
+
+
+def _research_goal_handler(args: argparse.Namespace) -> int:
+    """Link an accepted MechanismCard to a startup-vertical goal entity.
+
+    Side effects (all in ~/.neuro_os/cross_vertical.jsonl):
+      1. Upsert a startup-vertical Entity (kind="topic", slug=user-supplied),
+         visible to research+startup so both can read it.
+      2. Write a research-vertical note (kind="research_goal_link") that
+         pins (card_id, entity_slug) together, share_with=["startup"]
+         so the startup loop can query for research bearing on this goal.
+    """
+    from agent.cross_vertical import upsert_entity, write_note
+
+    home = Path(args.home).expanduser() if args.home else _research_default_home()
+    card_path = home / "mechanism_cards" / f"{args.card_id}.json"
+    if not card_path.exists():
+        print(
+            f"error: no accepted MechanismCard with id {args.card_id!r} "
+            f"(expected at {card_path}). Accept the proposal first via "
+            f"`research review --cli`.",
+            file=sys.stderr,
+        )
+        return 2
+
+    try:
+        card_payload = json.loads(card_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"error: could not read card {card_path}: {e}", file=sys.stderr)
+        return 2
+
+    title = args.entity_title or args.entity_slug.replace("-", " ").title()
+    entity = upsert_entity(
+        slug=args.entity_slug,
+        kind="topic",
+        title=title,
+        source_vertical="startup",
+        compiled_truth=(
+            f"Goal entity linked from research vertical. First linked "
+            f"to MechanismCard {args.card_id} "
+            f"({card_payload.get('paper_title', '?')!r})."
+        ),
+        mentioned_in_note_id=args.card_id,
+        visible_to=["startup", "research"],
+    )
+
+    note = write_note(
+        source_vertical="research",
+        note_kind="research_goal_link",
+        payload={
+            "card_id": args.card_id,
+            "entity_slug": args.entity_slug,
+            "paper_title": card_payload.get("paper_title"),
+            "mechanism": card_payload.get("mechanism"),
+            "prediction": card_payload.get("prediction"),
+        },
+        visible_to=["research", "startup"],
+    )
+
+    print(json.dumps({
+        "card_id": args.card_id,
+        "entity_slug": entity.slug,
+        "entity_id": entity.id,
+        "note_id": note.id,
+        "visible_to": list(note.visible_to),
+    }, indent=2))
+    return 0
 
 
 def _research_ingest_handler(args: argparse.Namespace) -> int:
