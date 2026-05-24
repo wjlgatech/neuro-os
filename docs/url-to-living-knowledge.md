@@ -2,18 +2,23 @@
 
 **Audience:** anyone forwarding links (YouTube videos, blog posts, X threads, PDFs) into Neuro-OS and wanting them to land as accepted MechanismCards linked to revenue goals — not as flat tickets that decay.
 
-**TL;DR:** drop a JSONL line into `~/.neuro_os_research/inbox.jsonl`, run `neuro-os research inbox ingest`, accept what's good in `research review`, link the keepers to a startup goal with `research goal`. That's the loop.
+**TL;DR:** get a URL's text into `~/.neuro_os_research/inbox.jsonl` — either let neuro-os fetch it for you (`research inbox append --fetch-url <link>`) or have a producer drop the line — then run `neuro-os research inbox ingest`, accept what's good in `research review`, and link the keepers to a startup goal with `research goal`. That's the loop.
 
 ---
 
 ## The shape of the flow
 
 ```
-EXTERNAL PRODUCER          NEURO-OS (already exists)
-(Hermes / curl / shell)
-       │
-       │  append InboxRecord
-       ▼
+TWO WAYS IN                NEURO-OS (already exists)
+
+(a) neuro-os fetches it
+    research inbox append
+      --fetch-url <link>  ──┐
+                            │
+(b) external producer       │  append InboxRecord
+    (Hermes / curl / shell)─┤
+       │                    │
+       ▼                    ▼
 ~/.neuro_os_research/
        inbox.jsonl                 ← append-only, one InboxRecord per line
        │
@@ -57,7 +62,48 @@ One JSON object per line. All required fields are validated by Pydantic at consu
 
 ---
 
-## Minimum-slice walkthrough (drop a YouTube transcript by hand)
+## Standalone — let neuro-os fetch the link itself (`--fetch-url`)
+
+You don't need Hermes (or any producer) to turn a link into knowledge. `research inbox append --fetch-url <URL>` makes neuro-os do the fetch + text-extraction itself, then append the InboxRecord:
+
+```bash
+# Blog post / docs page / news article — auto-detected as `blog`:
+neuro-os research inbox append --fetch-url "https://example.com/great-essay"
+
+# YouTube — pulls the transcript when youtube-transcript-api is installed,
+# otherwise falls back to the video title + description:
+neuro-os research inbox append --fetch-url "https://youtube.com/watch?v=abc123"
+
+# Then the rest of the loop is identical:
+neuro-os research inbox ingest
+neuro-os research review --cli
+```
+
+`source_type` / `title` / `author` are auto-derived from the page (host detection + `<og:title>` / `<meta name=author>` / `<title>`). Override any of them, and tag the link, with the same flags as manual mode:
+
+```bash
+neuro-os research inbox append \
+  --fetch-url "https://youtube.com/watch?v=abc123" \
+  --source-type blog \           # force generic HTML parsing instead of transcript
+  --title "Custom title" \
+  --urge-tag novelty \
+  --topic-tag distribution
+```
+
+**What it fetches, and what it doesn't** (the heuristics live in `agent/research/fetch.py`, kept in parity with the Hermes `url-to-inbox` skill):
+
+| `source_type` | Standalone `--fetch-url` behavior |
+|---|---|
+| `blog` / `other` | `urllib` GET + a stdlib HTML→text reducer (strips `<script>`/`<style>`, decodes entities). No BeautifulSoup dependency. |
+| `youtube` | Transcript via `youtube_transcript_api` if installed; else title + description with a hint to `pip install youtube-transcript-api`. |
+| `twitter` / `x` | Best-effort: the static `<meta description>` only (threads are client-rendered). For full threads, use a producer upstream + `--text-file`. |
+| `pdf` / `email-body` | **Not fetched** — raises a clear error. These need an OCR / producer step; feed the extracted text via `--text-file` (below). |
+
+This is the only place in the inbox pipeline that touches the network. Everything after the append is local. When you'd rather hand neuro-os already-extracted text (a producer did the fetch, or it's a PDF/email body), use `--text-file` instead — see the next section.
+
+---
+
+## Minimum-slice walkthrough (stage pre-extracted text by hand)
 
 ```bash
 # 1. Save the transcript anywhere.
@@ -183,8 +229,10 @@ The end-to-end test (`tests/test_research_inbox.py::test_real_use_case_url_to_li
 | Concern | File |
 |---|---|
 | Schema (`InboxRecord`, `InboxRunSummary`) | `agent/research/inbox.py` |
+| Standalone URL fetch (`--fetch-url`) — `fetch_url`, `FetchedSource`, HTML reducer | `agent/research/fetch.py` (fetch) + `fetch_url_to_inbox` in `agent/research/inbox.py` (fetch→record→append) |
 | End-to-end driver (`process_inbox`) | `agent/research/inbox.py` |
 | Allowlist load (`load_allowlist`) | `agent/research/inbox.py` |
 | CLI surface (`research inbox`, `research goal`) | `agent/cli.py` — handlers `_research_inbox_*` + `_research_goal_handler` |
+| Tests — fetch path | `tests/test_research_fetch.py` |
 | Tests + the real-use-case end-to-end | `tests/test_research_inbox.py` |
 | Design rationale + dropped non-goals | `docs/plans/url2livingknowledge.md` |

@@ -80,7 +80,8 @@ That boots the local daemon on `127.0.0.1:8765`, **auto-detects your workflowx e
 | `neuro-os loop anchor --kind {faith,relational} --context "..."` | Append a faith or relational anchor to the daily log. `count_anchors_per_day()` renders "5/7 days hit" on the dashboard. |
 | `neuro-os loop nightly` | End-of-day rollup: prediction MAE, contract-honor rate, entertainment minutes used, sublimation success rate. |
 | `neuro-os research ingest --prefer local --source-dir ~/reading/` | Native LLM extractor: walks `.txt` / `.md` / `.pdf` files → emits `MechanismCardProposal`s. No gbrain required. |
-| `neuro-os research inbox ingest` | URL-to-living-knowledge: consume pre-extracted records from `~/.neuro_os_research/inbox.jsonl` (Hermes / Telegram / curl drop them in). See [**URL-to-Living-Knowledge**](./docs/url-to-living-knowledge.md). |
+| `neuro-os research inbox append --fetch-url <link>` | Standalone: neuro-os fetches + extracts the URL itself (blog/news via stdlib HTML reducer, YouTube via transcript) and queues it — no Hermes/producer needed. Then `research inbox ingest`. See [**URL-to-Living-Knowledge**](./docs/url-to-living-knowledge.md). |
+| `neuro-os research inbox ingest` | URL-to-living-knowledge: consume records from `~/.neuro_os_research/inbox.jsonl` (filled by `--fetch-url`, or by Hermes / Telegram / curl producers). See [**URL-to-Living-Knowledge**](./docs/url-to-living-knowledge.md). |
 | `neuro-os research goal --card-id <id> --entity-slug wfx-revenue-q1` | Link an accepted MechanismCard to a startup-vertical goal entity. Cross-vertical privacy preserved (default-private; only research + startup see the link). |
 | `neuro-os research review --cli` | REPL for accepting / rejecting proposals (Law-7 human gate); accept prompt asks for entity slugs. |
 | `neuro-os research dashboard --window 7` | Compound-curve rollup: drift histogram, stick-rate, never-fired catalog signal, action queue. |
