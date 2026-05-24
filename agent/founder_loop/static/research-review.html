@@ -228,11 +228,37 @@
       color: var(--red); border: 1px solid var(--red);
     }
     .btn.reject:hover { background: var(--red-bg); }
+    .btn.edit {
+      background: transparent;
+      color: var(--accent); border: 1px solid var(--border-strong);
+    }
+    .btn.edit:hover { border-color: var(--accent); }
     .btn:disabled {
       background: var(--panel-2);
       color: var(--text-faint);
       cursor: not-allowed;
     }
+
+    .edit-form label {
+      display: block;
+      font-size: 10px; letter-spacing: 0.4px;
+      color: var(--text-faint); text-transform: uppercase;
+      margin: 12px 0 3px 0;
+    }
+    .edit-form textarea,
+    .edit-form input,
+    .edit-form select {
+      width: 100%;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font: inherit; font-size: 12.5px;
+      padding: 8px 11px; border-radius: 5px; outline: none;
+      resize: vertical;
+    }
+    .edit-form textarea:focus,
+    .edit-form input:focus,
+    .edit-form select:focus { border-color: var(--accent); }
 
     .err {
       background: var(--red-bg);
@@ -502,9 +528,12 @@
               <div class="field-help">e.g. <code>nicholas-yang, value-investing</code> — propagated to the cross-vertical store, default-PRIVATE to research.</div>
             </div>
           </div>
-          <div class="action-row" style="justify-content: flex-end">
-            <button class="btn reject">Reject</button>
-            <button class="btn accept">Accept</button>
+          <div class="action-row" style="justify-content: space-between">
+            <button class="btn edit">Edit</button>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn reject">Reject</button>
+              <button class="btn accept">Accept</button>
+            </div>
           </div>
         </div>
       `;
@@ -529,6 +558,12 @@
       // Click-to-expand
       card.querySelector(".proposal-head").addEventListener("click", () => {
         card.classList.toggle("expanded");
+      });
+
+      // Edit handler — swap the body into an editable form.
+      card.querySelector(".btn.edit").addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        enterEditMode(card, p);
       });
 
       // Accept handler
@@ -596,6 +631,71 @@
       });
 
       return card;
+    }
+
+    // Edit fields, in display order. Required ones are validated server-side;
+    // optional ones clear to null when blanked.
+    const EDIT_FIELDS = [
+      { k: "paper_title", label: "Title", tag: "input", max: 400 },
+      { k: "one_sentence_compression", label: "One-sentence compression", tag: "textarea", rows: 2, max: 280 },
+      { k: "mechanism", label: "Mechanism", tag: "textarea", rows: 3, max: 600 },
+      { k: "invariant", label: "Invariant", tag: "textarea", rows: 2, max: 400 },
+      { k: "prediction", label: "Prediction", tag: "textarea", rows: 2, max: 400 },
+      { k: "failure_mode", label: "Failure mode", tag: "textarea", rows: 2, max: 400 },
+      { k: "first_principle", label: "First principle (optional)", tag: "textarea", rows: 2, max: 400 },
+      { k: "anti_pattern", label: "Anti-pattern (optional)", tag: "textarea", rows: 2, max: 400 },
+      { k: "transferability_test", label: "Transferability test (optional)", tag: "textarea", rows: 2, max: 400 },
+    ];
+    const VERDICTS = ["", "foundational", "useful", "misleading", "skip"];
+
+    function enterEditMode(card, p) {
+      card.classList.add("expanded");
+      const body = card.querySelector(".proposal-body");
+      const fieldHtml = EDIT_FIELDS.map(f => {
+        const ctrl = f.tag === "input"
+          ? `<input class="e-field" data-k="${f.k}" maxlength="${f.max}">`
+          : `<textarea class="e-field" data-k="${f.k}" rows="${f.rows}" maxlength="${f.max}"></textarea>`;
+        return `<label>${escapeHtml(f.label)}</label>${ctrl}`;
+      }).join("");
+      const verdictOpts = VERDICTS
+        .map(v => `<option value="${v}">${v || "(unrated)"}</option>`).join("");
+      body.innerHTML = `
+        <div class="edit-form">
+          ${fieldHtml}
+          <label>Verdict</label>
+          <select class="e-field" data-k="verdict">${verdictOpts}</select>
+          <div class="action-row" style="justify-content: flex-end">
+            <button class="btn edit e-cancel">Cancel</button>
+            <button class="btn accept e-save">Save</button>
+          </div>
+        </div>
+      `;
+      // Populate via .value (no HTML injection) from the proposal object.
+      body.querySelectorAll(".e-field").forEach(el => {
+        const v = p[el.dataset.k];
+        el.value = (v == null) ? "" : String(v);
+      });
+      body.querySelector(".e-cancel").addEventListener("click", () => render());
+      body.querySelector(".e-save").addEventListener("click", async () => {
+        const fields = {};
+        body.querySelectorAll(".e-field").forEach(el => { fields[el.dataset.k] = el.value; });
+        const saveBtn = body.querySelector(".e-save");
+        saveBtn.disabled = true;
+        try {
+          const r = await fetch("/research/review/edit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ proposal_id: p.proposal_id, fields }),
+          });
+          const data = await r.json();
+          if (data.error) { showError(card, data.error); saveBtn.disabled = false; return; }
+          showBanner(`Saved edits to ${p.proposal_id}`);
+          await reload();
+        } catch (err) {
+          showError(card, err.message || String(err));
+          saveBtn.disabled = false;
+        }
+      });
     }
 
     function buildResolvedCard(p, status) {

@@ -334,13 +334,30 @@ def _l0_label_from_group(group: Sequence[MechanismCluster]) -> str:
     return f"{first_label} + {len(group) - 1} related"
 
 
+def _word_safe_clip(text: str, limit: int) -> str:
+    """Clip without slicing a word in half (companion to the synthesis
+    summarizer; keeps L0 rollups readable instead of '...context a')."""
+    text = text.strip()
+    if len(text) <= limit:
+        return text
+    cut = text[: max(1, limit - 1)]
+    sp = cut.rfind(" ")
+    if sp >= int(limit * 0.6):
+        cut = cut[:sp]
+    return cut.rstrip(" ,;:.—-") + "…"
+
+
 def _l0_summary_from_group(group: Sequence[MechanismCluster]) -> str:
     """One-sentence summary for an L0 node."""
     if len(group) == 1:
-        return group[0].mechanism_summary
-    parts = [c.mechanism_summary.split(".")[0][:100] for c in group[:3]]
+        return group[0].mechanism_summary[:600]
+    # Multiple sub-clusters: give each a word-safe slice of the budget
+    # rather than chopping the first sentence at a fixed offset.
+    shown = group[:3]
+    per_budget = max(80, 580 // len(shown))
+    parts = [_word_safe_clip(c.mechanism_summary, per_budget) for c in shown]
     suffix = f" (+{len(group) - 3} more)" if len(group) > 3 else ""
-    return " | ".join(parts) + suffix
+    return (" | ".join(parts) + suffix)[:600]
 
 
 __all__ = [

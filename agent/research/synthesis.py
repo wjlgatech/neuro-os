@@ -59,7 +59,7 @@ import tempfile
 import uuid
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Callable, List, Literal, Optional, Tuple
+from typing import Callable, List, Literal, Optional, Sequence, Tuple
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -272,6 +272,57 @@ def _jaccard(a: set[str], b: set[str]) -> float:
     return inter / union if union else 0.0
 
 
+# Total budget for MechanismCluster.mechanism_summary (matches the field's
+# max_length). Member summaries are packed into this, word-safe.
+_MECHANISM_SUMMARY_MAX = 1000
+
+
+def _word_safe_truncate(text: str, limit: int) -> str:
+    """Trim ``text`` to ``limit`` chars without cutting mid-word.
+
+    Cuts at the last whitespace before the limit (unless that would drop
+    too much), strips trailing punctuation, and appends an ellipsis. The
+    old code did a blind ``[:140]`` which sliced words in half and lost
+    the tail of every mechanism — see the '...context a' bug.
+    """
+    text = text.strip()
+    if len(text) <= limit:
+        return text
+    cut = text[: max(1, limit - 1)]
+    sp = cut.rfind(" ")
+    # Only break on a word boundary if it keeps most of the budget;
+    # otherwise a single very long token would collapse to almost nothing.
+    if sp >= int(limit * 0.6):
+        cut = cut[:sp]
+    return cut.rstrip(" ,;:.—-") + "…"
+
+
+def _member_summary(card: dict) -> str:
+    """One readable line for a card: prefer the purpose-built
+    ``one_sentence_compression`` (≤280, human/LLM-authored), then fall
+    back to the raw ``mechanism``. Never returns empty."""
+    for key in ("one_sentence_compression", "mechanism"):
+        v = card.get(key)
+        if isinstance(v, str) and v.strip():
+            return v.strip()
+    return ""
+
+
+def _summarize_members(member_cards: Sequence[dict]) -> str:
+    """Join member one-liners into a cluster summary that fits the
+    1000-char field WITHOUT slicing words. Single-member clusters keep
+    their full compression sentence; multi-member clusters share the
+    budget fairly."""
+    summaries = [s for s in (_member_summary(c) for c in member_cards) if s]
+    if not summaries:
+        return "(no shared mechanism text)"
+    n = len(summaries)
+    sep = " | "
+    per_budget = max(60, (_MECHANISM_SUMMARY_MAX - len(sep) * (n - 1)) // n)
+    joined = sep.join(_word_safe_truncate(s, per_budget) for s in summaries)
+    return joined[:_MECHANISM_SUMMARY_MAX] or "(no shared mechanism text)"
+
+
 def _heuristic_cluster(
     cards: List[dict],
     *,
@@ -304,9 +355,9 @@ def _heuristic_cluster(
                 shared_tokens &= tokens[k]
             label = ", ".join(sorted(shared_tokens)[:5]) or "mechanism cluster"
             members = tuple(cards[k].get("id", "?") for k in group_idx)
-            mechanism_summary = " | ".join(
-                str(cards[k].get("mechanism", ""))[:140] for k in group_idx[:5]
-            )[:1000]
+            mechanism_summary = _summarize_members(
+                [cards[k] for k in group_idx[:5]]
+            )
             # Union of framework_alignment axes across members (heuristic
             # has no LLM to interpret transfers, but propagates whatever
             # axes the members already carry).
