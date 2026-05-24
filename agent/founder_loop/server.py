@@ -398,6 +398,8 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             self._research_review_accept()
         elif path == "/research/review/reject":
             self._research_review_reject()
+        elif path == "/research/review/edit":
+            self._research_review_edit()
         elif path == "/research/ingest":
             self._research_ingest()
         elif path == "/research/compress":
@@ -1696,6 +1698,72 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             self._send_json(400, {"error": str(e)})
             return
         self._send_json(200, {"rejected_proposal_id": proposal_id})
+
+    # Fields a user may edit on a pending proposal before accepting.
+    # Provenance (source_id, source_excerpt, reasoning, extraction_*,
+    # proposed_at, proposal_id) is intentionally NOT editable — it's the
+    # audit trail. Required fields must stay non-empty; optional fields
+    # clear to None when blanked.
+    _EDITABLE_REQUIRED = (
+        "paper_title", "mechanism", "invariant", "prediction", "failure_mode",
+    )
+    _EDITABLE_OPTIONAL = (
+        "one_sentence_compression", "first_principle", "anti_pattern",
+        "transferability_test", "verdict",
+    )
+
+    def _research_review_edit(self) -> None:
+        """Edit a PENDING proposal's human-facing fields in place.
+
+        Proposals are frozen, so this re-validates a merged copy (same
+        proposal_id, status stays ``pending``) through the Pydantic model
+        and overwrites ``pending/<id>.json``. Length/verdict violations
+        come back as a 400 instead of corrupting the file."""
+        from agent.research.ontology import MechanismCardProposal
+        from agent.research.proposals import list_proposals, write_proposal
+
+        body = self._read_json_body()
+        proposal_id = body.get("proposal_id")
+        if not proposal_id:
+            self._send_json(400, {"error": "proposal_id is required"})
+            return
+        fields = body.get("fields")
+        if not isinstance(fields, dict):
+            self._send_json(400, {"error": "fields must be an object"})
+            return
+
+        home = self._research_home()
+        pending = list_proposals(home=home, status="pending")
+        prop = next((p for p in pending if p.proposal_id == proposal_id), None)
+        if prop is None:
+            self._send_json(404, {"error": f"proposal {proposal_id!r} not in pending"})
+            return
+
+        merged = prop.model_dump()
+        for key in self._EDITABLE_REQUIRED:
+            if key in fields:
+                val = fields[key]
+                if not isinstance(val, str) or not val.strip():
+                    self._send_json(400, {"error": f"{key} must be a non-empty string"})
+                    return
+                merged[key] = val.strip()
+        for key in self._EDITABLE_OPTIONAL:
+            if key in fields:
+                val = fields[key]
+                # Blank string clears an optional field back to None.
+                merged[key] = val.strip() if isinstance(val, str) and val.strip() else None
+
+        try:
+            updated = MechanismCardProposal.model_validate(merged)
+        except Exception as e:  # noqa: BLE001 — validation message to client
+            self._send_json(400, {"error": f"invalid edit: {e}"})
+            return
+
+        write_proposal(updated, home=home)
+        self._send_json(200, {
+            "edited_proposal_id": proposal_id,
+            "proposal": json.loads(updated.model_dump_json()),
+        })
 
     def _queues_restore(self) -> None:
         """Restore queue files from a client-side snapshot. The /queues

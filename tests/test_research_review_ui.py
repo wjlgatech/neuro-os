@@ -236,6 +236,101 @@ def test_reject_requires_proposal_id(daemon):
 
 
 # ---------------------------------------------------------------------------
+# POST /edit
+# ---------------------------------------------------------------------------
+
+
+def test_edit_updates_pending_fields(daemon):
+    base, home = daemon
+    _seed_pending(home, "prop-edit-1", mechanism="old mechanism", paper_title="old title")
+    resp = _post(base, "/research/review/edit", {
+        "proposal_id": "prop-edit-1",
+        "fields": {
+            "mechanism": "new, corrected mechanism",
+            "paper_title": "new title",
+            "one_sentence_compression": "a crisp one liner",
+        },
+    })
+    data = json.loads(resp.read())
+    assert data["edited_proposal_id"] == "prop-edit-1"
+    assert data["proposal"]["mechanism"] == "new, corrected mechanism"
+    # Still pending, and the edit is visible via /data
+    after = json.loads(_get(base, "/research/review/data").read())
+    edited = next(p for p in after["pending"] if p["proposal_id"] == "prop-edit-1")
+    assert edited["mechanism"] == "new, corrected mechanism"
+    assert edited["paper_title"] == "new title"
+    assert edited["one_sentence_compression"] == "a crisp one liner"
+
+
+def test_edit_clears_optional_field_when_blanked(daemon):
+    base, home = daemon
+    _seed_pending(home, "prop-edit-clear", verdict="useful")
+    resp = _post(base, "/research/review/edit", {
+        "proposal_id": "prop-edit-clear",
+        "fields": {"verdict": ""},
+    })
+    data = json.loads(resp.read())
+    assert data["proposal"]["verdict"] is None
+
+
+def test_edit_preserves_provenance(daemon):
+    base, home = daemon
+    _seed_pending(home, "prop-edit-prov", source_id="keep-this-source")
+    resp = _post(base, "/research/review/edit", {
+        "proposal_id": "prop-edit-prov",
+        "fields": {"mechanism": "edited"},
+    })
+    data = json.loads(resp.read())
+    # Provenance + identity untouched.
+    assert data["proposal"]["source_id"] == "keep-this-source"
+    assert data["proposal"]["proposal_id"] == "prop-edit-prov"
+    assert data["proposal"]["extraction_method"] == "fallback-heuristic"
+    assert data["proposal"]["status"] == "pending"
+
+
+def test_edit_rejects_empty_required_field(daemon):
+    base, home = daemon
+    _seed_pending(home, "prop-edit-empty")
+    with pytest.raises(HTTPError) as exc:
+        _post(base, "/research/review/edit", {
+            "proposal_id": "prop-edit-empty",
+            "fields": {"mechanism": "   "},
+        })
+    assert exc.value.code == 400
+
+
+def test_edit_rejects_overlong_field(daemon):
+    base, home = daemon
+    _seed_pending(home, "prop-edit-long")
+    with pytest.raises(HTTPError) as exc:
+        _post(base, "/research/review/edit", {
+            "proposal_id": "prop-edit-long",
+            "fields": {"mechanism": "x" * 601},  # mechanism max_length=600
+        })
+    assert exc.value.code == 400
+
+
+def test_edit_404_when_not_pending(daemon):
+    base, _ = daemon
+    with pytest.raises(HTTPError) as exc:
+        _post(base, "/research/review/edit", {
+            "proposal_id": "nope", "fields": {"mechanism": "x"},
+        })
+    assert exc.value.code == 404
+
+
+def test_edit_requires_proposal_id_and_fields(daemon):
+    base, home = daemon
+    _seed_pending(home, "prop-edit-args")
+    with pytest.raises(HTTPError) as exc:
+        _post(base, "/research/review/edit", {"fields": {"mechanism": "x"}})
+    assert exc.value.code == 400
+    with pytest.raises(HTTPError) as exc2:
+        _post(base, "/research/review/edit", {"proposal_id": "prop-edit-args"})
+    assert exc2.value.code == 400
+
+
+# ---------------------------------------------------------------------------
 # Security regression — new routes inherit CORS hardening
 # ---------------------------------------------------------------------------
 
@@ -247,6 +342,7 @@ def test_review_routes_reject_attacker_origin(daemon):
         "/research/review/data",
         "/research/review/accept",
         "/research/review/reject",
+        "/research/review/edit",
     ):
         req = Request(f"{base}{path}", data=b"{}", method="POST",
                       headers={"Content-Type": "application/json"})
