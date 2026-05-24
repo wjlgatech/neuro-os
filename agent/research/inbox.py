@@ -194,6 +194,53 @@ def append_to_inbox(
         return sum(1 for _ in f) - 1
 
 
+def fetch_url_to_inbox(
+    url: str,
+    *,
+    source_type: str = "auto",
+    home: Optional[Path] = None,
+    stored_url: Optional[str] = None,
+    title: Optional[str] = None,
+    author: Optional[str] = None,
+    sender: Optional[str] = None,
+    urge_tag: Optional[str] = None,
+    topic_tags: Optional[List[str]] = None,
+    now: Optional[datetime] = None,
+) -> Tuple[int, InboxRecord]:
+    """Standalone path: fetch ``url`` over the network, extract its text,
+    and append one :class:`InboxRecord` to the inbox — no external
+    producer required.
+
+    This is the library entry point behind ``research inbox append
+    --fetch-url``. ``source_type="auto"`` detects from the URL host.
+    ``stored_url`` / ``title`` / ``author`` override the fetched values
+    when given (None = use what the fetcher derived).
+
+    Raises :class:`~agent.research.fetch.FetchError` for an unreachable
+    URL, an empty page, or a non-fetchable source type (pdf /
+    email-body). The fetch step is the only network access in the inbox
+    pipeline; everything downstream is local.
+
+    Returns ``(line_offset, record)``.
+    """
+    from agent.research.fetch import fetch_url
+
+    fetched = fetch_url(url, source_type=source_type)
+    record = InboxRecord(
+        url=stored_url or fetched.url,
+        source_type=fetched.source_type,
+        title=title or fetched.title,
+        author=author or fetched.author,
+        extracted_text=fetched.extracted_text,
+        extracted_at=now or datetime.now(timezone.utc),
+        sender=sender,
+        urge_tag=urge_tag,
+        topic_tags=list(topic_tags or []),
+    )
+    offset = append_to_inbox(record, home=home)
+    return offset, record
+
+
 def _read_cursor(home: Optional[Path]) -> int:
     cursor = default_cursor_path(home)
     if not cursor.exists():
@@ -501,6 +548,7 @@ __all__ = [
     "default_allowlist_path",
     "default_cursor_path",
     "default_inbox_path",
+    "fetch_url_to_inbox",
     "load_allowlist",
     "process_inbox",
     "read_pending",

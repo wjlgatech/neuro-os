@@ -1260,19 +1260,44 @@ def _add_research_ingest_subcommands(top_sub: "argparse._SubParsersAction") -> N
 
     inb_append = inb_sub.add_parser(
         "append",
-        help="append one record to inbox.jsonl (helper for shell pipelines)",
+        help="append one record to inbox.jsonl — either fetch a URL "
+             "standalone (--fetch-url) or stage pre-extracted text "
+             "(--text-file)",
     )
-    inb_append.add_argument("--url", required=True, help="source URL")
     inb_append.add_argument(
-        "--source-type", required=True,
-        choices=["youtube", "blog", "twitter", "pdf", "email-body", "other"],
-        help="producer-attested source type",
+        "--fetch-url", default=None,
+        help="fetch + extract this URL yourself (no external producer). "
+             "Mutually exclusive with --text-file; when set, "
+             "--source-type/--title/--author are auto-derived unless you "
+             "override them",
     )
-    inb_append.add_argument("--title", required=True, help="source title")
-    inb_append.add_argument("--author", default="unknown", help="source author")
     inb_append.add_argument(
-        "--text-file", required=True,
-        help="path to a file whose contents are the pre-extracted body text",
+        "--url", default=None,
+        help="source URL (required in --text-file mode; defaults to the "
+             "fetched URL in --fetch-url mode)",
+    )
+    inb_append.add_argument(
+        "--source-type", default=None,
+        choices=["auto", "youtube", "blog", "twitter", "pdf", "email-body", "other"],
+        help="source type; 'auto' (the default with --fetch-url) detects "
+             "from the URL host. Required in --text-file mode",
+    )
+    inb_append.add_argument(
+        "--title", default=None,
+        help="source title (required in --text-file mode; fetched otherwise)",
+    )
+    inb_append.add_argument(
+        "--author", default=None,
+        help="source author (default 'unknown' / fetched metadata)",
+    )
+    inb_append.add_argument(
+        "--text-file", default=None,
+        help="path to a file whose contents are the pre-extracted body text "
+             "(manual / producer mode)",
+    )
+    inb_append.add_argument(
+        "--topic-tag", action="append", default=[], dest="topic_tags",
+        help="optional topic tag (may be repeated)",
     )
     inb_append.add_argument(
         "--sender", default=None,
@@ -1428,37 +1453,115 @@ def _research_inbox_status_handler(args: argparse.Namespace) -> int:
 
 
 def _research_inbox_append_handler(args: argparse.Namespace) -> int:
-    """Append one record to inbox.jsonl from CLI args + a text file."""
+    """Append one record to inbox.jsonl.
+
+    Two modes:
+      * ``--fetch-url URL``  — neuro-os fetches + extracts the URL itself
+        (standalone; no Hermes / external producer needed). url /
+        source_type / title / author are auto-derived but can be
+        overridden by the matching flags.
+      * ``--text-file PATH`` — stage pre-extracted body text supplied by
+        a producer (the original contract). Requires --url / --source-type
+        / --title.
+    """
     from datetime import datetime, timezone
 
-    from agent.research.inbox import InboxRecord, append_to_inbox
+    from agent.research.inbox import (
+        InboxRecord,
+        append_to_inbox,
+        fetch_url_to_inbox,
+    )
 
     home = Path(args.home).expanduser() if args.home else None
-    text_path = Path(args.text_file).expanduser()
-    if not text_path.exists():
-        print(f"error: text file not found: {text_path}", file=sys.stderr)
+    topic_tags = list(getattr(args, "topic_tags", []) or [])
+    fetch_url_arg = getattr(args, "fetch_url", None)
+    text_file_arg = getattr(args, "text_file", None)
+
+    if fetch_url_arg and text_file_arg:
+        print(
+            "error: pass either --fetch-url or --text-file, not both",
+            file=sys.stderr,
+        )
         return 2
-    body = text_path.read_text(encoding="utf-8", errors="replace")
-    if not body.strip():
-        print(f"error: text file is empty: {text_path}", file=sys.stderr)
+    if not fetch_url_arg and not text_file_arg:
+        print(
+            "error: one of --fetch-url (let neuro-os fetch the link) or "
+            "--text-file (stage producer text) is required",
+            file=sys.stderr,
+        )
         return 2
 
-    record = InboxRecord(
-        url=args.url,
-        source_type=args.source_type,
-        title=args.title,
-        author=args.author,
-        extracted_text=body,
-        extracted_at=datetime.now(timezone.utc),
-        sender=args.sender,
-        urge_tag=args.urge_tag,
-    )
-    offset = append_to_inbox(record, home=home)
+    if fetch_url_arg:
+        from agent.research.fetch import FetchError
+
+        try:
+            offset, record = fetch_url_to_inbox(
+                fetch_url_arg,
+                source_type=args.source_type or "auto",
+                home=home,
+                stored_url=args.url,
+                title=args.title,
+                author=args.author,
+                sender=args.sender,
+                urge_tag=args.urge_tag,
+                topic_tags=topic_tags,
+            )
+        except FetchError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 1
+        except Exception as e:  # noqa: BLE001 — surface validation cleanly
+            print(f"error: could not build inbox record: {e}", file=sys.stderr)
+            return 1
+    else:
+        if args.source_type in (None, "auto"):
+            print(
+                "error: --text-file mode requires an explicit --source-type "
+                "(one of youtube/blog/twitter/pdf/email-body/other)",
+                file=sys.stderr,
+            )
+            return 2
+        missing = [
+            name for name, val in (("--url", args.url), ("--title", args.title))
+            if not val
+        ]
+        if missing:
+            print(
+                f"error: --text-file mode requires {', '.join(missing)}",
+                file=sys.stderr,
+            )
+            return 2
+        text_path = Path(text_file_arg).expanduser()
+        if not text_path.exists():
+            print(f"error: text file not found: {text_path}", file=sys.stderr)
+            return 2
+        body = text_path.read_text(encoding="utf-8", errors="replace")
+        if not body.strip():
+            print(f"error: text file is empty: {text_path}", file=sys.stderr)
+            return 2
+        try:
+            record = InboxRecord(
+                url=args.url,
+                source_type=args.source_type,
+                title=args.title,
+                author=args.author or "unknown",
+                extracted_text=body,
+                extracted_at=datetime.now(timezone.utc),
+                sender=args.sender,
+                urge_tag=args.urge_tag,
+                topic_tags=topic_tags,
+            )
+        except Exception as e:  # noqa: BLE001 — surface validation cleanly
+            print(f"error: could not build inbox record: {e}", file=sys.stderr)
+            return 1
+        offset = append_to_inbox(record, home=home)
+
     print(json.dumps({
         "appended_offset": offset,
         "source_type": record.source_type,
         "url": record.url,
-        "byte_count": len(body.encode("utf-8")),
+        "title": record.title,
+        "fetched": bool(fetch_url_arg),
+        "byte_count": len(record.extracted_text.encode("utf-8")),
     }, indent=2))
     return 0
 
