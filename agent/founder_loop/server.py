@@ -1434,7 +1434,7 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
 
             client = anthropic.Anthropic(api_key=self.config.api_key)
             resp = client.messages.create(
-                model="claude-haiku-4-5",
+                model="claude-haiku-4-5-20251001",
                 max_tokens=1200,
                 system=system,
                 messages=[{"role": "user", "content": user_msg}],
@@ -1443,7 +1443,9 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
                 getattr(b, "text", "") for b in resp.content
                 if getattr(b, "type", None) == "text"
             ).strip() or self._explain_fallback(concept, depth)
-        except Exception:
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("_chat_explain failed: %s", exc)
             return self._explain_fallback(concept, depth)
 
     @staticmethod

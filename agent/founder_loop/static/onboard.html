@@ -25,6 +25,7 @@
       margin: 0; padding: 0; height: 100%;
       background: var(--bg); color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      font-size: 16px;
     }
 
     .layout {
@@ -62,8 +63,8 @@
       padding: 10px 4px 8px 4px; margin-bottom: 12px;
     }
     .msg {
-      max-width: 85%; padding: 10px 14px; border-radius: 12px;
-      margin-bottom: 10px; font-size: 14px; line-height: 1.55;
+      max-width: 85%; padding: 12px 16px; border-radius: 12px;
+      margin-bottom: 12px; font-size: 16px; line-height: 1.6;
       white-space: pre-wrap; word-wrap: break-word;
     }
     .msg.assistant {
@@ -76,7 +77,7 @@
     }
     .msg-row { display: flex; }
     .msg.assistant ~ .typing {
-      font-size: 12px; color: var(--text-faint); padding-left: 6px;
+      font-size: 14px; color: var(--text-faint); padding-left: 6px;
     }
 
     .composer {
@@ -85,16 +86,16 @@
       padding-top: 14px;
     }
     .composer textarea {
-      flex: 1; min-height: 44px; max-height: 160px;
+      flex: 1; min-height: 48px; max-height: 160px;
       background: var(--panel); border: 1px solid var(--border);
-      border-radius: 10px; padding: 10px 12px;
-      color: var(--text); font: inherit; font-size: 14px;
+      border-radius: 10px; padding: 12px 14px;
+      color: var(--text); font: inherit; font-size: 16px;
       resize: none; outline: none;
     }
     .composer textarea:focus { border-color: var(--accent); }
     .composer button {
       background: var(--accent); border: none; color: white;
-      border-radius: 10px; padding: 0 18px; font: inherit; font-size: 14px;
+      border-radius: 10px; padding: 0 20px; font: inherit; font-size: 16px;
       cursor: pointer; min-width: 80px;
     }
     .composer button:disabled {
@@ -109,7 +110,7 @@
       overflow-y: auto;
     }
     .side h2 {
-      font-size: 11px; font-weight: 600; letter-spacing: 0.6px;
+      font-size: 13px; font-weight: 600; letter-spacing: 0.6px;
       color: var(--text-dim); text-transform: uppercase;
       margin: 0 0 12px 0;
     }
@@ -118,9 +119,9 @@
     /* Tank progress bar — appears once a contract is bound */
     .tank-row {
       display: flex; justify-content: space-between; align-items: baseline;
-      font-size: 11px; color: var(--text-dim); margin-bottom: 6px;
+      font-size: 13px; color: var(--text-dim); margin-bottom: 6px;
     }
-    .tank-pct { color: var(--text); font-size: 13px; font-weight: 600; }
+    .tank-pct { color: var(--text); font-size: 15px; font-weight: 600; }
     .tank-bar {
       position: relative;
       height: 10px; width: 100%;
@@ -143,29 +144,29 @@
       pointer-events: none;
     }
     .tank-meta {
-      font-size: 10px; color: var(--text-faint);
+      font-size: 12px; color: var(--text-faint);
       margin-top: 6px;
       display: flex; justify-content: space-between;
     }
     .tank-empty {
-      font-size: 11px; color: var(--text-faint);
+      font-size: 13px; color: var(--text-faint);
       padding: 8px 0;
     }
 
     .priorities-list { list-style: none; padding: 0; margin: 0; }
     .priority-card {
       background: var(--panel-2); border: 1px solid var(--border);
-      border-radius: 10px; padding: 10px 12px; margin-bottom: 8px;
+      border-radius: 10px; padding: 12px 14px; margin-bottom: 8px;
       animation: slide-in 220ms ease-out;
     }
     @keyframes slide-in {
       from { opacity: 0; transform: translateY(6px); }
       to   { opacity: 1; transform: translateY(0); }
     }
-    .priority-title { font-size: 13px; font-weight: 500; }
-    .priority-meta { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+    .priority-title { font-size: 15px; font-weight: 500; }
+    .priority-meta { font-size: 13px; color: var(--text-dim); margin-top: 4px; }
     .priority-weight {
-      display: inline-block; font-size: 10px; padding: 1px 6px;
+      display: inline-block; font-size: 12px; padding: 2px 7px;
       border-radius: 4px; background: var(--bg); border: 1px solid var(--border);
       margin-right: 6px;
     }
@@ -173,26 +174,26 @@
     .priority-weight.w2 { color: var(--amber); border-color: var(--amber); }
     .priority-weight.w1 { color: var(--text-dim); }
     .priorities-empty {
-      font-size: 12px; color: var(--text-faint);
+      font-size: 14px; color: var(--text-faint);
       padding: 14px 12px; border: 1px dashed var(--border);
       border-radius: 10px; text-align: center;
     }
 
     .ration-row {
       display: flex; align-items: center; gap: 8px;
-      font-size: 12px; color: var(--text-dim);
+      font-size: 14px; color: var(--text-dim);
     }
     .ration-row input {
       flex: 1; background: var(--panel-2); border: 1px solid var(--border);
-      color: var(--text); border-radius: 6px; padding: 4px 6px;
-      font: inherit; font-size: 12px;
+      color: var(--text); border-radius: 6px; padding: 6px 8px;
+      font: inherit; font-size: 14px;
     }
     .ration-row span.unit { color: var(--text-faint); }
 
     .sign-btn {
       width: 100%; background: transparent; border: 1px solid var(--green-line);
-      color: var(--green); padding: 12px; border-radius: 10px;
-      font: inherit; font-size: 13px; font-weight: 500;
+      color: var(--green); padding: 14px; border-radius: 10px;
+      font: inherit; font-size: 15px; font-weight: 500;
       cursor: pointer; transition: background 120ms;
       margin-top: auto;
     }
@@ -201,7 +202,7 @@
       border-color: var(--border); color: var(--text-faint); cursor: not-allowed;
     }
     .sign-result {
-      margin-top: 12px; font-size: 11px; color: var(--green);
+      margin-top: 12px; font-size: 13px; color: var(--green);
       text-align: center; line-height: 1.5;
     }
 
@@ -586,6 +587,10 @@ neuro-os start --use-llm</code></pre>
       pill.textContent = "LLM ready";
       pill.classList.add("green", "clickable");
       pill.title = "Anthropic key configured. Click to manage.";
+    } else if (state === "key-set") {
+      pill.textContent = "API key set · add --use-llm";
+      pill.classList.add("amber", "clickable");
+      pill.title = "Key found but LLM mode is off. Restart with: neuro-os start --use-llm";
     } else if (state === "fallback") {
       pill.textContent = "no API key — click to set";
       pill.classList.add("amber", "clickable");
@@ -716,17 +721,26 @@ neuro-os start --use-llm</code></pre>
           "Today's contract is loaded below. Anything you add here will be <strong>appended</strong> — nothing existing gets lost.";
       }
       // Fix 6: pill state, separate from the status banner
-      if (!j.has_api_key || !j.use_llm) {
+      if (!j.has_api_key) {
         if (!j.contract_bound) {
           statusText.textContent = "fallback mode — no Anthropic key configured";
           banner.style.display = "block";
           banner.className = "banner warn";
           banner.innerHTML =
-            "Running without an LLM. The conversation will be functional but stiff (one field at a time). " +
-            "Set <code>ANTHROPIC_API_KEY</code> and start the daemon with <code>--use-llm</code> for natural language.";
+            "No API key found. Set <code>ANTHROPIC_API_KEY</code> in <code>~/Documents/Projects/.env</code> and restart.";
         }
         usingLLM = false;
         updateApiPill("fallback");
+      } else if (!j.use_llm) {
+        if (!j.contract_bound) {
+          statusText.textContent = "API key set · restart with --use-llm";
+          banner.style.display = "block";
+          banner.className = "banner warn";
+          banner.innerHTML =
+            "API key is configured but LLM mode is off. Restart with <code>neuro-os start --use-llm</code> for natural language.";
+        }
+        usingLLM = false;
+        updateApiPill("key-set");
       } else if (!j.contract_bound) {
         statusText.textContent = "ready · LLM mode";
         usingLLM = true;

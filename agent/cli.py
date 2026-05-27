@@ -18,9 +18,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import List, Optional, Sequence
+
+# Auto-load ~/Documents/Projects/.env if present (API keys, etc.)
+_ENV_FILE = Path.home() / "Documents" / "Projects" / ".env"
+if _ENV_FILE.exists() and not os.environ.get("ANTHROPIC_API_KEY"):
+    for _line in _ENV_FILE.read_text().splitlines():
+        _line = _line.strip()
+        if _line and not _line.startswith("#") and "=" in _line:
+            _k, _, _v = _line.partition("=")
+            os.environ.setdefault(_k.strip(), _v.strip())
 
 from agent.api import ingest_documents, process_text
 from agent.ontology_builder import build_ontology
