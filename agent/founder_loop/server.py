@@ -934,7 +934,11 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
                     url.startswith("http://") or url.startswith("https://")
                 ):
                     raise _BadRequest("url must start with http:// or https://")
-                source_dir, cleanup_tempdir = self._download_url_to_tempdir(url)
+                follow_links = bool(body.get("follow_links", False))
+                max_urls = int(body.get("max_urls", 20))
+                source_dir, cleanup_tempdir = self._download_url_to_tempdir(
+                    url, follow_links=follow_links, max_urls=max_urls
+                )
                 no_llm = bool(body.get("no_llm", False))
             else:  # paste
                 title = (body.get("title") or "").strip()
@@ -1009,28 +1013,55 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
                 import shutil
                 shutil.rmtree(cleanup_tempdir, ignore_errors=True)
 
-    def _download_url_to_tempdir(self, url: str) -> tuple[Path, Path]:
-        """Fetch a single URL into a fresh tempdir. Returns (dir, dir)
-        so the caller can ingest the dir and then clean it up."""
+    def _download_url_to_tempdir(
+        self,
+        url: str,
+        *,
+        follow_links: bool = False,
+        max_urls: int = 20,
+    ) -> tuple[Path, Path]:
+        """Fetch URL(s) into a fresh tempdir. Returns (dir, dir).
+
+        Direct .pdf URLs are downloaded as raw bytes.
+        All other URLs (HTML pages) are converted to clean markdown
+        via trafilatura (pip install 'neuro-os[scrape]'). When
+        follow_links=True, crawls same-domain linked pages up to
+        max_urls total.
+        """
         import tempfile
         import urllib.parse
         import urllib.request
-        # Pick a filename from the URL — preserve extension so the
-        # ingest router routes correctly (.pdf vs .md vs .txt).
-        parsed = urllib.parse.urlparse(url)
-        name = Path(parsed.path).name or "fetched"
-        if "." not in name:
-            name += ".txt"
+
         tmp = Path(tempfile.mkdtemp(prefix="neuroos-ingest-"))
-        target = tmp / name
-        # urlopen with a short timeout; fail loudly on non-200.
-        req = urllib.request.Request(url, headers={
-            "User-Agent": "neuro-os/research-ingest"
-        })
-        with urllib.request.urlopen(req, timeout=15.0) as resp:
-            if resp.status != 200:
-                raise _BadRequest(f"fetch failed: HTTP {resp.status}")
-            target.write_bytes(resp.read())
+
+        # Fast-path: direct PDF link
+        parsed = urllib.parse.urlparse(url)
+        if parsed.path.lower().endswith(".pdf"):
+            name = Path(parsed.path).name or "fetched.pdf"
+            req = urllib.request.Request(url, headers={"User-Agent": "neuro-os/research-ingest"})
+            with urllib.request.urlopen(req, timeout=15.0) as resp:
+                if resp.status != 200:
+                    raise _BadRequest(f"fetch failed: HTTP {resp.status}")
+                content_type = resp.headers.get("content-type", "")
+                content = resp.read()
+            if b"%PDF" in content[:8] or "pdf" in content_type.lower():
+                (tmp / name).write_bytes(content)
+                return tmp, tmp
+            # URL ends in .pdf but server returned HTML — fall through
+
+        # HTML path: trafilatura-based extraction
+        try:
+            from agent.research.ingest import fetch_urls_to_dir
+        except ImportError as exc:
+            raise _BadRequest(str(exc)) from exc
+
+        count = fetch_urls_to_dir(
+            [url], target_dir=tmp, follow_links=follow_links, max_urls=max_urls
+        )
+        if count == 0:
+            import shutil
+            shutil.rmtree(tmp, ignore_errors=True)
+            raise _BadRequest(f"no extractable content found at: {url}")
         return tmp, tmp
 
     def _paste_to_tempdir(self, title: str, text: str) -> tuple[Path, Path]:
@@ -1307,10 +1338,21 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
         """
         body = self._read_json_body()
         kind = body.get("kind") or ""
-        if kind not in ("brainstorm", "interview"):
+        if kind not in ("brainstorm", "interview", "explain"):
             self._send_json(400, {
-                "error": "kind must be 'brainstorm' or 'interview'",
+                "error": "kind must be one of: brainstorm, interview, explain",
             })
+            return
+
+        if kind == "explain":
+            concept = (body.get("concept") or "").strip()[:200]
+            context = (body.get("context") or "").strip()[:500]
+            depth = min(max(int(body.get("depth", 3)), 1), 4)
+            if not concept:
+                self._send_json(400, {"error": "explain requires 'concept'"})
+                return
+            reply = self._chat_explain(concept=concept, context=context, depth=depth)
+            self._send_json(200, {"reply": reply, "used_llm": bool(self.config.api_key)})
             return
 
         if kind == "brainstorm":
@@ -1348,6 +1390,82 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             )
 
         self._send_json(200, {"reply": reply, "used_llm": bool(self.config.api_key)})
+
+    def _chat_explain(self, *, concept: str, context: str, depth: int) -> str:
+        """Living-knowledge explanation: Layers 1–depth for the given concept.
+
+        depth=1 → sensation only; 2 → + mechanism; 3 → + principle;
+        4 → + expression + delta.
+        """
+        layer_instructions = {
+            1: "Deliver ONLY Layer 1 (Sensation): 2–4 jargon-free sentences a 12-year-old could understand.",
+            2: "Deliver Layers 1 (Sensation) and 2 (Mechanism): sensation first, then 3–5 components and their dance.",
+            3: (
+                "Deliver Layers 1 (Sensation), 2 (Mechanism), and 3 (Principle). "
+                "For Layer 3: state the principle in one sentence, name THREE domains where it applies, "
+                "and tag it [WELL-KNOWN / CONTESTED / FRONTIER]."
+            ),
+            4: (
+                "Deliver all four layers: 1 (Sensation), 2 (Mechanism), 3 (Principle + 3 domains + status tag), "
+                "4 (Expression — re-instantiate in one named modality relevant to the user's context). "
+                "End with a Delta: the one non-obvious thing most people miss about this concept."
+            ),
+        }
+        system = (
+            "You are a living-knowledge explainer. Your job is to make concepts "
+            "genuinely understood — not just described. Rules: (1) Layer 1 must use "
+            "zero domain-specific jargon; if you catch yourself using the concept's "
+            "own vocabulary, rewrite. (2) Layer 3 principle must transfer to at least "
+            "three domains — fewer is not Layer 3. (3) The Delta at Layer 4 must name "
+            "the thing that surprises most people, not just summarize. Keep it short."
+        )
+        user_msg = (
+            f"Concept: {concept}\n"
+            f"User context: {context or 'not specified'}\n\n"
+            f"{layer_instructions[depth]}\n\n"
+            f"Format with bold headers: **Feel of it:** / **How it works:** / "
+            f"**Underlying principle:** / **Try it elsewhere:** / **Delta:** "
+            f"— include only the headers warranted by the depth requested."
+        )
+        if not self.config.api_key:
+            return self._explain_fallback(concept, depth)
+        try:
+            import anthropic
+
+            client = anthropic.Anthropic(api_key=self.config.api_key)
+            resp = client.messages.create(
+                model="claude-haiku-4-5",
+                max_tokens=1200,
+                system=system,
+                messages=[{"role": "user", "content": user_msg}],
+            )
+            return "".join(
+                getattr(b, "text", "") for b in resp.content
+                if getattr(b, "type", None) == "text"
+            ).strip() or self._explain_fallback(concept, depth)
+        except Exception:
+            return self._explain_fallback(concept, depth)
+
+    @staticmethod
+    def _explain_fallback(concept: str, depth: int) -> str:
+        return (
+            f"(No ANTHROPIC_API_KEY — set it to get a full living-knowledge explanation.)\n\n"
+            f"**Feel of it:**\n[Layer 1 for '{concept}' — 2–4 jargon-free sentences.]\n\n"
+            + (
+                "**How it works:**\n[Layer 2 — 3–5 components and their interaction.]\n\n"
+                if depth >= 2 else ""
+            )
+            + (
+                "**Underlying principle:** [WELL-KNOWN / CONTESTED / FRONTIER]\n"
+                "[One sentence + three domain transfers.]\n\n"
+                if depth >= 3 else ""
+            )
+            + (
+                "**Try it elsewhere:**\n[Layer 4 — re-instantiation in a named modality.]\n\n"
+                "**Delta:**\n[The non-obvious thing most people miss.]\n"
+                if depth >= 4 else ""
+            )
+        )
 
     def _chat_brainstorm(
         self, *, node_label: str, node_one_sentence: str, modality: str,

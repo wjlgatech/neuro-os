@@ -922,6 +922,20 @@ def _add_research_ingest_subcommands(top_sub: "argparse._SubParsersAction") -> N
         "--home", default=None,
         help="vertical home dir (default: ~/.neuro_os_research/)",
     )
+    # URL ingestion flags (alternative to --source-dir):
+    ing.add_argument(
+        "--url", default=None, metavar="URL",
+        help="fetch a web page (or PDF) and ingest it directly. "
+             "Requires trafilatura: pip install 'neuro-os[scrape]'.",
+    )
+    ing.add_argument(
+        "--follow-links", action="store_true",
+        help="(with --url) crawl same-domain linked pages up to --max-urls total.",
+    )
+    ing.add_argument(
+        "--max-urls", type=int, default=20, metavar="N",
+        help="(with --url --follow-links) max pages to crawl (default: 20).",
+    )
     ing.set_defaults(func=_research_ingest_handler)
 
     # review
@@ -1650,6 +1664,9 @@ def _research_ingest_handler(args: argparse.Namespace) -> int:
         print(f"error: {e}", file=sys.stderr)
         return 2
 
+    if getattr(args, "url", None):
+        return _research_ingest_url(args, home)
+
     if method == "gbrain-mcp":
         return _research_ingest_gbrain(args, home)
     elif method == "llm-anthropic":
@@ -1688,6 +1705,54 @@ def _research_ingest_gbrain(args: argparse.Namespace, home: Optional[Path]) -> i
     append_run_log(run, home=home)
     print(run.model_dump_json(indent=2))
     return 0
+
+
+def _research_ingest_url(args: argparse.Namespace, home: Optional[Path]) -> int:
+    """Fetch a URL (or crawl linked pages) then run Plan A extraction."""
+    import shutil
+    import tempfile
+
+    from agent.research.gbrain_adapter import append_run_log
+    from agent.research.ingest import fetch_urls_to_dir, ingest as local_ingest
+
+    url = args.url.strip()
+    if not (url.startswith("http://") or url.startswith("https://")):
+        print("error: --url must start with http:// or https://", file=sys.stderr)
+        return 2
+
+    follow_links = getattr(args, "follow_links", False)
+    max_urls = getattr(args, "max_urls", 20)
+
+    tmp = Path(tempfile.mkdtemp(prefix="neuroos-ingest-"))
+    try:
+        try:
+            count = fetch_urls_to_dir(
+                [url], target_dir=tmp, follow_links=follow_links, max_urls=max_urls
+            )
+        except ImportError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+
+        if count == 0:
+            print(f"error: no extractable content found at: {url}", file=sys.stderr)
+            return 2
+
+        print(f"fetched {count} page(s) from {url}")
+
+        llm_fn = None
+        if not getattr(args, "no_llm", False):
+            provider = getattr(args, "provider", "anthropic")
+            if provider == "openai":
+                llm_fn = _make_openai_llm_fn()
+            else:
+                llm_fn = _make_anthropic_llm_fn()
+
+        run = local_ingest(source_dir=tmp, llm_fn=llm_fn, home=home)
+        append_run_log(run, home=home)
+        print(run.model_dump_json(indent=2))
+        return 0
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def _research_ingest_local(args: argparse.Namespace, home: Optional[Path]) -> int:

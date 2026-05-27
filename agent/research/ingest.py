@@ -372,13 +372,20 @@ def extract_mechanisms(
     llm_fn: Optional[LLMCallable] = None,
     now: Optional[datetime] = None,
     framework: Optional[Framework] = None,
+    multi_persona: bool = True,
 ) -> List[MechanismCardProposal]:
     """One source → 0..K MechanismCardProposal candidates.
 
     If ``llm_fn`` is None, falls back to ``_heuristic_extract``.
-    Otherwise calls the LLM, validates each row through
-    ``MechanismCardProposal.model_validate`` (Pydantic at the boundary —
-    malformed LLM output is dropped with a warning, not silently kept).
+    Otherwise calls the LLM:
+      * ``multi_persona=True`` (default): runs all 5 personas in
+        ``agent.research.extractors.PERSONAS`` in parallel, merges and
+        dedups results. Each persona's prompt has the 4-criteria filter
+        (compression / transferability / executability / falsifiability)
+        baked in so junk mechanisms self-reject at extraction time.
+      * ``multi_persona=False``: single-pass extraction with the legacy
+        prompt. Tests that want determinism (one llm_fn call → one batch
+        of rows) opt into this.
 
     ``framework`` (optional) is the user's framework from
     ``agent.research.framework.load_framework``. When supplied with
@@ -397,6 +404,30 @@ def extract_mechanisms(
         raw_rows = _heuristic_extract(body_trimmed)
         method = "fallback-heuristic"
         model = None
+    elif multi_persona:
+        from agent.research.extractors import extract_multi_persona
+        try:
+            raw_rows, stats = extract_multi_persona(
+                llm_fn=llm_fn,
+                base_prompt=_SYSTEM_PROMPT,
+                user_message=user_message,
+            )
+        except Exception as e:
+            logger.warning(
+                "ingest.extract_mechanisms: multi-persona failed for "
+                "%s (%s); falling back to heuristic",
+                source.source_id, e,
+            )
+            raw_rows = _heuristic_extract(body_trimmed)
+            method = "fallback-heuristic"
+            model = None
+        else:
+            logger.info(
+                "multi-persona extraction for %s: %s → %d unique candidates",
+                source.source_id, stats, len(raw_rows),
+            )
+            method = "llm-anthropic"
+            model = "claude-haiku-4-5"
     else:
         try:
             raw_rows = llm_fn(_SYSTEM_PROMPT, user_message)
@@ -463,6 +494,7 @@ def ingest(
     home: Optional[Path] = None,
     now: Optional[datetime] = None,
     framework: Optional[Framework] = None,
+    multi_persona: bool = True,
 ) -> IngestionRun:
     """End-to-end: load sources → extract per source → write proposals.
 
@@ -473,6 +505,10 @@ def ingest(
     ``framework`` defaults to ``load_framework(home)`` so a user-edited
     ``~/.neuro_os_research/framework.json`` flows in automatically; pass
     an explicit ``Framework`` to override (tests do this).
+
+    ``multi_persona`` (default True) runs the 5-persona parallel
+    extractor with inline rubric filter per source. Set to False for
+    tests that need exactly-one llm_fn call per source.
     """
     started = now or datetime.now(timezone.utc)
     sources, skipped = load_sources(source_dir, home=home)
@@ -485,6 +521,7 @@ def ingest(
     for src in sources:
         all_proposals.extend(extract_mechanisms(
             src, llm_fn=llm_fn, now=started, framework=framework,
+            multi_persona=multi_persona,
         ))
 
     for prop in all_proposals:
@@ -506,12 +543,88 @@ def ingest(
     )
 
 
+def fetch_urls_to_dir(
+    urls: List[str],
+    *,
+    target_dir: Path,
+    follow_links: bool = False,
+    max_urls: int = 20,
+) -> int:
+    """Fetch URL(s) as clean markdown into target_dir.
+
+    Uses trafilatura for HTML extraction (benchmark-best boilerplate
+    stripping). PDFs at direct .pdf URLs are downloaded as-is.
+    Each page becomes a .md file with YAML front-matter (title +
+    source_url) so the existing load_sources pipeline picks it up.
+
+    Returns the count of files written. Raises ImportError if
+    trafilatura is not installed (pip install 'neuro-os[scrape]').
+    """
+    import urllib.parse
+
+    try:
+        from trafilatura import extract, extract_metadata, fetch_url
+    except ImportError as exc:
+        raise ImportError(
+            "trafilatura is required for URL ingestion. "
+            "Install it with: pip install 'neuro-os[scrape]' "
+            "or: pip install trafilatura"
+        ) from exc
+
+    all_urls: List[str] = []
+    for url in urls:
+        if follow_links:
+            try:
+                from trafilatura.spider import focused_crawler
+                _, done = focused_crawler(url, max_seen_urls=max_urls, max_known_urls=max_urls * 5)
+                discovered = [url] + [u for u in done if u != url]
+                all_urls.extend(discovered[:max_urls])
+            except Exception:
+                all_urls.append(url)
+        else:
+            all_urls.append(url)
+
+    written = 0
+    for i, u in enumerate(all_urls[:max_urls]):
+        try:
+            downloaded = fetch_url(u)
+            if not downloaded:
+                logger.warning("fetch_urls_to_dir: empty response from %s", u)
+                continue
+            meta = extract_metadata(downloaded)
+            title = (
+                (meta.title if meta and meta.title else None)
+                or Path(urllib.parse.urlparse(u).path).stem
+                or f"page-{i}"
+            )
+            text = extract(
+                downloaded,
+                output_format="markdown",
+                include_links=False,
+                include_images=False,
+                favor_recall=True,
+            )
+            if not text or not text.strip():
+                logger.warning("fetch_urls_to_dir: no extractable content at %s", u)
+                continue
+            slug = re.sub(r"[^a-zA-Z0-9_-]+", "-", title.lower()).strip("-")[:48] or f"page-{i}"
+            if i > 0:
+                slug = f"{slug}-{i}"
+            frontmatter = f"---\ntitle: {title}\nsource_url: {u}\n---\n\n"
+            (target_dir / f"{slug}.md").write_text(frontmatter + text.strip() + "\n", encoding="utf-8")
+            written += 1
+        except Exception as exc:
+            logger.warning("fetch_urls_to_dir: skipped %s: %s", u, exc)
+    return written
+
+
 __all__ = [
     "SUPPORTED_EXTS",
     "MAX_CHARS_PER_SOURCE",
     "LLMCallable",
     "UnsupportedSourceFormat",
     "extract_mechanisms",
+    "fetch_urls_to_dir",
     "ingest",
     "load_sources",
 ]
