@@ -1,8 +1,60 @@
 # LinkedIn Post — Living Knowledge Skill
+<!-- SHORT TEASER POST (use to drive traffic to long-form) -->
+
+---
+
+## SHORT POST (teaser)
+
+You can borrow thinking from AI. You can't borrow conviction.
+
+I watched a PM ask ChatGPT to explain backpropagation.
+Got a perfect answer. Read it carefully. Nodded.
+
+Three weeks later — wrong product decision.
+Same mistake someone makes when they think a lookup table is a model.
+
+The words were right. The understanding wasn't there.
+
+Here's what I've learned building AI systems:
+
+LLMs solved the explanation problem completely.
+Layer 1 (sensation) — free.
+Layer 2 (mechanism) — free.
+
+But Layer 3 — the transferable principle, the one you can apply in a room without wifi, under pressure, when someone pushes back — that one is still on you.
+
+You can read the three domains Claude lists.
+Or you can generate a fourth one yourself, for a problem you're actually facing.
+
+Only one of those builds conviction.
+
+I built a skill called `living-knowledge` to make sure I always do the second one.
+
+It's a 5-layer framework wired into Claude Code.
+The LLM scaffolds. You build.
+Words become things you can stake decisions on.
+
+Long-form below — with the full framework, a worked example, and the free skill file.
+
+Comment "living" and I'll DM you the SKILL.md.
+
+---
+
+#AI #LLM #ClaudeCode #Founders #BuildInPublic #PhysicalAI
+
+---
+<!-- END SHORT POST -->
+
+---
+
+## LONG FORM POST
+
+---
 **Date:** 2026-05-27
 **Platform:** LinkedIn
 **Format:** Long-form
 **Topic:** living-knowledge skill — you can outsource thinking to LLMs, not understanding and conviction
+**Title:** You can borrow thinking from AI. You can't borrow conviction.
 **CTA:** Comment "living" or DM for SKILL.md
 **Version:** v2 — upgraded with LLM outsourcing angle
 
