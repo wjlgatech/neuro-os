@@ -56,6 +56,9 @@ llm = [
 mcp = [
     "mcp>=1.0",
 ]
+scrape = [
+    "trafilatura>=1.8",
+]
 
 [project.scripts]
 neuro-os = "agent.cli:main"

@@ -543,12 +543,88 @@ def ingest(
     )
 
 
+def fetch_urls_to_dir(
+    urls: List[str],
+    *,
+    target_dir: Path,
+    follow_links: bool = False,
+    max_urls: int = 20,
+) -> int:
+    """Fetch URL(s) as clean markdown into target_dir.
+
+    Uses trafilatura for HTML extraction (benchmark-best boilerplate
+    stripping). PDFs at direct .pdf URLs are downloaded as-is.
+    Each page becomes a .md file with YAML front-matter (title +
+    source_url) so the existing load_sources pipeline picks it up.
+
+    Returns the count of files written. Raises ImportError if
+    trafilatura is not installed (pip install 'neuro-os[scrape]').
+    """
+    import urllib.parse
+
+    try:
+        from trafilatura import extract, extract_metadata, fetch_url
+    except ImportError as exc:
+        raise ImportError(
+            "trafilatura is required for URL ingestion. "
+            "Install it with: pip install 'neuro-os[scrape]' "
+            "or: pip install trafilatura"
+        ) from exc
+
+    all_urls: List[str] = []
+    for url in urls:
+        if follow_links:
+            try:
+                from trafilatura.spider import focused_crawler
+                _, done = focused_crawler(url, max_seen_urls=max_urls, max_known_urls=max_urls * 5)
+                discovered = [url] + [u for u in done if u != url]
+                all_urls.extend(discovered[:max_urls])
+            except Exception:
+                all_urls.append(url)
+        else:
+            all_urls.append(url)
+
+    written = 0
+    for i, u in enumerate(all_urls[:max_urls]):
+        try:
+            downloaded = fetch_url(u)
+            if not downloaded:
+                logger.warning("fetch_urls_to_dir: empty response from %s", u)
+                continue
+            meta = extract_metadata(downloaded)
+            title = (
+                (meta.title if meta and meta.title else None)
+                or Path(urllib.parse.urlparse(u).path).stem
+                or f"page-{i}"
+            )
+            text = extract(
+                downloaded,
+                output_format="markdown",
+                include_links=False,
+                include_images=False,
+                favor_recall=True,
+            )
+            if not text or not text.strip():
+                logger.warning("fetch_urls_to_dir: no extractable content at %s", u)
+                continue
+            slug = re.sub(r"[^a-zA-Z0-9_-]+", "-", title.lower()).strip("-")[:48] or f"page-{i}"
+            if i > 0:
+                slug = f"{slug}-{i}"
+            frontmatter = f"---\ntitle: {title}\nsource_url: {u}\n---\n\n"
+            (target_dir / f"{slug}.md").write_text(frontmatter + text.strip() + "\n", encoding="utf-8")
+            written += 1
+        except Exception as exc:
+            logger.warning("fetch_urls_to_dir: skipped %s: %s", u, exc)
+    return written
+
+
 __all__ = [
     "SUPPORTED_EXTS",
     "MAX_CHARS_PER_SOURCE",
     "LLMCallable",
     "UnsupportedSourceFormat",
     "extract_mechanisms",
+    "fetch_urls_to_dir",
     "ingest",
     "load_sources",
 ]
