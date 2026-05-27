@@ -6,6 +6,58 @@
 **Version:** v4 — reframed around the /goal ecosystem gap
 
 ---
+<!-- SHORT TEASER POST -->
+
+## SHORT POST (teaser)
+
+Claude, Codex, and Hermes all shipped `/goal` this year.
+
+All of them assume the same thing: that you already know how to write a machine-verifiable goal.
+
+Most people don't.
+
+So you type `/goal fix all the bugs and make the tests pass` — and the agent works for 47 minutes and confidently hands you broken code.
+
+Not because the agent failed. Because the spec was broken.
+
+The agent honored your contract exactly. You just wrote a bad contract.
+
+---
+
+The bottleneck in AI-assisted execution isn't the agent anymore.
+
+It's the input.
+
+`/goal` is a race car. Most people hand it a napkin sketch and wonder why it crashes.
+
+---
+
+I built the missing layer: `/10xgoal`.
+
+It sits upstream of `/goal`. You feed it your raw, messy intent. It lint-checks your goal against 6 structural failure modes, reads your project context, asks ≤3 clarifying questions, and emits a compiled contract ready to drop directly into `/goal`.
+
+The full pipeline:
+
+**messy human intent → `/10xgoal` → compiled contract → `/goal` → verified execution**
+
+Right now most people are skipping the middle step.
+
+Long-form below — with the 6 failure modes, a live before/after example, and the evaluator output format.
+
+Drop your raw `/goal` in the comments. I'll compile one live.
+
+---
+
+#AIAgents #ClaudeCode #Codex #GoalSetting #BuildInPublic #Founders #DeveloperTools
+
+---
+<!-- END SHORT POST -->
+
+---
+
+## LONG FORM POST
+
+---
 
 Claude Code, Codex, and Hermes Agent all shipped a `/goal` command this year.
 
