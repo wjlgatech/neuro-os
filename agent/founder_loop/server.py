@@ -402,6 +402,8 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             self._research_review_edit()
         elif path == "/research/ingest":
             self._research_ingest()
+        elif path == "/research/pipeline":
+            self._research_pipeline()
         elif path == "/research/compress":
             self._research_compress()
         else:
@@ -935,9 +937,10 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
                 ):
                     raise _BadRequest("url must start with http:// or https://")
                 follow_links = bool(body.get("follow_links", False))
+                depth = int(body.get("depth", 1))
                 max_urls = int(body.get("max_urls", 20))
                 source_dir, cleanup_tempdir = self._download_url_to_tempdir(
-                    url, follow_links=follow_links, max_urls=max_urls
+                    url, follow_links=follow_links, depth=depth, max_urls=max_urls,
                 )
                 no_llm = bool(body.get("no_llm", False))
             else:  # paste
@@ -1013,11 +1016,128 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
                 import shutil
                 shutil.rmtree(cleanup_tempdir, ignore_errors=True)
 
+    def _research_pipeline(self) -> None:
+        """POST /research/pipeline — ingest URL + auto-accept all new proposals
+        + compress in one shot.
+
+        Body (same as /research/ingest mode=url, plus compress params):
+            {
+              "url": "https://...",
+              "follow_links": false,   # default false
+              "depth": 1,              # BFS hop depth, default 1
+              "max_urls": 20,          # page cap, default 20
+              "no_llm": false,         # skip LLM extractor
+            }
+
+        Returns:
+            {
+              "ingest":    { sources_scanned, proposals_emitted, extraction_method },
+              "accepted":  <count of auto-accepted proposals>,
+              "compress":  { compression_id, l0_count, l1_count, cards_total }
+                           OR {"error": "..."} if not enough cards
+            }
+        """
+        from datetime import datetime, timezone
+
+        from agent.research import MechanismCard
+        from agent.research.compress import compress_from_synthesis, write_compression
+        from agent.research.config import write_mechanism_card
+        from agent.research.ingest import ingest as ingest_fn
+        from agent.research.proposals import list_proposals, transition_proposal
+        from agent.research.synthesis import run_synthesis
+
+        body = self._read_json_body()
+        url = body.get("url", "").strip()
+        if not url or not (url.startswith("http://") or url.startswith("https://")):
+            raise _BadRequest("url must start with http:// or https://")
+
+        follow_links = bool(body.get("follow_links", False))
+        depth = int(body.get("depth", 1))
+        max_urls = int(body.get("max_urls", 20))
+        no_llm = bool(body.get("no_llm", False))
+
+        cleanup_tempdir = None
+        try:
+            source_dir, cleanup_tempdir = self._download_url_to_tempdir(
+                url, follow_links=follow_links, depth=depth, max_urls=max_urls,
+            )
+
+            llm_fn = None
+            if not no_llm and self.config.use_llm:
+                import os as _os
+                if _os.environ.get("OPENAI_API_KEY"):
+                    llm_fn = self._build_openai_extractor()
+                elif self.config.api_key:
+                    llm_fn = self._build_anthropic_extractor()
+
+            home = self._research_home()
+
+            # Step 1 — ingest
+            run = ingest_fn(source_dir=source_dir, llm_fn=llm_fn, home=home)
+
+            # Step 2 — auto-accept every pending proposal (new ones first)
+            pending = list_proposals(home=home, status="pending")
+            accepted_count = 0
+            for prop in pending:
+                try:
+                    card = MechanismCard(
+                        id=prop.proposal_id,
+                        ts=datetime.now(timezone.utc),
+                        paper_title=prop.paper_title,
+                        paper_source=prop.paper_source,
+                        mechanism=prop.mechanism,
+                        invariant=prop.invariant,
+                        prediction=prop.prediction,
+                        failure_mode=prop.failure_mode,
+                        thesis_id=prop.thesis_id,
+                        entity_mentions=[],
+                        first_principle=prop.first_principle,
+                        anti_pattern=prop.anti_pattern,
+                        transferability_test=prop.transferability_test,
+                    )
+                    write_mechanism_card(card=card, home=home)
+                    transition_proposal(prop.proposal_id, to_status="accepted", home=home)
+                    accepted_count += 1
+                except Exception as _exc:
+                    log.warning("pipeline auto-accept failed for %s: %s", prop.proposal_id, _exc)
+
+            # Step 3 — compress
+            compress_result: dict = {}
+            synth = run_synthesis(home=home, window_days=90, min_cluster_size=1)
+            if synth.clusters:
+                compression = compress_from_synthesis(synth, max_level_0=5)
+                write_compression(compression, home=home)
+                compress_result = {
+                    "compression_id": compression.compression_id,
+                    "l0_count": len(compression.level_0_nodes),
+                    "l1_count": len(compression.level_1_nodes),
+                    "cards_total": len(compression.level_2_nodes),
+                }
+            else:
+                compress_result = {
+                    "error": f"accepted {accepted_count} card(s) but synthesis produced no clusters yet — try again after adding more sources"
+                }
+
+            self._send_json(200, {
+                "ingest": {
+                    "sources_scanned": run.sources_scanned,
+                    "proposals_emitted": run.proposals_emitted,
+                    "extraction_method": run.extraction_method,
+                },
+                "accepted": accepted_count,
+                "compress": compress_result,
+            })
+        finally:
+            if cleanup_tempdir is not None and cleanup_tempdir.is_dir():
+                import shutil
+                shutil.rmtree(cleanup_tempdir, ignore_errors=True)
+
     def _download_url_to_tempdir(
         self,
         url: str,
         *,
         follow_links: bool = False,
+        depth: int = 1,
         max_urls: int = 20,
     ) -> tuple[Path, Path]:
         """Fetch URL(s) into a fresh tempdir. Returns (dir, dir).
@@ -1026,7 +1146,7 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
         All other URLs (HTML pages) are converted to clean markdown
         via trafilatura (pip install 'neuro-os[scrape]'). When
         follow_links=True, crawls same-domain linked pages up to
-        max_urls total.
+        `depth` hops and `max_urls` total pages.
         """
         import tempfile
         import urllib.parse
@@ -1056,7 +1176,8 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             raise _BadRequest(str(exc)) from exc
 
         count = fetch_urls_to_dir(
-            [url], target_dir=tmp, follow_links=follow_links, max_urls=max_urls
+            [url], target_dir=tmp, follow_links=follow_links,
+            depth=depth, max_urls=max_urls,
         )
         if count == 0:
             import shutil

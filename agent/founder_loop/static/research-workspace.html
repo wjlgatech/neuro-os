@@ -235,14 +235,33 @@
 
         <!-- Mode B: URL -->
         <div class="mode">
-          <label class="title" for="ingest-url">Mode B · Single URL</label>
+          <label class="title" for="ingest-url">Mode B · URL (HTML, PDF, or multi-page crawl)</label>
           <div class="explain">
-            Paste a URL ending in <code>.pdf</code>, <code>.md</code>, or <code>.txt</code>. We download it to a temp folder and ingest exactly like Mode A.
-            HTML pages aren't supported yet — save the article to a .md first.
+            Paste any URL — <code>.pdf</code>, <code>.md</code>, or <b>any HTML page</b>.
+            Trafilatura strips boilerplate and extracts clean markdown.
+            Enable <b>Follow links</b> to also crawl same-domain sub-pages up to <b>depth</b> hops (default 1 = seed + all links on that page).
+            <b>Full pipeline</b> auto-accepts all proposals and compresses immediately — no review step.
           </div>
-          <input type="text" id="ingest-url" placeholder="https://arxiv.org/pdf/2106.04561.pdf" autocomplete="off">
+          <input type="text" id="ingest-url" placeholder="https://example.com/blog/post" autocomplete="off">
+          <div class="row" style="margin-top:8px; gap:16px;">
+            <label>
+              <input type="checkbox" id="ingest-follow-links">
+              Follow links (crawl sub-pages)
+            </label>
+            <label style="gap:6px;">
+              Depth
+              <input type="number" id="ingest-depth" value="1" min="0" max="3"
+                style="width:52px; padding:3px 6px; font-size:12px; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:4px;">
+            </label>
+            <label style="gap:6px;">
+              Max pages
+              <input type="number" id="ingest-max-urls" value="20" min="1" max="100"
+                style="width:60px; padding:3px 6px; font-size:12px; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:4px;">
+            </label>
+          </div>
           <div class="btn-row">
             <button class="btn" id="btn-ingest-url">Fetch + ingest</button>
+            <button class="btn" id="btn-pipeline-url" style="border-color:var(--accent);color:var(--accent);">Full pipeline ⚡</button>
             <span class="status" id="status-url"></span>
           </div>
           <div class="result" id="result-url"></div>
@@ -447,16 +466,59 @@
     const result = document.getElementById("result-url");
     const btn = document.getElementById("btn-ingest-url");
     const status = document.getElementById("status-url");
+    const followLinks = document.getElementById("ingest-follow-links").checked;
+    const depth = parseInt(document.getElementById("ingest-depth").value, 10) || 1;
+    const maxUrls = parseInt(document.getElementById("ingest-max-urls").value, 10) || 20;
     if (!url) { showResult(result, false, "Paste a URL first."); return; }
-    disableBtn(btn, status, "fetching + ingesting…");
+    disableBtn(btn, status, followLinks ? `crawling depth ${depth}…` : "fetching + ingesting…");
     result.style.display = "none";
     try {
-      const r = await postJSON("/research/ingest", { mode: "url", url });
+      const r = await postJSON("/research/ingest", { mode: "url", url, follow_links: followLinks, depth, max_urls: maxUrls });
       if (r.error) {
         showResult(result, false, "Failed: " + r.error);
       } else {
+        const scanned = r.sources_scanned ?? 1;
         showResult(result, true,
-          `✓ Fetched + ingested. ${r.proposals_emitted} proposal${r.proposals_emitted === 1 ? "" : "s"} added.`);
+          `✓ Fetched ${scanned} page${scanned === 1 ? "" : "s"}. ${r.proposals_emitted} proposal${r.proposals_emitted === 1 ? "" : "s"} added.`);
+        refreshState();
+      }
+    } catch (err) {
+      showResult(result, false, "Network error: " + err.message);
+    } finally {
+      enableBtn(btn, status);
+    }
+  });
+
+  // PIPELINE — URL mode (ingest + auto-accept + compress in one shot)
+  document.getElementById("btn-pipeline-url").addEventListener("click", async () => {
+    const url = document.getElementById("ingest-url").value.trim();
+    const result = document.getElementById("result-url");
+    const btn = document.getElementById("btn-pipeline-url");
+    const status = document.getElementById("status-url");
+    const followLinks = document.getElementById("ingest-follow-links").checked;
+    const depth = parseInt(document.getElementById("ingest-depth").value, 10) || 1;
+    const maxUrls = parseInt(document.getElementById("ingest-max-urls").value, 10) || 20;
+    if (!url) { showResult(result, false, "Paste a URL first."); return; }
+    disableBtn(btn, status, "running full pipeline…");
+    result.style.display = "none";
+    try {
+      const r = await postJSON("/research/pipeline", { url, follow_links: followLinks, depth, max_urls: maxUrls });
+      if (r.error) {
+        showResult(result, false, "Pipeline failed: " + r.error);
+      } else {
+        const ing = r.ingest || {};
+        const cmp = r.compress || {};
+        const lines = [
+          `✓ Full pipeline complete.`,
+          `  Ingest: ${ing.sources_scanned ?? 1} page${(ing.sources_scanned ?? 1) === 1 ? "" : "s"} · ${ing.proposals_emitted ?? 0} proposals`,
+          `  Auto-accepted: ${r.accepted ?? 0} cards`,
+        ];
+        if (cmp.compression_id) {
+          lines.push(`  Compress: ${cmp.l0_count} L0 clusters · ${cmp.l1_count} L1 nodes · ${cmp.cards_total} cards total`);
+        } else if (cmp.error) {
+          lines.push(`  Compress skipped: ${cmp.error}`);
+        }
+        showResult(result, true, lines.join("\n"));
         refreshState();
       }
     } catch (err) {

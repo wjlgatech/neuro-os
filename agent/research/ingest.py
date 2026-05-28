@@ -543,11 +543,75 @@ def ingest(
     )
 
 
+def _bfs_crawl(seed: str, depth: int, max_urls: int) -> List[str]:
+    """BFS from seed up to `depth` hops, same domain only.
+
+    depth=0 → just the seed URL.
+    depth=1 → seed + all same-domain links found on that page.
+    depth=N → N hops out from seed.
+    """
+    import urllib.parse
+    from html.parser import HTMLParser
+
+    class _LinkParser(HTMLParser):
+        def __init__(self, base: str, domain: str) -> None:
+            super().__init__()
+            self.base = base
+            self.domain = domain
+            self.links: List[str] = []
+
+        def handle_starttag(self, tag: str, attrs: list) -> None:
+            if tag != "a":
+                return
+            for attr, val in attrs:
+                if attr == "href" and val:
+                    abs_url = urllib.parse.urljoin(self.base, val)
+                    parsed = urllib.parse.urlparse(abs_url)
+                    if parsed.netloc == self.domain and parsed.scheme in ("http", "https"):
+                        clean = parsed._replace(fragment="").geturl()
+                        self.links.append(clean)
+
+    try:
+        from trafilatura import fetch_url
+    except ImportError:
+        return [seed]
+
+    seed_domain = urllib.parse.urlparse(seed).netloc
+    visited: set = set()
+    result: List[str] = []
+    frontier = [seed]
+
+    for hop in range(depth + 1):
+        if not frontier or len(result) >= max_urls:
+            break
+        next_frontier: List[str] = []
+        for url in frontier:
+            if url in visited or len(result) >= max_urls:
+                continue
+            visited.add(url)
+            result.append(url)
+            if hop < depth:
+                try:
+                    raw = fetch_url(url)
+                    if raw:
+                        parser = _LinkParser(url, seed_domain)
+                        parser.feed(raw if isinstance(raw, str) else raw.decode("utf-8", errors="replace"))
+                        for lnk in parser.links:
+                            if lnk not in visited:
+                                next_frontier.append(lnk)
+                except Exception:
+                    pass
+        frontier = next_frontier
+
+    return result[:max_urls]
+
+
 def fetch_urls_to_dir(
     urls: List[str],
     *,
     target_dir: Path,
     follow_links: bool = False,
+    depth: int = 1,
     max_urls: int = 20,
 ) -> int:
     """Fetch URL(s) as clean markdown into target_dir.
@@ -556,6 +620,9 @@ def fetch_urls_to_dir(
     stripping). PDFs at direct .pdf URLs are downloaded as-is.
     Each page becomes a .md file with YAML front-matter (title +
     source_url) so the existing load_sources pipeline picks it up.
+
+    follow_links=True crawls same-domain links up to `depth` hops
+    (depth=1 = seed + all links on seed page; depth=0 = seed only).
 
     Returns the count of files written. Raises ImportError if
     trafilatura is not installed (pip install 'neuro-os[scrape]').
@@ -574,13 +641,8 @@ def fetch_urls_to_dir(
     all_urls: List[str] = []
     for url in urls:
         if follow_links:
-            try:
-                from trafilatura.spider import focused_crawler
-                _, done = focused_crawler(url, max_seen_urls=max_urls, max_known_urls=max_urls * 5)
-                discovered = [url] + [u for u in done if u != url]
-                all_urls.extend(discovered[:max_urls])
-            except Exception:
-                all_urls.append(url)
+            discovered = _bfs_crawl(url, depth=depth, max_urls=max_urls)
+            all_urls.extend(discovered)
         else:
             all_urls.append(url)
 
