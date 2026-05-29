@@ -477,9 +477,15 @@
       if (r.error) {
         showResult(result, false, "Failed: " + r.error);
       } else {
-        const scanned = r.sources_scanned ?? 1;
-        showResult(result, true,
-          `✓ Fetched ${scanned} page${scanned === 1 ? "" : "s"}. ${r.proposals_emitted} proposal${r.proposals_emitted === 1 ? "" : "s"} added.`);
+        const scanned = r.sources_scanned ?? 0;
+        const skipped = r.sources_skipped_unchanged ?? 0;
+        let msg;
+        if (skipped > 0 && scanned === 0) {
+          msg = `↩ Already in knowledge base (${skipped} page${skipped === 1 ? "" : "s"} unchanged). ${r.proposals_emitted} new proposal${r.proposals_emitted === 1 ? "" : "s"}.`;
+        } else {
+          msg = `✓ Fetched ${scanned} page${scanned === 1 ? "" : "s"}. ${r.proposals_emitted} proposal${r.proposals_emitted === 1 ? "" : "s"} added.`;
+        }
+        showResult(result, true, msg);
         refreshState();
       }
     } catch (err) {
