@@ -31,7 +31,7 @@
       margin: 0; padding: 0; height: 100%;
       background: var(--bg); color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-      font-size: 16px;
+      font-size: 18px;
     }
 
     .layout {
@@ -50,15 +50,15 @@
       gap: 18px;
     }
     header.top h1 {
-      font-size: 16px; font-weight: 500; margin: 0;
+      font-size: 18px; font-weight: 500; margin: 0;
       letter-spacing: -0.2px;
     }
     header.top .sub {
-      color: var(--text-dim); font-size: 14px;
+      color: var(--text-dim); font-size: 16px;
     }
     header.top .pill {
       margin-left: auto;
-      font-size: 13px;
+      font-size: 14px;
       padding: 4px 10px;
       background: var(--panel-2);
       border: 1px solid var(--border);
@@ -69,7 +69,7 @@
     header.top .pill.amber { color: var(--amber); border-color: var(--amber); }
     header.top .help-link {
       margin-left: 8px;
-      font-size: 16px;
+      font-size: 18px;
       color: var(--text-faint);
       text-decoration: none;
       width: 22px; height: 22px;
@@ -82,7 +82,7 @@
 
     /* L0/L1/L2 legend at top of tree */
     .legend {
-      font-size: 13px; color: var(--text-dim);
+      font-size: 14px; color: var(--text-dim);
       margin-bottom: 14px;
       padding: 8px 12px;
       background: var(--panel);
@@ -92,7 +92,7 @@
     }
     .legend code {
       background: var(--panel-2); padding: 1px 5px; border-radius: 3px;
-      font-size: 13px; color: var(--text);
+      font-size: 14px; color: var(--text);
     }
     .legend .key { color: var(--text); font-weight: 500; }
 
@@ -107,16 +107,16 @@
       display: none; align-items: center; gap: 12px;
       box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
       z-index: 200;
-      font-size: 15px;
+      font-size: 16px;
     }
     .undo-banner.open { display: flex; }
     .undo-banner button {
       background: var(--accent); border: none; color: white;
       padding: 5px 12px; border-radius: 4px;
-      font: inherit; font-size: 14px; cursor: pointer;
+      font: inherit; font-size: 16px; cursor: pointer;
     }
     .undo-banner .timer {
-      color: var(--text-faint); font-size: 13px;
+      color: var(--text-faint); font-size: 14px;
     }
 
     main.tree {
@@ -132,7 +132,7 @@
     .empty h2 { color: var(--text); font-weight: 500; font-size: 18px; }
     .empty code {
       background: var(--panel-2); padding: 2px 6px; border-radius: 4px;
-      font-size: 15px;
+      font-size: 16px;
     }
 
     /* Level 0 row — the cores */
@@ -158,20 +158,20 @@
       box-shadow: 0 0 0 1px var(--accent);
     }
     .l0-node .tag {
-      font-size: 12px; letter-spacing: 0.4px; color: var(--text-faint);
+      font-size: 13px; letter-spacing: 0.4px; color: var(--text-faint);
       text-transform: uppercase; margin-bottom: 4px;
     }
     .l0-node .label {
-      font-size: 15px; font-weight: 500; line-height: 1.35;
+      font-size: 16px; font-weight: 500; line-height: 1.35;
       margin-bottom: 6px;
     }
     .l0-node .one-sentence {
-      font-size: 13px; color: var(--text-dim); line-height: 1.4;
+      font-size: 14px; color: var(--text-dim); line-height: 1.4;
     }
     .l0-node .badge-count {
       position: absolute;
       top: 8px; right: 10px;
-      font-size: 12px;
+      font-size: 13px;
       background: var(--panel-3);
       color: var(--text-faint);
       padding: 2px 6px;
@@ -199,7 +199,7 @@
       margin-bottom: 16px;
     }
     .l1-region h3 {
-      font-size: 13px; font-weight: 600; letter-spacing: 0.6px;
+      font-size: 14px; font-weight: 600; letter-spacing: 0.6px;
       color: var(--text-dim); text-transform: uppercase;
       margin: 0 0 10px 0;
     }
@@ -214,17 +214,17 @@
       border: 1px solid var(--border);
       border-radius: 5px;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 16px;
       line-height: 1.4;
       position: relative;
     }
     .l1-node:hover { border-color: var(--border-strong); }
     .l1-node.active { border-color: var(--accent); }
     .l1-node .label { font-weight: 500; margin-bottom: 4px; }
-    .l1-node .one-sentence { color: var(--text-dim); font-size: 13px; }
+    .l1-node .one-sentence { color: var(--text-dim); font-size: 14px; }
     .l1-node .l2-count {
       position: absolute; top: 8px; right: 10px;
-      font-size: 12px; color: var(--text-faint);
+      font-size: 13px; color: var(--text-faint);
     }
     .l1-node.expressed::before {
       content: ""; position: absolute; top: 8px; left: 8px;
@@ -242,7 +242,7 @@
       gap: 6px;
     }
     .l2-node {
-      font-size: 13px;
+      font-size: 14px;
       padding: 6px 10px;
       background: var(--panel-3);
       border: 1px solid var(--border);
@@ -268,7 +268,7 @@
       flex: 1;
       background: none; border: none;
       color: var(--text-dim);
-      font: inherit; font-size: 14px;
+      font: inherit; font-size: 16px;
       padding: 12px 8px; cursor: pointer;
       border-bottom: 2px solid transparent;
     }
@@ -277,23 +277,23 @@
     }
     .side-body { flex: 1; overflow-y: auto; padding: 16px; }
 
-    .detail-row { margin-bottom: 14px; font-size: 14px; line-height: 1.5; }
+    .detail-row { margin-bottom: 14px; font-size: 16px; line-height: 1.5; }
     .detail-row .k {
-      font-size: 12px; letter-spacing: 0.4px;
+      font-size: 13px; letter-spacing: 0.4px;
       color: var(--text-faint); text-transform: uppercase;
       margin-bottom: 3px;
     }
     .detail-row .v { color: var(--text); word-break: break-word; }
     .detail-row .v code {
       background: var(--panel-2); padding: 1px 5px; border-radius: 3px;
-      font-size: 13px;
+      font-size: 14px;
     }
 
     .btn {
       display: inline-block;
       background: var(--accent); border: none; color: white;
       border-radius: 6px; padding: 8px 14px;
-      font: inherit; font-size: 15px;
+      font: inherit; font-size: 16px;
       cursor: pointer;
     }
     .btn.secondary {
@@ -313,7 +313,7 @@
       border-radius: 5px;
       margin-bottom: 10px;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 16px;
     }
     .expression-card:hover { border-color: var(--border-strong); }
     .expression-card .row {
@@ -323,18 +323,18 @@
       display: inline-block;
       padding: 1px 7px; border-radius: 8px;
       background: var(--panel-3); color: var(--text);
-      font-size: 12px; letter-spacing: 0.3px;
+      font-size: 13px; letter-spacing: 0.3px;
       text-transform: uppercase;
     }
     .expression-card .title { font-weight: 500; color: var(--text); }
     .expression-card .meta {
-      color: var(--text-faint); font-size: 13px;
+      color: var(--text-faint); font-size: 14px;
     }
     .expression-card .revealed {
-      color: var(--green); font-size: 13px;
+      color: var(--green); font-size: 14px;
     }
     .expression-card .unrevealed {
-      color: var(--amber); font-size: 13px;
+      color: var(--amber); font-size: 14px;
     }
 
     /* Modal */
@@ -360,7 +360,7 @@
       display: flex; align-items: center;
     }
     .modal header h3 {
-      margin: 0; font-size: 15px; font-weight: 500;
+      margin: 0; font-size: 16px; font-weight: 500;
     }
     .modal header .close {
       margin-left: auto;
@@ -377,14 +377,14 @@
 
     .field { margin-bottom: 14px; }
     .field label {
-      display: block; font-size: 13px; letter-spacing: 0.4px;
+      display: block; font-size: 14px; letter-spacing: 0.4px;
       color: var(--text-dim); text-transform: uppercase;
       margin-bottom: 6px;
     }
     .field input, .field select, .field textarea {
       width: 100%;
       background: var(--panel-2); border: 1px solid var(--border);
-      color: var(--text); font: inherit; font-size: 15px;
+      color: var(--text); font: inherit; font-size: 16px;
       padding: 9px 11px; border-radius: 5px; outline: none;
     }
     .field textarea { min-height: 100px; resize: vertical; }
@@ -392,20 +392,20 @@
       border-color: var(--accent);
     }
     .field .help {
-      color: var(--text-faint); font-size: 13px; margin-top: 4px;
+      color: var(--text-faint); font-size: 14px; margin-top: 4px;
     }
 
     .chat-bubble {
       background: var(--panel-2); border: 1px solid var(--border);
       border-radius: 6px;
       padding: 11px 13px;
-      font-size: 15px; line-height: 1.55;
+      font-size: 16px; line-height: 1.55;
       margin-bottom: 10px;
       white-space: pre-wrap;
     }
     .chat-bubble.user { background: var(--accent); color: white; border-color: var(--accent); }
     .chat-meta {
-      font-size: 13px; color: var(--text-faint); margin-bottom: 8px;
+      font-size: 14px; color: var(--text-faint); margin-bottom: 8px;
     }
 
     .err {
@@ -413,16 +413,16 @@
       border: 1px solid var(--red);
       color: var(--red);
       padding: 10px 12px; border-radius: 5px;
-      font-size: 14px;
+      font-size: 16px;
       margin-bottom: 12px;
     }
-    .topnav { display: flex; align-items: center; gap: 0; background: var(--panel); border-bottom: 1px solid var(--border); padding: 0 16px; height: 40px; font-size: 14px; flex-shrink: 0; }
+    .topnav { display: flex; align-items: center; gap: 0; background: var(--panel); border-bottom: 1px solid var(--border); padding: 0 16px; height: 40px; font-size: 16px; flex-shrink: 0; }
     .topnav .brand { font-weight: 600; color: var(--text); text-decoration: none; padding-right: 12px; margin-right: 4px; border-right: 1px solid var(--border); }
     .topnav a.nav-link { color: var(--text-dim); text-decoration: none; padding: 0 10px; height: 40px; display: flex; align-items: center; border-bottom: 2px solid transparent; white-space: nowrap; }
     .topnav a.nav-link:hover { color: var(--text); }
     .topnav a.nav-link.active { color: var(--text); border-bottom-color: var(--accent); }
     .topnav .spacer { flex: 1; }
-    .topnav .next-btn { background: var(--accent); color: #fff; text-decoration: none; padding: 5px 12px; border-radius: 5px; font-size: 14px; font-weight: 500; white-space: nowrap; }
+    .topnav .next-btn { background: var(--accent); color: #fff; text-decoration: none; padding: 5px 12px; border-radius: 5px; font-size: 16px; font-weight: 500; white-space: nowrap; }
     .topnav .next-btn:hover { background: #79b8ff; color: #fff; }
   </style>
 </head>
@@ -481,7 +481,7 @@
         </div>
         <div class="field">
           <label for="express-modality">Modality
-            <span style="float:right; color:var(--text-faint); font-size: 12px; text-transform:none"
+            <span style="float:right; color:var(--text-faint); font-size: 13px; text-transform:none"
                   id="modality-hint">hover an option for what each reveals</span>
           </label>
           <select id="express-modality" onchange="updateModalityHint()">
@@ -503,7 +503,7 @@
         </div>
         <div class="field">
           <label for="express-content">Content
-            <button class="btn secondary" style="float:right; padding: 3px 8px; font-size: 13px"
+            <button class="btn secondary" style="float:right; padding: 3px 8px; font-size: 14px"
                     type="button" onclick="brainstormExpress()">Brainstorm with AI</button>
           </label>
           <textarea id="express-content" rows="6"
@@ -538,7 +538,7 @@
         </div>
         <div class="field">
           <label>Interview <span style="color:var(--text-faint)">(optional, helps articulate)</span>
-            <button class="btn secondary" style="float:right; padding: 3px 8px; font-size: 13px"
+            <button class="btn secondary" style="float:right; padding: 3px 8px; font-size: 14px"
                     type="button" onclick="interviewReveal('probe')">Ask a question</button>
           </label>
           <div id="interview-history"></div>
@@ -789,7 +789,7 @@
 
       const node = activeNode();
       if (!node) {
-        body.innerHTML = `<div style="color:var(--text-dim); font-size: 14px">Click a node in the tree to see details.</div>`;
+        body.innerHTML = `<div style="color:var(--text-dim); font-size: 16px">Click a node in the tree to see details.</div>`;
         return;
       }
       const nodeExpressions = state.expressions.filter(e => e.source_node_id === node.node_id);
@@ -830,7 +830,7 @@
 
     function renderExpressions(body) {
       if (!state.expressions.length) {
-        body.innerHTML = `<div style="color:var(--text-dim); font-size: 14px">No expressions yet. Click a node in the tree and use "Express this".</div>`;
+        body.innerHTML = `<div style="color:var(--text-dim); font-size: 16px">No expressions yet. Click a node in the tree and use "Express this".</div>`;
         return;
       }
       body.innerHTML = "";
