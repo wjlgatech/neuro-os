@@ -25,15 +25,15 @@
       margin: 0; padding: 0; min-height: 100%;
       background: var(--bg); color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-      font-size: 14px; line-height: 1.55;
+      font-size: 16px; line-height: 1.55;
     }
     .page { max-width: 1080px; margin: 0 auto; padding: 36px 28px 60px 28px; }
 
-    .crumbs { font-size: 12px; color: var(--text-dim); margin-bottom: 6px; }
+    .crumbs { font-size: 14px; color: var(--text-dim); margin-bottom: 6px; }
     .crumbs a { color: var(--text-dim); text-decoration: none; border-bottom: 1px dotted var(--text-faint); }
     .crumbs a:hover { color: var(--text); }
     h1 { font-size: 24px; font-weight: 500; letter-spacing: -0.2px; margin: 0 0 4px 0; }
-    .tagline { color: var(--text-dim); font-size: 13px; margin-bottom: 22px; }
+    .tagline { color: var(--text-dim); font-size: 15px; margin-bottom: 22px; }
 
     /* Pipeline strip */
     .strip {
@@ -46,7 +46,7 @@
       border-radius: 10px; padding: 12px 14px;
     }
     .strip-cell h3 {
-      font-size: 10px; font-weight: 600; letter-spacing: 0.6px;
+      font-size: 12px; font-weight: 600; letter-spacing: 0.6px;
       color: var(--text-dim); text-transform: uppercase;
       margin: 0 0 4px 0;
     }
@@ -54,7 +54,7 @@
       font-size: 22px; font-weight: 600; letter-spacing: -0.3px;
     }
     .strip-cell .sub {
-      font-size: 11px; color: var(--text-faint); margin-top: 2px;
+      font-size: 13px; color: var(--text-faint); margin-top: 2px;
     }
 
     /* Sections */
@@ -68,16 +68,16 @@
       display: flex; align-items: center; gap: 8px;
     }
     section.block .pill {
-      font-size: 10px; padding: 2px 8px; border-radius: 10px;
+      font-size: 12px; padding: 2px 8px; border-radius: 10px;
       background: var(--panel-2); border: 1px solid var(--border);
       color: var(--text-dim); font-weight: 500;
     }
     section.block .what {
-      font-size: 12px; color: var(--text-dim); margin: 4px 0 14px 0;
+      font-size: 14px; color: var(--text-dim); margin: 4px 0 14px 0;
     }
     section.block .what code {
       color: var(--accent); background: var(--panel-2);
-      padding: 1px 6px; border-radius: 4px; font-size: 11px;
+      padding: 1px 6px; border-radius: 4px; font-size: 13px;
     }
 
     /* Ingest form */
@@ -89,30 +89,30 @@
       border-radius: 8px; padding: 14px 14px 12px 14px;
     }
     .mode label.title {
-      font-size: 13px; font-weight: 600; display: block; margin-bottom: 4px;
+      font-size: 15px; font-weight: 600; display: block; margin-bottom: 4px;
     }
     .mode .explain {
-      font-size: 11px; color: var(--text-faint);
+      font-size: 13px; color: var(--text-faint);
       margin-bottom: 10px; line-height: 1.55;
     }
     .mode .explain b { color: var(--text-dim); font-weight: 500; }
     .mode .explain code {
       color: var(--accent); background: var(--bg);
-      padding: 1px 5px; border-radius: 4px; font-size: 11px;
+      padding: 1px 5px; border-radius: 4px; font-size: 13px;
     }
     .mode input[type="text"], .mode textarea {
       width: 100%; background: var(--bg); color: var(--text);
       border: 1px solid var(--border); border-radius: 6px;
-      padding: 8px 10px; font: inherit; font-size: 12px;
+      padding: 8px 10px; font: inherit; font-size: 14px;
     }
     .mode textarea { min-height: 110px; resize: vertical; }
     .mode .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .mode .row label { font-size: 11px; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
+    .mode .row label { font-size: 13px; color: var(--text-dim); display: flex; align-items: center; gap: 6px; }
 
     .btn {
       background: transparent; border: 1px solid var(--green-line);
       color: var(--green); padding: 8px 14px; border-radius: 8px;
-      font: inherit; font-size: 12px; cursor: pointer;
+      font: inherit; font-size: 14px; cursor: pointer;
       transition: background 120ms;
     }
     .btn:hover:enabled { background: rgba(46, 160, 67, 0.10); }
@@ -120,10 +120,10 @@
     .btn.muted { color: var(--text); border-color: var(--border); }
     .btn.muted:hover:enabled { background: var(--panel-2); }
     .btn-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
-    .btn-row .status { font-size: 11px; color: var(--text-dim); }
+    .btn-row .status { font-size: 13px; color: var(--text-dim); }
 
     .result {
-      margin-top: 10px; font-size: 12px;
+      margin-top: 10px; font-size: 14px;
       padding: 10px 12px; border-radius: 6px;
       background: var(--bg); border: 1px solid var(--border);
       display: none; white-space: pre-wrap; line-height: 1.5;
@@ -134,7 +134,7 @@
     /* Lists (compress / review summaries) */
     ul.compact { list-style: none; padding: 0; margin: 10px 0 0 0; }
     ul.compact li {
-      font-size: 12px; padding: 6px 0; border-top: 1px solid var(--border);
+      font-size: 14px; padding: 6px 0; border-top: 1px solid var(--border);
       display: flex; justify-content: space-between; gap: 10px; align-items: baseline;
     }
     ul.compact li:first-child { border-top: none; }
@@ -143,18 +143,18 @@
 
     /* Footer */
     footer {
-      margin-top: 28px; font-size: 11px; color: var(--text-faint);
+      margin-top: 28px; font-size: 13px; color: var(--text-faint);
       text-align: center;
     }
     footer a { color: var(--text-dim); text-decoration: none; margin: 0 8px; }
     footer a:hover { color: var(--text); }
-    .topnav { display: flex; align-items: center; gap: 0; background: var(--panel); border-bottom: 1px solid var(--border); padding: 0 16px; height: 40px; font-size: 12px; margin: -36px -28px 24px -28px; }
+    .topnav { display: flex; align-items: center; gap: 0; background: var(--panel); border-bottom: 1px solid var(--border); padding: 0 16px; height: 40px; font-size: 14px; margin: -36px -28px 24px -28px; }
     .topnav .brand { font-weight: 600; color: var(--text); text-decoration: none; padding-right: 12px; margin-right: 4px; border-right: 1px solid var(--border); }
     .topnav a.nav-link { color: var(--text-dim); text-decoration: none; padding: 0 10px; height: 40px; display: flex; align-items: center; border-bottom: 2px solid transparent; white-space: nowrap; }
     .topnav a.nav-link:hover { color: var(--text); }
     .topnav a.nav-link.active { color: var(--text); border-bottom-color: var(--accent); }
     .topnav .spacer { flex: 1; }
-    .topnav .next-btn { background: var(--accent); color: #fff; text-decoration: none; padding: 5px 12px; border-radius: 5px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+    .topnav .next-btn { background: var(--accent); color: #fff; text-decoration: none; padding: 5px 12px; border-radius: 5px; font-size: 14px; font-weight: 500; white-space: nowrap; }
     .topnav .next-btn:hover { background: #79b8ff; color: #fff; }
   </style>
 </head>
@@ -251,12 +251,12 @@
             <label style="gap:6px;">
               Depth
               <input type="number" id="ingest-depth" value="1" min="0" max="3"
-                style="width:52px; padding:3px 6px; font-size:12px; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:4px;">
+                style="width:52px; padding:3px 6px; font-size: 14px; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:4px;">
             </label>
             <label style="gap:6px;">
               Max pages
               <input type="number" id="ingest-max-urls" value="20" min="1" max="100"
-                style="width:60px; padding:3px 6px; font-size:12px; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:4px;">
+                style="width:60px; padding:3px 6px; font-size: 14px; background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:4px;">
             </label>
           </div>
           <div class="btn-row">
