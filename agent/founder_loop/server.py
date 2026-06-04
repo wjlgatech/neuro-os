@@ -970,6 +970,11 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
                 llm_fn=llm_fn,
                 home=home,
             )
+            # Gap 1 — append to ingestion_runs.jsonl so UI-driven ingests
+            # appear in the run log alongside CLI ingests.
+            from agent.research.gbrain_adapter import append_run_log
+            append_run_log(run, home=home)
+
             # Open a pipeline run and record the ingest stage so downstream
             # compress/express calls can attach to the same run.
             if home is not None:
@@ -1809,13 +1814,42 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
 
     def _research_review_data(self) -> None:
         """Return pending + recently-resolved (accepted/rejected, last 20)
-        MechanismCardProposals as JSON so the review UI can render them."""
-        from agent.research.proposals import list_proposals
+        MechanismCardProposals as JSON so the review UI can render them.
+
+        Each proposal carries a ``mechanism_hash`` (computed lazily — not
+        stored on disk) and a ``near_duplicate_proposal_ids`` list of
+        other proposals (any status) sharing the same hash. Lets the UI
+        render a "≈ similar to X" badge across papers (Gap 3)."""
+        from agent.research.proposals import (
+            list_proposals, proposal_hash,
+        )
 
         home = self._research_home()
         pending = list_proposals(home=home, status="pending")
         accepted = list_proposals(home=home, status="accepted")
         rejected = list_proposals(home=home, status="rejected")
+
+        # Group every proposal by mechanism_hash so we can surface near-
+        # duplicates regardless of where they live (pending/accepted/rejected).
+        hash_index: Dict[str, List[Dict[str, str]]] = {}
+        for prop in pending + accepted + rejected:
+            h = proposal_hash(prop)
+            hash_index.setdefault(h, []).append({
+                "proposal_id": prop.proposal_id,
+                "status": prop.status,
+                "paper_title": prop.paper_title,
+            })
+
+        def _enrich(p) -> Dict[str, Any]:
+            obj = json.loads(p.model_dump_json())
+            h = proposal_hash(p)
+            obj["mechanism_hash"] = h
+            obj["near_duplicate_proposal_ids"] = [
+                entry for entry in hash_index.get(h, [])
+                if entry["proposal_id"] != p.proposal_id
+            ]
+            return obj
+
         # Newest-first by proposed_at
         accepted_recent = sorted(
             accepted, key=lambda p: p.proposed_at, reverse=True,
@@ -1824,9 +1858,9 @@ class FounderLoopHandler(BaseHTTPRequestHandler):
             rejected, key=lambda p: p.proposed_at, reverse=True,
         )[:20]
         self._send_json(200, {
-            "pending": [json.loads(p.model_dump_json()) for p in pending],
-            "recently_accepted": [json.loads(p.model_dump_json()) for p in accepted_recent],
-            "recently_rejected": [json.loads(p.model_dump_json()) for p in rejected_recent],
+            "pending": [_enrich(p) for p in pending],
+            "recently_accepted": [_enrich(p) for p in accepted_recent],
+            "recently_rejected": [_enrich(p) for p in rejected_recent],
         })
 
     def _research_review_accept(self) -> None:

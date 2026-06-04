@@ -153,6 +153,25 @@
       color: var(--text-faint);
     }
 
+    /* Near-duplicate badge — surfaces when this proposal shares a
+       mechanism hash with another proposal (any status, any paper). */
+    .dup-row {
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--amber);
+      display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    }
+    .dup-row .dup-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 7px; border-radius: 4px;
+      background: rgba(210, 153, 34, 0.10);
+      border: 1px solid rgba(210, 153, 34, 0.35);
+      color: var(--amber);
+      font-size: 10px;
+    }
+    .dup-row .dup-tag.is-accepted { color: var(--green); border-color: rgba(46, 160, 67, 0.45); background: rgba(46, 160, 67, 0.08); }
+    .dup-row .dup-tag.is-rejected { color: var(--text-faint); border-color: var(--border); background: var(--panel-2); }
+
     .proposal-body {
       display: none;
       margin-top: 14px;
@@ -505,6 +524,7 @@
             </div>
             <div class="paper-title"></div>
             <div class="one-sentence" id="one-sentence-${escapeHtml(p.proposal_id)}"></div>
+            <div class="dup-row" style="display:none"></div>
           </div>
           ${verdictBadge}
         </div>
@@ -554,6 +574,34 @@
       if (p.transferability_test) card.querySelector("#d-tt").textContent = p.transferability_test;
       if (p.reasoning) card.querySelector("#d-reasoning").textContent = p.reasoning;
       card.querySelector("#d-excerpt").textContent = p.source_excerpt || "(no excerpt)";
+
+      // Near-duplicate badge — Gap 3 of the alignment-audit follow-up.
+      // The server attaches near_duplicate_proposal_ids (list of {id,status,
+      // paper_title}) for any proposal that shares a mechanism hash.
+      const dupRow = card.querySelector(".dup-row");
+      const dups = Array.isArray(p.near_duplicate_proposal_ids)
+        ? p.near_duplicate_proposal_ids : [];
+      if (dups.length) {
+        dupRow.style.display = "flex";
+        dupRow.innerHTML = "";
+        const lead = document.createElement("span");
+        lead.textContent = "≈ similar mechanism in:";
+        dupRow.appendChild(lead);
+        dups.slice(0, 4).forEach((d) => {
+          const tag = document.createElement("span");
+          tag.className = "dup-tag is-" + (d.status || "pending");
+          tag.textContent = (d.paper_title || d.proposal_id).slice(0, 40)
+            + " (" + (d.status || "pending") + ")";
+          tag.title = d.proposal_id;
+          dupRow.appendChild(tag);
+        });
+        if (dups.length > 4) {
+          const more = document.createElement("span");
+          more.className = "dup-tag";
+          more.textContent = "+" + (dups.length - 4) + " more";
+          dupRow.appendChild(more);
+        }
+      }
 
       // Click-to-expand
       card.querySelector(".proposal-head").addEventListener("click", () => {

@@ -168,7 +168,10 @@ def load_sources(
     """Walk ``source_dir``, build ``RawSource`` for each supported file,
     skip files whose sha256 already appears in any proposal status dir.
 
-    Returns ``(sources, skipped_unchanged_count)``.
+    Returns ``(sources, skipped_unchanged_count)``. Files that fail to
+    read (e.g. PDF when ``pypdf`` is not installed) are tracked on the
+    module attribute ``last_read_failures`` so callers can surface them
+    to users instead of silently dropping them.
     """
     if not source_dir.exists():
         raise FileNotFoundError(f"source dir not found: {source_dir}")
@@ -178,6 +181,7 @@ def load_sources(
     existing = _existing_source_ids(home)
     sources: List[RawSource] = []
     skipped = 0
+    read_failures: List[tuple[str, str]] = []
 
     for path in sorted(source_dir.iterdir()):
         if not path.is_file():
@@ -192,6 +196,7 @@ def load_sources(
             logger.warning(
                 "ingest.load_sources: failed to read %s (%s); skipping", path, e,
             )
+            read_failures.append((path.name, str(e)))
             continue
 
         meta_yaml, body = _parse_front_matter(text)
@@ -218,6 +223,9 @@ def load_sources(
             word_count=len(body.split()),
             sha256=sha,
         ))
+    # Expose read failures to the caller (HTTP handler reads this).
+    # Module-level attribute so we don't change the signature.
+    load_sources.last_read_failures = read_failures  # type: ignore[attr-defined]
     return (sources, skipped)
 
 
@@ -436,6 +444,11 @@ def extract_mechanisms(
                 "ingest.extract_mechanisms: llm_fn failed for %s (%s); "
                 "falling back to heuristic", source.source_id, e,
             )
+            # Surface the failure so callers can show it to users
+            # (the HTTP handler reads this).
+            fails = getattr(extract_mechanisms, "last_llm_errors", [])
+            fails.append((source.source_id, str(e)))
+            extract_mechanisms.last_llm_errors = fails  # type: ignore[attr-defined]
             raw_rows = _heuristic_extract(body_trimmed)
             method = "fallback-heuristic"
             model = None
@@ -511,6 +524,10 @@ def ingest(
     tests that need exactly-one llm_fn call per source.
     """
     started = now or datetime.now(timezone.utc)
+    # Reset per-run diagnostic attrs so callers see only THIS run's
+    # failures, not a stale accumulation.
+    load_sources.last_read_failures = []  # type: ignore[attr-defined]
+    extract_mechanisms.last_llm_errors = []  # type: ignore[attr-defined]
     sources, skipped = load_sources(source_dir, home=home)
 
     if framework is None:
@@ -524,8 +541,25 @@ def ingest(
             multi_persona=multi_persona,
         ))
 
+    # Gap 2 — proposal-level dedup. Compute the set of mechanism hashes
+    # already on disk (pending + accepted) ONCE, then skip any new
+    # proposal whose normalized (mechanism, invariant) hash collides.
+    # Also dedup against earlier proposals within this same run.
+    from agent.research.proposals import (
+        existing_mechanism_hashes,
+        proposal_hash,
+    )
+    seen_hashes = existing_mechanism_hashes(home=home)
+    proposals_written: List[MechanismCardProposal] = []
+    skipped_duplicate = 0
     for prop in all_proposals:
+        h = proposal_hash(prop)
+        if h in seen_hashes:
+            skipped_duplicate += 1
+            continue
+        seen_hashes.add(h)
         write_proposal(prop, home=home)
+        proposals_written.append(prop)
 
     finished = datetime.now(timezone.utc)
     used_method = (
@@ -537,7 +571,8 @@ def ingest(
         finished_at=finished,
         sources_scanned=len(sources),
         sources_skipped_unchanged=skipped,
-        proposals_emitted=len(all_proposals),
+        proposals_emitted=len(proposals_written),
+        proposals_skipped_duplicate=skipped_duplicate,
         extraction_method=used_method,
         cost_usd_estimate=0.0,  # llm_fn callers wire real cost; v0 default 0
     )

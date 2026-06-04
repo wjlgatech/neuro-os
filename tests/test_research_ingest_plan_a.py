@@ -368,12 +368,16 @@ def test_ingest_end_to_end_with_llm_fn(tmp_path):
     run = ingest(source_dir=src_dir, llm_fn=llm_fn, home=home, now=NOW)
     assert run.sources_scanned == 2
     assert run.sources_skipped_unchanged == 0
-    assert run.proposals_emitted == 2
+    # The fake llm returns identical mechanism+invariant for both sources,
+    # so the proposal-level dedup (Gap 2) correctly writes one and skips
+    # the duplicate.
+    assert run.proposals_emitted == 1
+    assert run.proposals_skipped_duplicate == 1
     assert run.extraction_method == "llm-anthropic"
     assert run.cost_usd_estimate == 0.0  # CLI wires real cost; v0 default 0
 
     pending = list_proposals(home=home, status="pending")
-    assert len(pending) == 2
+    assert len(pending) == 1
 
 
 def test_ingest_with_pdf_source(tmp_path):

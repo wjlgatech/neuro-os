@@ -21,16 +21,62 @@ truth control) intact: the sensor proposes, the user disposes.
 """
 from __future__ import annotations
 
+import hashlib
 import os
+import re
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Set
 
 from agent.research.ontology import MechanismCardProposal
 
 
 ProposalStatus = Literal["pending", "accepted", "rejected"]
+
+
+# ---------------------------------------------------------------------------
+# Mechanism-level dedup (Gap 2 + Gap 3).
+#
+# Two proposals are considered the same mechanism if their normalized
+# (mechanism, invariant) text matches exactly. Normalization: lowercased,
+# whitespace-collapsed, punctuation stripped. The hash is short (16 hex
+# chars) and stored only in memory / response payloads — no schema change.
+# ---------------------------------------------------------------------------
+
+_NORM_RE = re.compile(r"[^a-z0-9]+")
+
+
+def _normalize_text(s: str) -> str:
+    return _NORM_RE.sub(" ", (s or "").lower()).strip()
+
+
+def compute_mechanism_hash(mechanism: str, invariant: str) -> str:
+    """Stable 16-hex-char hash of (mechanism + invariant), case- and
+    whitespace-insensitive. Two proposals with the same hash describe
+    the same idea (within the limits of normalized text equality)."""
+    payload = _normalize_text(mechanism) + " || " + _normalize_text(invariant)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+
+
+def proposal_hash(p: MechanismCardProposal) -> str:
+    """Hash for a `MechanismCardProposal`. Convenience wrapper."""
+    return compute_mechanism_hash(p.mechanism, p.invariant)
+
+
+def existing_mechanism_hashes(
+    *,
+    home: Optional[Path] = None,
+    statuses: tuple = ("pending", "accepted"),
+) -> Set[str]:
+    """Return the set of mechanism hashes already on disk across the
+    given statuses. Used by ingest to skip writing a proposal whose
+    mechanism is already in the queue (or already accepted)."""
+    out: Set[str] = set()
+    for status in statuses:
+        for prop in list_proposals(home=home, status=status):
+            out.add(proposal_hash(prop))
+    return out
 
 
 def _proposals_root(home: Optional[Path] = None) -> Path:
