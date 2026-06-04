@@ -20,9 +20,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional, Set, Union
 
+from agent.founder_loop.auto_evidence import auto_check_priorities
 from agent.founder_loop.contract import (
     bind_morning_contract,
     load_latest_contract,
+    save_contract,
 )
 from agent.founder_loop.evaluate import evaluate_intent, hourly_error
 from agent.founder_loop.golden_cases import (
@@ -209,6 +211,20 @@ class FounderLoop:
 
         # 3. Compute tank against today's contract.
         contract = load_latest_contract(self.contract_path)
+
+        # 3.5 Auto-evidence: poll gh/git for priorities whose evidence_target
+        # has been satisfied externally (PR merged, commit pushed). Best-
+        # effort; on any failure the priority stays in its current state.
+        if contract is not None and not dry_run:
+            updated_priorities, flipped = auto_check_priorities(
+                contract.priorities, now=now,
+            )
+            if flipped > 0:
+                contract = contract.model_copy(
+                    update={"priorities": updated_priorities},
+                )
+                save_contract(contract, self.contract_path)
+
         all_rows = read_registry(self.registry_path)
         today_rows = filter_by_day(all_rows, now.date())
         tank = compute_tank(today_rows, contract=contract)
